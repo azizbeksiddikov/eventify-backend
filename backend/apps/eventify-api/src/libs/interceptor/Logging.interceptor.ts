@@ -14,18 +14,18 @@ export class LoggingInterceptor implements NestInterceptor {
 
 		if (requestType === 'http') {
 			const request = context.switchToHttp().getRequest();
-			this.logger.log(`HTTP Request: ${request.method} ${request.url}`, 'REQUEST');
+			this.logger.verbose(`HTTP Request: ${request.method} ${request.url}`, 'REQUEST');
 
 			return next.handle().pipe(
 				tap((response) => {
 					const responseTime = Date.now() - recordTime;
-					this.logger.log(`HTTP Response: ${JSON.stringify(response)} - ${responseTime}ms`, 'RESPONSE');
+					this.logger.verbose(`HTTP Response: ${JSON.stringify(response)} - ${responseTime}ms`, 'RESPONSE');
 				}),
 			);
 		} else if (requestType === 'graphql') {
 			// (1) Print request
 			const gqlContext = GqlExecutionContext.create(context);
-			this.logger.log(`${this.stringify(gqlContext.getContext().req.body)}`, 'REQUEST');
+			this.logger.verbose(`${this.stringify(gqlContext.getContext().req.body)}`, 'REQUEST');
 
 			// (2) Errors handling  via graphql
 
@@ -33,7 +33,7 @@ export class LoggingInterceptor implements NestInterceptor {
 			return next.handle().pipe(
 				tap((context) => {
 					const responseTime = Date.now() - recordTime;
-					this.logger.log(`${this.stringify(context)} - ${responseTime}ms \n\n`, 'RESPONSE');
+					this.logger.verbose(`${this.stringify(context)} - ${responseTime}ms \n\n`, 'RESPONSE');
 				}),
 			);
 		}

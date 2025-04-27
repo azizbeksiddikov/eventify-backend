@@ -110,3 +110,16 @@ export class EventsInquiry {
 	@Field(() => ESearch)
 	search: ESearch;
 }
+
+@InputType()
+export class OrdinaryEventInquiry {
+	@IsNotEmpty()
+	@Min(1)
+	@Field(() => Int)
+	page: number;
+
+	@IsNotEmpty()
+	@Min(1)
+	@Field(() => Int)
+	limit: number;
+}

@@ -104,3 +104,21 @@ export const lookupFollowerData = {
 		as: 'followerData',
 	},
 };
+
+export const lookupVisit = {
+	$lookup: {
+		from: 'members',
+		localField: 'visitedEvent.memberId',
+		foreignField: '_id',
+		as: 'visitedEvent.memberData',
+	},
+};
+
+export const lookupFavorite = {
+	$lookup: {
+		from: 'members',
+		localField: 'favoriteEvent.memberId',
+		foreignField: '_id',
+		as: 'favoriteEvent.memberData',
+	},
+};

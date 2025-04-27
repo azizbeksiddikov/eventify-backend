@@ -3,7 +3,7 @@ import { IsNotEmpty, IsString, IsEnum } from 'class-validator';
 import { ViewGroup } from '../../enums/view.enum';
 
 @InputType()
-export class CreateViewInput {
+export class ViewInput {
 	@Field(() => String)
 	@IsNotEmpty()
 	@IsString()

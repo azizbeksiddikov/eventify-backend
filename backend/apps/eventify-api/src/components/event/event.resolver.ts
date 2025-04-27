@@ -17,7 +17,7 @@ import { GroupMemberUpdateInput } from '../../libs/dto/groupMembers/groupMember.
 import { Message } from '../../libs/enums/common.enum';
 import { WithoutGuard } from '../auth/guards/without.guard';
 import { Event, Events } from '../../libs/dto/event/event';
-import { EventInput, EventsInquiry } from '../../libs/dto/event/event.input';
+import { EventInput, EventsInquiry, OrdinaryEventInquiry } from '../../libs/dto/event/event.input';
 import { EventUpdateInput } from '../../libs/dto/event/event.update';
 import { EventService } from './event.service';
 
@@ -46,6 +46,28 @@ export class EventResolver {
 	public async getEvents(@Args('input') input: EventsInquiry): Promise<Events> {
 		console.log('Query: getEvents');
 		return await this.eventService.getEvents(input);
+	}
+
+	@UseGuards(AuthGuard)
+	@Query(() => Events)
+	public async getFavorites(
+		@Args('input') input: OrdinaryEventInquiry,
+		@AuthMember('_id') memberId: ObjectId,
+	): Promise<Events> {
+		console.log('Query: getFavorites');
+
+		return await this.eventService.getFavorites(memberId, input);
+	}
+
+	@UseGuards(AuthGuard)
+	@Query(() => Events)
+	public async getVisited(
+		@Args('input') input: OrdinaryEventInquiry,
+		@AuthMember('_id') memberId: ObjectId,
+	): Promise<Events> {
+		console.log('Query: getVisited');
+
+		return await this.eventService.getVisited(memberId, input);
 	}
 
 	@Roles(MemberType.ORGANIZER)

@@ -35,7 +35,7 @@ class TSearch {
 }
 
 @InputType()
-export class EventsInquiry {
+export class TicketInquiry {
 	@IsNotEmpty()
 	@Min(1)
 	@Field(() => Int)

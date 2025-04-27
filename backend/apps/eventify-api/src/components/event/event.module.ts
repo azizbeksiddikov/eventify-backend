@@ -8,6 +8,8 @@ import MemberSchema from '../../schemas/Member.schema';
 import GroupSchema from '../../schemas/Group.schema';
 import { TicketModule } from '../ticket/ticket.module';
 import TicketSchema from '../../schemas/Ticket.schema';
+import { LikeModule } from '../like/like.module';
+import { ViewModule } from '../view/view.module';
 
 @Module({
 	imports: [
@@ -16,6 +18,8 @@ import TicketSchema from '../../schemas/Ticket.schema';
 		MongooseModule.forFeature([{ name: 'Group', schema: GroupSchema }]),
 		MongooseModule.forFeature([{ name: 'Ticket', schema: TicketSchema }]),
 		TicketModule,
+		LikeModule,
+		ViewModule,
 		AuthModule,
 	],
 	providers: [EventResolver, EventService],

@@ -12,7 +12,7 @@ import { GroupMemberInput } from '../../libs/dto/groupMembers/groupMember.input'
 import { GroupMemberRole } from '../../libs/enums/group.enum';
 import { GroupMemberUpdateInput } from '../../libs/dto/groupMembers/groupMember.update';
 import { Event, Events } from '../../libs/dto/event/event';
-import { EventInput, EventsInquiry } from '../../libs/dto/event/event.input';
+import { EventInput, EventsInquiry, OrdinaryEventInquiry } from '../../libs/dto/event/event.input';
 import { EventUpdateInput } from '../../libs/dto/event/event.update';
 import { EventStatus } from '../../libs/enums/event.enum';
 import { MemberType } from '../../libs/enums/member.enum';
@@ -20,6 +20,8 @@ import { Ticket } from '../../libs/dto/ticket/ticket';
 import { TicketStatus } from '../../libs/enums/ticket.enum';
 import { TicketInput } from '../../libs/dto/ticket/ticket.input';
 import { TicketService } from '../ticket/ticket.service';
+import { LikeService } from '../like/like.service';
+import { ViewService } from '../view/view.service';
 
 @Injectable()
 export class EventService {
@@ -28,6 +30,8 @@ export class EventService {
 		@InjectModel('Ticket') private readonly ticketModel: Model<Ticket>,
 		@InjectModel('Member') private readonly memberModel: Model<Member>,
 		private readonly ticketService: TicketService,
+		private readonly likeService: LikeService,
+		private readonly viewService: ViewService,
 	) {}
 
 	public async createEvent(memberId: ObjectId, input: EventInput): Promise<Event> {
@@ -151,6 +155,14 @@ export class EventService {
 
 		const ticket = await this.ticketService.cancelTicket(eventId, memberId);
 		return ticket.event;
+	}
+
+	public async getFavorites(memberId: ObjectId, input: OrdinaryEventInquiry): Promise<Events> {
+		return await this.likeService.getFavoriteEvents(memberId, input);
+	}
+
+	public async getVisited(memberId: ObjectId, input: OrdinaryEventInquiry): Promise<Events> {
+		return await this.viewService.getVisitedEvents(memberId, input);
 	}
 
 	// ADMIN ONLY

@@ -24,6 +24,7 @@ const MemberSchema = new Schema(
 		},
 		memberFullName: {
 			type: String,
+			required: true,
 		},
 		memberType: {
 			type: String,
@@ -33,9 +34,11 @@ const MemberSchema = new Schema(
 		memberPoints: {
 			type: Number,
 			default: 50,
+			min: 0,
 		},
 		memberDesc: {
 			type: String,
+			maxlength: 500,
 		},
 		memberImage: {
 			type: String,
@@ -52,20 +55,25 @@ const MemberSchema = new Schema(
 		memberLikes: {
 			type: Number,
 			default: 0,
+			min: 0,
 		},
 		memberFollowings: {
 			type: Number,
 			default: 0,
+			min: 0,
 		},
 		memberFollowers: {
 			type: Number,
 			default: 0,
+			min: 0,
 		},
 		memberViews: {
 			type: Number,
 			default: 0,
+			min: 0,
 		},
 	},
+
 	{
 		timestamps: true,
 		collection: 'members',

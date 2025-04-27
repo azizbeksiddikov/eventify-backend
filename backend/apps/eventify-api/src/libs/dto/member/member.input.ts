@@ -10,7 +10,6 @@ export class CreateMemberInput {
 
 	@Field(() => String)
 	@IsNotEmpty()
-	@IsEmail()
 	memberEmail: string;
 
 	@Field(() => String, { nullable: true })

@@ -6,10 +6,12 @@ const EventSchema = new Schema(
 		eventName: {
 			type: String,
 			required: true,
+			maxlength: 100,
 		},
 		eventDesc: {
 			type: String,
 			required: true,
+			maxlength: 2000,
 		},
 		eventDate: {
 			type: Date,
@@ -19,6 +21,7 @@ const EventSchema = new Schema(
 			type: String,
 			required: true,
 		},
+
 		eventEndTime: {
 			type: String,
 			required: true,
@@ -26,6 +29,7 @@ const EventSchema = new Schema(
 		eventAddress: {
 			type: String,
 			required: true,
+			maxlength: 500,
 		},
 		eventOrganizerId: {
 			type: Schema.Types.ObjectId,
@@ -35,10 +39,12 @@ const EventSchema = new Schema(
 		eventCapacity: {
 			type: Number,
 			required: true,
+			min: 1,
 		},
 		attendeeCount: {
 			type: Number,
 			default: 0,
+			min: 0,
 		},
 		eventImage: {
 			type: String,
@@ -60,10 +66,20 @@ const EventSchema = new Schema(
 		eventLikes: {
 			type: Number,
 			default: 0,
+			min: 0,
 		},
 		eventViews: {
 			type: Number,
 			default: 0,
+			min: 0,
+		},
+		eventPrice: {
+			type: Number,
+			default: 0,
+			min: 0,
+		},
+		eventLocation: {
+			type: String,
 		},
 	},
 	{

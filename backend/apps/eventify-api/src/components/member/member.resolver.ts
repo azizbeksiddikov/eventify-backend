@@ -15,6 +15,8 @@ import { Message } from '../../libs/enums/common.enum';
 import { Member, Members } from '../../libs/dto/member/member';
 import { LoginInput, MemberInput, MembersInquiry, OrganizersInquiry } from '../../libs/dto/member/member.input';
 import { MemberUpdateInput, PasswordUpdateInput } from '../../libs/dto/member/member.update';
+import { mkdirSync, existsSync } from 'fs';
+import { join } from 'path';
 
 @Resolver()
 export class MemberResolver {
@@ -135,7 +137,7 @@ export class MemberResolver {
 	public async imageUploader(
 		@Args({ name: 'file', type: () => GraphQLUpload })
 		{ createReadStream, filename, mimetype }: FileUpload,
-		@Args('target') target: String,
+		@Args('target') target: string,
 	): Promise<string> {
 		console.log('Mutation: imageUploader');
 
@@ -144,7 +146,13 @@ export class MemberResolver {
 		if (!validMime) throw new Error(Message.PROVIDE_ALLOWED_FORMAT);
 
 		const imageName = getSerialForImage(filename);
-		const url = `uploads/${target}/${imageName}`;
+		const targetDir = join('uploads', target);
+		const url = join(targetDir, imageName);
+
+		if (!existsSync(targetDir)) {
+			mkdirSync(targetDir, { recursive: true });
+		}
+
 		const stream = createReadStream();
 
 		const result = await new Promise((resolve, reject) => {
@@ -163,9 +171,14 @@ export class MemberResolver {
 	public async imagesUploader(
 		@Args('files', { type: () => [GraphQLUpload] })
 		files: Promise<FileUpload>[],
-		@Args('target') target: String,
+		@Args('target') target: string,
 	): Promise<string[]> {
 		console.log('Mutation: imagesUploader');
+
+		const targetDir = join('uploads', target);
+		if (!existsSync(targetDir)) {
+			mkdirSync(targetDir, { recursive: true });
+		}
 
 		const uploadedImages: string[] = [];
 		const promisedList = files.map(async (img: Promise<FileUpload>, index: number): Promise<Promise<void>> => {
@@ -176,7 +189,7 @@ export class MemberResolver {
 				if (!validMime) throw new Error(Message.PROVIDE_ALLOWED_FORMAT);
 
 				const imageName = getSerialForImage(filename);
-				const url = `uploads/${target}/${imageName}`;
+				const url = join(targetDir, imageName);
 				const stream = createReadStream();
 
 				const result = await new Promise((resolve, reject) => {

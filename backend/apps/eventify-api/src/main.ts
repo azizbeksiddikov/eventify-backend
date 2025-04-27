@@ -18,7 +18,6 @@ async function bootstrap() {
 	app.useWebSocketAdapter(new WsAdapter(app));
 
 	await app.listen(process.env.PORT_API ?? 3000);
-	console.log(`Application is running on: http://localhost:${process.env.PORT_API ?? 3000}/graphql`);
 
 	console.log(`started at http://localhost:${process.env.PORT_API ?? 3000}\n`);
 }

@@ -1,5 +1,5 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
-import { IsNotEmpty, IsOptional, Min, IsIn, IsString, IsArray, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsOptional, Min, IsIn, IsString, IsArray, IsNumber, IsEnum } from 'class-validator';
 import { MemberStatus, MemberType } from '../../enums/member.enum';
 import { Direction } from '../../enums/common.enum';
 import { availableMembersSorts, availableOrganizersSorts } from '../../config';
@@ -33,7 +33,8 @@ export class MemberInput {
 
 	@Field(() => MemberType, { defaultValue: MemberType.USER })
 	@IsOptional()
-	memberType: MemberType;
+	@IsEnum(MemberType)
+	memberType?: MemberType;
 }
 
 @InputType()

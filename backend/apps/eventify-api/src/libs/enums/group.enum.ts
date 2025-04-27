@@ -1,24 +1,27 @@
 import { registerEnumType } from '@nestjs/graphql';
 
-export enum GroupType {
-	PUBLIC = 'PUBLIC',
-	PRIVATE = 'PRIVATE',
-	RESTRICTED = 'RESTRICTED',
-}
-
 export enum GroupMemberRole {
-	ADMIN = 'ADMIN',
+	OWNER = 'OWNER',
 	MODERATOR = 'MODERATOR',
-	MEMBER = 'MEMBER',
-}
-
-export enum MemberRole {
-	ORGANIZER = 'ORGANIZER',
 	MEMBER = 'MEMBER',
 	BANNED = 'BANNED',
 }
 
+export enum GroupCategory {
+	SPORTS = 'SPORTS',
+	ART = 'ART',
+	TECHNOLOGY = 'TECHNOLOGY',
+	FOOD = 'FOOD',
+	TRAVEL = 'TRAVEL',
+	EDUCATION = 'EDUCATION',
+	HEALTH = 'HEALTH',
+	ENTERTAINMENT = 'ENTERTAINMENT',
+	BUSINESS = 'BUSINESS',
+	POLITICS = 'POLITICS',
+	RELIGION = 'RELIGION',
+	OTHER = 'OTHER',
+}
+
 // Register Group enums
-registerEnumType(GroupType, { name: 'GroupType' });
 registerEnumType(GroupMemberRole, { name: 'GroupMemberRole' });
-registerEnumType(MemberRole, { name: 'MemberRole' });
+registerEnumType(GroupCategory, { name: 'GroupCategory' });

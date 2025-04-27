@@ -1,13 +1,14 @@
 import { Field, InputType } from '@nestjs/graphql';
-import { IsOptional, IsString, IsEmail, IsNotEmpty, IsBoolean } from 'class-validator';
+import { IsOptional, IsString, IsEmail, IsNotEmpty, IsBoolean, IsEnum } from 'class-validator';
 import { MemberType, MemberStatus } from '../../enums/member.enum';
 import { ObjectId } from 'mongoose';
 
 @InputType()
-export class UpdateMemberInput {
-	@IsNotEmpty()
-	@Field(() => String)
-	_id: ObjectId;
+export class MemberUpdateInput {
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	@IsString()
+	_id?: ObjectId;
 
 	@Field(() => String, { nullable: true })
 	@IsOptional()
@@ -45,14 +46,18 @@ export class UpdateMemberInput {
 	memberImage?: string;
 
 	@Field(() => MemberStatus, { nullable: true })
+	@IsOptional()
+	@IsEnum(MemberStatus)
 	memberStatus?: MemberStatus;
 
 	@Field(() => Boolean, { nullable: true })
+	@IsOptional()
+	@IsBoolean()
 	emailVerified?: boolean;
 }
 
 @InputType()
-export class UpdatePasswordInput {
+export class PasswordUpdateInput {
 	@Field(() => String)
 	@IsNotEmpty()
 	@IsString()

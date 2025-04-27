@@ -1,42 +1,52 @@
 import { Schema } from 'mongoose';
+import { GroupCategory } from '../libs/enums/group.enum';
 
 const GroupSchema = new Schema(
 	{
+		groupLink: {
+			type: String,
+			required: true,
+			unique: true,
+		},
+
 		groupName: {
 			type: String,
 			required: true,
-			index: true,
-			maxlength: 100,
 		},
+
 		groupDesc: {
 			type: String,
 			required: true,
-			maxlength: 2000,
+			maxlength: 1000,
 		},
+
 		groupImage: {
 			type: String,
 			required: true,
 		},
-		groupViews: {
-			type: Number,
-			default: 0,
-			min: 0,
-		},
-		groupLikes: {
-			type: Number,
-			default: 0,
-			min: 0,
-		},
-		groupCategories: {
-			type: [String],
-			default: [],
-		},
-		groupAdminId: {
+
+		groupOwnerId: {
 			type: Schema.Types.ObjectId,
 			ref: 'Member',
 			required: true,
-			index: true,
 		},
+
+		groupViews: {
+			type: Number,
+			default: 0,
+		},
+
+		groupLikes: {
+			type: Number,
+			default: 0,
+		},
+
+		groupCategories: {
+			type: [String],
+			enum: GroupCategory,
+			default: [],
+		},
+
 		memberCount: {
 			type: Number,
 			default: 1,

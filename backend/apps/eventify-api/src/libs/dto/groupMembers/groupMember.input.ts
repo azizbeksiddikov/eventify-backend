@@ -1,20 +1,25 @@
+import { ObjectId } from 'mongoose';
 import { Field, InputType } from '@nestjs/graphql';
 import { IsNotEmpty, IsString } from 'class-validator';
-import { MemberRole } from '../../enums/group.enum';
+import { GroupMemberRole } from '../../enums/group.enum';
 
 @InputType()
-export class CreateGroupMemberInput {
+export class GroupMemberInput {
 	@Field(() => String)
 	@IsNotEmpty()
 	@IsString()
-	groupId: string;
+	groupId: ObjectId;
 
 	@Field(() => String)
 	@IsNotEmpty()
 	@IsString()
-	memberId: string;
+	memberId: ObjectId;
 
-	@Field(() => MemberRole)
+	@Field(() => GroupMemberRole)
 	@IsNotEmpty()
-	memberRole: MemberRole;
+	groupMemberRole: GroupMemberRole;
+
+	@Field(() => Date)
+	@IsNotEmpty()
+	joinDate: Date;
 }

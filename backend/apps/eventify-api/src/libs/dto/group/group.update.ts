@@ -11,6 +11,11 @@ export class UpdateGroupInput {
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsString()
+	groupLink?: string;
+
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	@IsString()
 	groupName?: string;
 
 	@Field(() => String, { nullable: true })

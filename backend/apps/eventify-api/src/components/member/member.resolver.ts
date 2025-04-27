@@ -14,7 +14,7 @@ import { createWriteStream } from 'fs';
 import { Message } from '../../libs/enums/common.enum';
 import { Member, Members } from '../../libs/dto/member/member';
 import { LoginInput, MemberInput, MembersInquiry, OrganizersInquiry } from '../../libs/dto/member/member.input';
-import { UpdateMemberInput, UpdatePasswordInput } from '../../libs/dto/member/member.update';
+import { MemberUpdateInput, PasswordUpdateInput } from '../../libs/dto/member/member.update';
 
 @Resolver()
 export class MemberResolver {
@@ -35,7 +35,7 @@ export class MemberResolver {
 	@UseGuards(AuthGuard)
 	@Mutation(() => Member)
 	public async updatePassword(
-		@Args('input') input: UpdatePasswordInput,
+		@Args('input') input: PasswordUpdateInput,
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<Member> {
 		console.log('Mutation: updatePassword');
@@ -46,14 +46,14 @@ export class MemberResolver {
 	@Mutation(() => Member)
 	public async resetPassword(@Args('input') input: string, @AuthMember('_id') memberId: ObjectId): Promise<Member> {
 		console.log('Mutation: resetPassword');
-		const newPassword = shapeIntoMongoObjectId(input);
-		return await this.memberService.resetPassword(memberId, newPassword);
+		console.log('memberId', memberId);
+		return await this.memberService.resetPassword(memberId, input);
 	}
 
 	@UseGuards(AuthGuard)
 	@Mutation(() => Member)
 	public async updateMember(
-		@Args('input') input: UpdateMemberInput,
+		@Args('input') input: MemberUpdateInput,
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<Member> {
 		console.log('Mutation: updateMember');
@@ -115,7 +115,7 @@ export class MemberResolver {
 	@Roles(MemberType.ADMIN)
 	@UseGuards(RolesGuard)
 	@Mutation(() => Member)
-	public async updateMemberByAdmin(@Args('input') input: UpdateMemberInput): Promise<Member> {
+	public async updateMemberByAdmin(@Args('input') input: MemberUpdateInput): Promise<Member> {
 		console.log('Mutation: updateMemberByAdmin');
 		return await this.memberService.updateMemberByAdmin(input);
 	}
@@ -135,7 +135,7 @@ export class MemberResolver {
 	public async imageUploader(
 		@Args({ name: 'file', type: () => GraphQLUpload })
 		{ createReadStream, filename, mimetype }: FileUpload,
-		@Args('target') target: string,
+		@Args('target') target: String,
 	): Promise<string> {
 		console.log('Mutation: imageUploader');
 
@@ -159,11 +159,11 @@ export class MemberResolver {
 	}
 
 	@UseGuards(AuthGuard)
-	@Mutation(() => [String])
+	@Mutation((returns) => [String])
 	public async imagesUploader(
 		@Args('files', { type: () => [GraphQLUpload] })
 		files: Promise<FileUpload>[],
-		@Args('target') target: string,
+		@Args('target') target: String,
 	): Promise<string[]> {
 		console.log('Mutation: imagesUploader');
 
@@ -188,18 +188,12 @@ export class MemberResolver {
 				if (!result) throw new Error(Message.UPLOAD_FAILED);
 
 				uploadedImages[index] = url;
-			} catch (error) {
-				console.error('File upload error:', error);
-				throw new Error(Message.UPLOAD_FAILED);
+			} catch (err) {
+				console.log('Error, file missing!');
 			}
 		});
 
-		try {
-			await Promise.all(promisedList);
-			return uploadedImages;
-		} catch (error) {
-			console.error('Batch upload error:', error);
-			throw new Error(Message.UPLOAD_FAILED);
-		}
+		await Promise.all(promisedList);
+		return uploadedImages;
 	}
 }

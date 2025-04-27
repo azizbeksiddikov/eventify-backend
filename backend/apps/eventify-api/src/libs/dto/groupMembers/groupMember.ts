@@ -1,5 +1,5 @@
 import { Field, ObjectType } from '@nestjs/graphql';
-import { MemberRole } from '../../enums/group.enum';
+import { GroupMemberRole } from '../../enums/group.enum';
 
 @ObjectType()
 export class GroupMember {
@@ -12,8 +12,8 @@ export class GroupMember {
 	@Field(() => String)
 	memberId: string;
 
-	@Field(() => MemberRole)
-	memberRole: MemberRole;
+	@Field(() => GroupMemberRole)
+	groupMemberRole: GroupMemberRole;
 
 	@Field(() => Date)
 	joinDate: Date;

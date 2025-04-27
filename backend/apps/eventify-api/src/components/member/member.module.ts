@@ -3,7 +3,7 @@ import { MemberResolver } from './member.resolver';
 import { MemberService } from './member.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import MemberSchema from '../../schemas/Member.schema';
-import FollowSchema from '../../schemas/follow.schema';
+import FollowSchema from '../../schemas/Follow.schema';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({

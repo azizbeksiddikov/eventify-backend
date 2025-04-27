@@ -7,7 +7,7 @@ import { AuthService } from '../auth/auth.service';
 import { StatisticModifier, T } from '../../libs/types/common';
 import { Member, Members } from '../../libs/dto/member/member';
 import { LoginInput, MemberInput, MembersInquiry, OrganizersInquiry } from '../../libs/dto/member/member.input';
-import { UpdateMemberInput, UpdatePasswordInput } from '../../libs/dto/member/member.update';
+import { MemberUpdateInput, PasswordUpdateInput } from '../../libs/dto/member/member.update';
 import { Follower, Following, MeFollowed } from '../../libs/dto/follow/follow';
 import { LikeGroup } from '../../libs/enums/like.enum';
 import { ViewGroup } from '../../libs/enums/view.enum';
@@ -24,15 +24,16 @@ export class MemberService {
 	public async signup(input: MemberInput): Promise<Member> {
 		try {
 			// Check if username or phone already exists
-			const existingMember = await this.memberModel.findOne({
-				$or: [{ username: input.username }, { memberPhone: input.memberPhone }],
-			});
+			const existingMember = await this.memberModel.findOne({ username: input.username });
+
 			if (existingMember) {
 				throw new BadRequestException(Message.USED_MEMBER_NICK_OR_PHONE);
 			}
 
 			input.memberPassword = await this.authService.hashPassword(input.memberPassword);
+
 			const newMember: Member = await this.memberModel.create(input);
+
 			newMember.accessToken = await this.authService.createToken(newMember);
 
 			return newMember;
@@ -62,7 +63,7 @@ export class MemberService {
 		return result;
 	}
 
-	public async updatePassword(memberId: ObjectId, input: UpdatePasswordInput): Promise<Member> {
+	public async updatePassword(memberId: ObjectId, input: PasswordUpdateInput): Promise<Member> {
 		const { currentPassword, newPassword } = input;
 
 		let result: Member | null = await this.memberModel.findById(memberId).select('+memberPassword').exec();
@@ -91,7 +92,7 @@ export class MemberService {
 		return result;
 	}
 
-	public async updateMember(memberId: ObjectId, input: UpdateMemberInput): Promise<Member> {
+	public async updateMember(memberId: ObjectId, input: MemberUpdateInput): Promise<Member> {
 		const { _id, emailVerified, memberStatus, ...otherInput } = input;
 
 		const result: Member | null = await this.memberModel.findByIdAndUpdate(memberId, otherInput, { new: true }).exec();
@@ -194,7 +195,10 @@ export class MemberService {
 		return result[0];
 	}
 
-	public async updateMemberByAdmin(input: UpdateMemberInput): Promise<Member> {
+	public async updateMemberByAdmin(input: MemberUpdateInput): Promise<Member> {
+		const { _id, ...otherInput } = input;
+		if (!_id) throw new BadRequestException(Message.NO_DATA_FOUND);
+
 		const result: Member | null = await this.memberModel.findByIdAndUpdate(input._id, input, { new: true }).exec();
 
 		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);

@@ -1,7 +1,7 @@
 import { Schema } from 'mongoose';
-import { MemberRole } from '../libs/enums/group.enum';
+import { GroupMemberRole } from '../libs/enums/group.enum';
 
-const GroupMembersSchema = new Schema(
+const GroupMemberSchema = new Schema(
 	{
 		groupId: {
 			type: Schema.Types.ObjectId,
@@ -13,23 +13,23 @@ const GroupMembersSchema = new Schema(
 			ref: 'Member',
 			required: true,
 		},
-		memberRole: {
+		groupMemberRole: {
 			type: String,
-			enum: MemberRole,
+			enum: GroupMemberRole,
 			required: true,
 		},
 		joinDate: {
 			type: Date,
-			default: Date.now,
+			required: true,
 		},
 	},
 	{
 		timestamps: true,
-		collection: 'group_members',
+		collection: 'groupMembers',
 	},
 );
 
 // Create compound index for unique groupId and memberId combination
-GroupMembersSchema.index({ groupId: 1, memberId: 1 }, { unique: true });
+GroupMemberSchema.index({ groupId: 1, memberId: 1 }, { unique: true });
 
-export default GroupMembersSchema;
+export default GroupMemberSchema;

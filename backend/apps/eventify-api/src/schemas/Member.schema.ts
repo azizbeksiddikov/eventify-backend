@@ -15,7 +15,6 @@ const MemberSchema = new Schema(
 		},
 		memberPhone: {
 			type: String,
-			unique: true,
 		},
 		memberPassword: {
 			type: String,

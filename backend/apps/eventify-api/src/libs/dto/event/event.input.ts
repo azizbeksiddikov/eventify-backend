@@ -3,6 +3,7 @@ import { IsNotEmpty, IsOptional, IsNumber, IsArray, IsEnum, IsDate, Min, MaxLeng
 import { EventStatus, EventCategory } from '../../enums/event.enum';
 import { Direction } from '../../enums/common.enum';
 import { availableEventsSorts } from '../../config';
+import { ObjectId } from 'mongoose';
 
 @InputType()
 export class EventInput {
@@ -64,7 +65,7 @@ export class EventInput {
 	// References
 	@Field(() => String)
 	@IsNotEmpty()
-	groupId: string;
+	groupId: ObjectId;
 }
 
 @InputType()

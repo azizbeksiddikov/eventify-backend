@@ -29,6 +29,7 @@ export class EventService {
 		@InjectModel('Event') private readonly eventModel: Model<Event>,
 		@InjectModel('Ticket') private readonly ticketModel: Model<Ticket>,
 		@InjectModel('Member') private readonly memberModel: Model<Member>,
+		@InjectModel('GroupMember') private readonly groupMemberModel: Model<GroupMember>,
 		private readonly ticketService: TicketService,
 		private readonly likeService: LikeService,
 		private readonly viewService: ViewService,
@@ -37,6 +38,13 @@ export class EventService {
 	public async createEvent(memberId: ObjectId, input: EventInput): Promise<Event> {
 		if (input.eventPrice <= 0) input.eventPrice = 0;
 		if (!input?.eventStatus) input.eventStatus = EventStatus.UPCOMING;
+
+		// check who is creating event, is this person a group organizer?
+
+		const groupMember = await this.groupMemberModel.findOne({ memberId, groupId: input.groupId });
+		if (!groupMember) {
+			throw new Error(Message.NOT_AUTHORIZED);
+		}
 
 		const event = await this.eventModel.create({
 			...input,

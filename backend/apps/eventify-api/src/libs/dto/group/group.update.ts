@@ -3,7 +3,7 @@ import { IsOptional, IsString, IsArray, IsNotEmpty } from 'class-validator';
 import { ObjectId } from 'mongoose';
 
 @InputType()
-export class UpdateGroupInput {
+export class GroupUpdateInput {
 	@IsNotEmpty()
 	@Field(() => String)
 	_id: ObjectId;

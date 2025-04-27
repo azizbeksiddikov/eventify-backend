@@ -58,6 +58,10 @@ export enum Message {
 	GROUP_ALREADY_JOINED = 'You are already a member of this group',
 	GROUP_ORGANIZER_CANNOT_JOIN = 'Organizers cannot join groups',
 	GROUP_MEMBER_NOT_FOUND = 'Group member not found',
+	ALREADY_JOINED = 'Member is already part of this group',
+	NOT_JOINED = 'Member is not part of this group',
+	OWNER_CANNOT_LEAVE = 'Group owner cannot leave the group',
+	DELETE_FAILED = 'Failed to delete the record',
 }
 
 export enum Direction {

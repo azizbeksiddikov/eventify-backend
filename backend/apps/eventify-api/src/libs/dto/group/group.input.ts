@@ -1,6 +1,7 @@
 import { Field, InputType } from '@nestjs/graphql';
 import { IsNotEmpty, IsString, IsOptional, IsArray, IsNumber, Min } from 'class-validator';
 import { GroupCategory } from '../../enums/group.enum';
+import { Direction } from '../../enums/common.enum';
 
 @InputType()
 export class GroupInput {
@@ -59,7 +60,7 @@ export class GroupsInquiry {
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsString()
-	direction?: string;
+	direction?: Direction;
 
 	@Field(() => GroupsSearch, { nullable: true })
 	@IsOptional()

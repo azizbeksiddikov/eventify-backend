@@ -1,0 +1,14 @@
+export enum EventStatus {
+  DRAFT = 'DRAFT',
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  CANCELLED = 'CANCELLED',
+  COMPLETED = 'COMPLETED',
+}
+
+export enum TicketStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  CANCELLED = 'CANCELLED',
+  ATTENDED = 'ATTENDED',
+} 

@@ -8,7 +8,6 @@ export enum MemberType {
 
 export enum MemberStatus {
 	ACTIVE = 'ACTIVE',
-	INACTIVE = 'INACTIVE',
 	BLOCKED = 'BLOCKED',
 }
 // Register Member enums

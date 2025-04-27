@@ -1,4 +1,4 @@
-import { Field, ObjectType } from '@nestjs/graphql';
+import { Field, Int, ObjectType } from '@nestjs/graphql';
 import { MemberType, MemberStatus } from '../../enums/member.enum';
 
 @ObjectType()
@@ -53,4 +53,26 @@ export class Member {
 
 	@Field(() => Date)
 	updatedAt: Date;
+
+	// only for login
+	memberPassword: string;
+
+	// from aggregation
+	@Field(() => String, { nullable: true })
+	accessToken?: string;
+}
+
+@ObjectType()
+export class TotalCounter {
+	@Field(() => Int, { nullable: true })
+	total?: number;
+}
+
+@ObjectType()
+export class Members {
+	@Field(() => [Member])
+	list: Member[];
+
+	@Field(() => [TotalCounter], { nullable: true })
+	metaCounter?: TotalCounter[];
 }

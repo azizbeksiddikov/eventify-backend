@@ -1,13 +1,14 @@
 import { Field, InputType } from '@nestjs/graphql';
 import { IsNotEmpty, IsString, IsEnum } from 'class-validator';
 import { LikeGroup } from '../../enums/like.enum';
+import { ObjectId } from 'mongoose';
 
 @InputType()
-export class CreateLikeInput {
+export class LikeInput {
 	@Field(() => String)
 	@IsNotEmpty()
 	@IsString()
-	memberId: string;
+	memberId: ObjectId;
 
 	@Field(() => LikeGroup)
 	@IsNotEmpty()
@@ -17,5 +18,5 @@ export class CreateLikeInput {
 	@Field(() => String)
 	@IsNotEmpty()
 	@IsString()
-	likeRefId: string;
+	likeRefId: ObjectId;
 }

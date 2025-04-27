@@ -1,22 +1,36 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
-import { TicketStatus } from '../libs/enums/common.enum';
+import { Schema } from 'mongoose';
+import { TicketStatus } from '../libs/enums/ticket.enum';
 
-export type TicketDocument = Ticket & Document;
+const TicketSchema = new Schema(
+	{
+		eventId: {
+			type: Schema.Types.ObjectId,
+			ref: 'Event',
+			required: true,
+		},
+		memberId: {
+			type: Schema.Types.ObjectId,
+			ref: 'Member',
+			required: true,
+		},
+		ticketStatus: {
+			type: String,
+			enum: TicketStatus,
+			default: TicketStatus.PURCHASED,
+			required: true,
+		},
+		ticketPrice: {
+			type: Number,
+			required: true,
+		},
+	},
+	{
+		timestamps: true,
+		collection: 'tickets',
+	},
+);
 
-@Schema({ timestamps: true })
-export class Ticket {
-	@Prop({ required: true, ref: 'Event' })
-	eventId: MongooseSchema.Types.ObjectId;
+// Create compound index for eventId and memberId
+TicketSchema.index({ eventId: 1, memberId: 1 }, { unique: true });
 
-	@Prop({ required: true, ref: 'User' })
-	memberId: MongooseSchema.Types.ObjectId;
-
-	@Prop({ type: String, enum: TicketStatus, default: TicketStatus.PURCHASED })
-	ticketStatus: TicketStatus;
-
-	@Prop({ type: Number, required: true })
-	ticketPrice: number;
-}
-
-export const TicketSchema = SchemaFactory.createForClass(Ticket);
+export default TicketSchema;

@@ -1,3 +1,5 @@
+import { registerEnumType } from '@nestjs/graphql';
+
 export enum MemberType {
 	USER = 'USER',
 	ADMIN = 'ADMIN',
@@ -9,3 +11,6 @@ export enum MemberStatus {
 	INACTIVE = 'INACTIVE',
 	BLOCKED = 'BLOCKED',
 }
+// Register Member enums
+registerEnumType(MemberType, { name: 'MemberType' });
+registerEnumType(MemberStatus, { name: 'MemberStatus' });

@@ -19,7 +19,7 @@
 		"noFallthroughCasesInSwitch": false,
 		"paths": {
 			"@app/*": ["apps/*"],
-			"@libs/*": ["libs/*"]
+			"@libs/*": ["apps/eventify-api/src/libs/*"]
 		}
 	},
 	"exclude": ["node_modules", "dist"]

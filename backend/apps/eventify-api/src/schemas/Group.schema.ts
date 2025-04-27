@@ -1,27 +1,34 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
+import { Schema } from 'mongoose';
 
-export type GroupDocument = Group & Document;
+const GroupSchema = new Schema(
+	{
+		groupName: {
+			type: String,
+			required: true,
+		},
+		groupDesc: {
+			type: String,
+		},
+		groupImage: {
+			type: String,
+		},
+		groupViews: {
+			type: Number,
+			default: 0,
+		},
+		groupLikes: {
+			type: Number,
+			default: 0,
+		},
+		groupCategories: {
+			type: [String],
+			default: [],
+		},
+	},
+	{
+		timestamps: true,
+		collection: 'groups',
+	},
+);
 
-@Schema({ timestamps: true })
-export class Group {
-	@Prop({ required: true })
-	groupName: string;
-
-	@Prop()
-	groupDesc?: string;
-
-	@Prop()
-	groupImage?: string;
-
-	@Prop({ type: Number, default: 0 })
-	groupViews: number;
-
-	@Prop({ type: Number, default: 0 })
-	groupLikes: number;
-
-	@Prop({ type: [String], default: [] })
-	groupCategories: string[];
-}
-
-export const GroupSchema = SchemaFactory.createForClass(Group);
+export default GroupSchema;

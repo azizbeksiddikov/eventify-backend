@@ -1,11 +1,12 @@
-import { Field, ObjectType } from '@nestjs/graphql';
+import { Field, Int, ObjectType } from '@nestjs/graphql';
 import { EventStatus, EventCategory } from '../../enums/event.enum';
 import { TotalCounter } from '../member/member';
+import { ObjectId } from 'mongoose';
 
 @ObjectType()
 export class Event {
 	@Field(() => String)
-	_id: string;
+	_id: ObjectId;
 
 	@Field(() => String)
 	eventName: string;
@@ -28,7 +29,7 @@ export class Event {
 	@Field(() => String)
 	eventAddress: string;
 
-	@Field(() => Number)
+	@Field(() => Int)
 	eventCapacity: number;
 
 	@Field(() => Number)
@@ -37,23 +38,23 @@ export class Event {
 	@Field(() => EventStatus)
 	eventStatus: EventStatus;
 
-	@Field(() => [String])
-	eventCategories: string[];
+	@Field(() => [EventCategory])
+	eventCategories: EventCategory[];
 
-	@Field(() => Number)
+	@Field(() => Int)
 	attendeeCount: number;
 
-	@Field(() => Number)
+	@Field(() => Int)
 	eventLikes: number;
 
-	@Field(() => Number)
+	@Field(() => Int)
 	eventViews: number;
 
 	@Field(() => String)
-	groupId: string;
+	groupId: ObjectId;
 
 	@Field(() => String)
-	eventOrganizerId: string;
+	eventOrganizerId: ObjectId;
 
 	@Field(() => Date)
 	createdAt: Date;

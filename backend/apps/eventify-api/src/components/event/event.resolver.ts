@@ -60,7 +60,32 @@ export class EventResolver {
 		return await this.eventService.updateEvent(memberId, input);
 	}
 
-	// Admin ONLY
+	@UseGuards(AuthGuard)
+	@Query(() => [Event])
+	public async getMyEvents(@AuthMember() member: Member): Promise<Event[]> {
+		console.log('Query: getMyEvents');
+		return await this.eventService.getMyEvents(member);
+	}
+
+	@UseGuards(AuthGuard)
+	@Query(() => Event)
+	public async attendEvent(@Args('eventId') eventId: string, @AuthMember('_id') memberId: ObjectId): Promise<Event> {
+		console.log('Query: attendEvent');
+		const targetId = shapeIntoMongoObjectId(eventId);
+
+		return await this.eventService.attendEvent(memberId, targetId);
+	}
+
+	@UseGuards(AuthGuard)
+	@Query(() => Event)
+	public async withdrawEvent(@Args('eventId') eventId: string, @AuthMember('_id') memberId: ObjectId): Promise<Event> {
+		console.log('Query: withdrawEvent');
+		const targetId = shapeIntoMongoObjectId(eventId);
+
+		return await this.eventService.withdrawEvent(memberId, targetId);
+	}
+
+	// ADMIN ONLY
 	@Roles(MemberType.ADMIN)
 	@UseGuards(RolesGuard)
 	@Mutation(() => Event)

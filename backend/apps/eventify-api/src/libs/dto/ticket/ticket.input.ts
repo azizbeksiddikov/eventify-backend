@@ -3,18 +3,19 @@ import { IsNotEmpty, IsString, IsNumber, IsEnum, IsOptional, IsIn, Min, IsArray 
 import { TicketStatus } from '../../enums/ticket.enum';
 import { Direction } from '../../enums/common.enum';
 import { availableTicketsSorts } from '../../config';
+import { ObjectId } from 'mongoose';
 
 @InputType()
-export class CreateTicketInput {
+export class TicketInput {
 	@Field(() => String)
 	@IsNotEmpty()
 	@IsString()
-	eventId: string;
+	eventId: ObjectId;
 
 	@Field(() => String)
 	@IsNotEmpty()
 	@IsString()
-	memberId: string;
+	memberId: ObjectId;
 
 	@Field(() => Number)
 	@IsNotEmpty()

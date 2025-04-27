@@ -7,12 +7,14 @@ import { EventService } from './event.service';
 import MemberSchema from '../../schemas/Member.schema';
 import GroupSchema from '../../schemas/Group.schema';
 import { TicketModule } from '../ticket/ticket.module';
+import TicketSchema from '../../schemas/Ticket.schema';
 
 @Module({
 	imports: [
 		MongooseModule.forFeature([{ name: 'Event', schema: EventSchema }]),
 		MongooseModule.forFeature([{ name: 'Member', schema: MemberSchema }]),
 		MongooseModule.forFeature([{ name: 'Group', schema: GroupSchema }]),
+		MongooseModule.forFeature([{ name: 'Ticket', schema: TicketSchema }]),
 		TicketModule,
 		AuthModule,
 	],

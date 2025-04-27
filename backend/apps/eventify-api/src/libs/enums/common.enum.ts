@@ -26,7 +26,7 @@ export enum Message {
 	PASSWORD_TOO_SHORT = 'Password must be at least 6 characters long!',
 	INVALID_USERNAME_FORMAT = 'Username can only contain letters, numbers, and underscores!',
 	MEMBER_NOT_FOUND = 'Member not found',
-
+	INSUFFICIENT_POINTS = 'Insufficient points!',
 	// Event related messages
 	EVENT_NOT_FOUND = 'Event not found!',
 	EVENT_ALREADY_EXISTS = 'Event with this title already exists!',
@@ -40,7 +40,10 @@ export enum Message {
 	EVENT_GROUP_REQUIRED = 'Event group is required!',
 	EVENT_ALREADY_DELETED = 'Event already deleted!',
 	EVENT_NOT_DELETED = 'Event not deleted!',
-
+	EVENT_CANCELLED = 'Event cancelled!',
+	EVENT_COMPLETED = 'Event completed!',
+	EVENT_FULL = 'Event is full!',
+	UNABLE_TO_CANCEL_EVENT = 'Unable to cancel event!',
 	// Group related messages
 	GROUP_NOT_FOUND = 'Group not found',
 	GROUP_ALREADY_EXISTS = 'Group already exists',
@@ -64,6 +67,13 @@ export enum Message {
 	NOT_JOINED = 'Member is not part of this group',
 	OWNER_CANNOT_LEAVE = 'Group owner cannot leave the group',
 	DELETE_FAILED = 'Failed to delete the record',
+
+	// Ticket related messages
+	TICKET_CREATION_FAILED = 'Failed to create ticket',
+	TICKET_ALREADY_PURCHASED = 'Ticket already purchased',
+	TICKET_CANCEL_FAILED = 'Failed to cancel ticket',
+	TICKET_NOT_FOUND = 'Ticket not found',
+	TICKET_ALREADY_CANCELLED = 'Ticket already cancelled',
 }
 
 export enum Direction {

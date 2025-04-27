@@ -1,6 +1,7 @@
 import { Field, ObjectType } from '@nestjs/graphql';
 import { TicketStatus } from '../../enums/ticket.enum';
 import { TotalCounter } from '../member/member';
+import { Event } from '../event/event';
 
 @ObjectType()
 export class Ticket {
@@ -24,6 +25,9 @@ export class Ticket {
 
 	@Field(() => Date)
 	updatedAt: Date;
+
+	@Field(() => Event, { nullable: true })
+	event?: Event;
 }
 
 @ObjectType()

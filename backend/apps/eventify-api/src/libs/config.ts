@@ -17,3 +17,5 @@ export const getSerialForImage = (filename: string) => {
 
 export const availableOrganizersSorts = ['createdAt', 'updatedAt', 'memberLikes', 'memberViews'];
 export const availableMembersSorts = ['createdAt', 'updatedAt', 'memberLikes', 'memberViews', 'memberFollowers'];
+export const availableEventsSorts = ['createdAt', 'updatedAt', 'eventLikes', 'eventViews', 'attendeeCount'];
+export const availableTicketsSorts = ['createdAt', 'updatedAt', 'ticketPrice'];

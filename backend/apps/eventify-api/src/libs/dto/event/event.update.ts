@@ -1,10 +1,10 @@
 import { Field, InputType } from '@nestjs/graphql';
-import { IsOptional, IsString, IsNumber, IsDate, IsArray, IsNotEmpty } from 'class-validator';
-import { EventStatus } from '../../enums/event.enum';
+import { IsOptional, IsString, IsNumber, IsDate, IsArray, IsNotEmpty, Min, MaxLength, IsEnum } from 'class-validator';
+import { EventStatus, EventCategory } from '../../enums/event.enum';
 import { ObjectId } from 'mongoose';
 
 @InputType()
-export class UpdateEventInput {
+export class EventUpdateInput {
 	@IsNotEmpty()
 	@Field(() => String)
 	_id: ObjectId;
@@ -12,12 +12,19 @@ export class UpdateEventInput {
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsString()
+	@MaxLength(100)
 	eventName?: string;
 
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsString()
+	@MaxLength(2000)
 	eventDesc?: string;
+
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	@IsString()
+	eventImage?: string;
 
 	@Field(() => Date, { nullable: true })
 	@IsOptional()
@@ -37,28 +44,29 @@ export class UpdateEventInput {
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsString()
+	@MaxLength(200)
 	eventAddress?: string;
 
 	@Field(() => Number, { nullable: true })
 	@IsOptional()
 	@IsNumber()
+	@Min(1)
 	eventCapacity?: number;
 
-	@Field(() => String, { nullable: true })
+	@Field(() => Number, { nullable: true })
 	@IsOptional()
-	@IsString()
-	eventImage?: string;
+	@IsNumber()
+	@Min(0)
+	eventPrice?: number;
 
 	@Field(() => EventStatus, { nullable: true })
-	eventStatus?: EventStatus;
-
-	@Field(() => String, { nullable: true })
 	@IsOptional()
-	@IsString()
-	groupId?: string;
+	@IsEnum(EventStatus)
+	eventStatus?: EventStatus;
 
 	@Field(() => [String], { nullable: true })
 	@IsOptional()
 	@IsArray()
-	eventCategories?: string[];
+	@IsEnum(EventCategory, { each: true })
+	eventCategories?: EventCategory[];
 }

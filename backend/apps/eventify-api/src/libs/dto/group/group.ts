@@ -47,5 +47,5 @@ export class Groups {
 	list: Group[];
 
 	@Field(() => [TotalCounter], { nullable: true })
-	metaCounter?: TotalCounter[];
+	metaCounter: TotalCounter[];
 }

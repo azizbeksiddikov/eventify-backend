@@ -1,5 +1,6 @@
 import { Field, ObjectType } from '@nestjs/graphql';
-import { EventStatus } from '../../enums/event.enum';
+import { EventStatus, EventCategory } from '../../enums/event.enum';
+import { TotalCounter } from '../member/member';
 
 @ObjectType()
 export class Event {
@@ -11,6 +12,9 @@ export class Event {
 
 	@Field(() => String)
 	eventDesc: string;
+
+	@Field(() => String)
+	eventImage: string;
 
 	@Field(() => Date)
 	eventDate: Date;
@@ -24,26 +28,20 @@ export class Event {
 	@Field(() => String)
 	eventAddress: string;
 
-	@Field(() => String)
-	eventOrganizerId: string;
-
 	@Field(() => Number)
 	eventCapacity: number;
 
 	@Field(() => Number)
-	attendeeCount: number;
-
-	@Field(() => String)
-	eventImage: string;
+	eventPrice: number;
 
 	@Field(() => EventStatus)
 	eventStatus: EventStatus;
 
-	@Field(() => String)
-	groupId: string;
-
 	@Field(() => [String])
 	eventCategories: string[];
+
+	@Field(() => Number)
+	attendeeCount: number;
 
 	@Field(() => Number)
 	eventLikes: number;
@@ -51,9 +49,24 @@ export class Event {
 	@Field(() => Number)
 	eventViews: number;
 
+	@Field(() => String)
+	groupId: string;
+
+	@Field(() => String)
+	eventOrganizerId: string;
+
 	@Field(() => Date)
 	createdAt: Date;
 
 	@Field(() => Date)
 	updatedAt: Date;
+}
+
+@ObjectType()
+export class Events {
+	@Field(() => [Event])
+	list: Event[];
+
+	@Field(() => [TotalCounter], { nullable: true })
+	metaCounter: TotalCounter[];
 }

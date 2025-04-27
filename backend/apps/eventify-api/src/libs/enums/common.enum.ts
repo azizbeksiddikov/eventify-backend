@@ -38,6 +38,8 @@ export enum Message {
 	EVENT_LOCATION_REQUIRED = 'Event location is required!',
 	EVENT_CATEGORY_REQUIRED = 'Event category is required!',
 	EVENT_GROUP_REQUIRED = 'Event group is required!',
+	EVENT_ALREADY_DELETED = 'Event already deleted!',
+	EVENT_NOT_DELETED = 'Event not deleted!',
 
 	// Group related messages
 	GROUP_NOT_FOUND = 'Group not found',

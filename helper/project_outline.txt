@@ -1,0 +1,33 @@
+This project is an Event Organizer Platform, designed to allow users (both event organizers and attendees) to seamlessly interact and manage events, discover, attend, and engage with others in the community. The platform provides essential features for event organizers to create, manage, and promote their events, while attendees can explore, join, and interact with events in their preferred categories.
+Core Features and User Roles:
+1. User Roles:
+   * Admin: Manages users, events, reviews, and platform moderation.
+   * Event Organizer: Creates and manages events, organizes ticketing, and oversees event-related activities.
+   * General Users (Attendees): Browse and explore events, attend events, follow events, leave reviews, like events, and join specific event-related groups.
+2. Key Features:
+   * Event Creation and Management: Event organizers can create, edit, and manage their events (including setting up dates, locations, descriptions, max attendees, etc.).
+   * Event Discovery and Search: Attendees can explore events through tags, categories, or location and search for specific interests.
+   * Tickets: Users can buy tickets to events using virtual credits upon registration (initial balance of 50 credits). Tickets are tracked and managed by the system, with different statuses such as PENDING, APPROVED, ATTENDED, or CANCELED.
+   * Likes, Follows, and Reviews: Users can like and follow events to receive updates. They can also leave ratings and comments on events they've attended.
+   * Event Applications: Some events may require attendees to apply for entry, which organizers can approve or reject. This adds a layer of exclusivity or vetting.
+   * Groups: Event organizers and attendees can form and join groups associated with events. Groups serve as community hubs where users can chat, share resources, and stay updated.
+3. User Interactions:
+   * Social Features: Users can interact through likes, follows, and reviews. They can also apply to events, get approved, and share their experiences through reviews.
+   * Groups: Users can join event-related groups, allowing community-first engagement. These groups help foster relationships and discussions among participants.
+   * Real-Time Communication: Group chats can be enabled for further engagement between event organizers and attendees or among group members.
+4. Event Status and Management:
+   * Events go through different status stages, including PENDING, APPROVED, COMPLETED, and CANCELED, to help manage the lifecycle of events.
+   * Organizers are responsible for approving or rejecting applications to their events.
+Database Schema:
+The database schema reflects the core structure of the platform:
+* Members: Users who can be event organizers or regular attendees.
+* Events: Detailed information about the events, including the organizer, event dates, and capacity.
+* Tickets: Virtual tickets purchased by attendees for specific events, linked to user accounts.
+* Reviews, Likes, Follows: Social interaction components where users can provide feedback, engage, and discover events.
+* Event Applications: Event organizers can manage applicants to events and approve or reject based on certain criteria.
+* Groups: Community hubs where attendees and organizers can engage before and after events.
+Key Considerations for MVP:
+* Focus on Core Functionality: The MVP will prioritize core features such as event creation, discovery, ticket purchasing (with virtual credits), and reviews/ratings. Features like real-time chat and event recommendations will be introduced later.
+* User Registration & Credits: Users are given 50 virtual credits upon registration. This balance can be used for ticket purchases.
+* No Real Payments in MVP: The MVP will focus on virtual credits to avoid real-world payment integrations in the initial version.
+

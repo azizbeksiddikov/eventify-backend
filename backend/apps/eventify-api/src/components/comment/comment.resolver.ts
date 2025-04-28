@@ -18,7 +18,7 @@ export class CommentResolver {
 	constructor(private readonly commentService: CommentService) {}
 
 	@UseGuards(AuthGuard)
-	@Mutation((returns) => Comment)
+	@Mutation(() => Comment)
 	public async createComment(
 		@Args('input') input: CommentInput,
 		@AuthMember('_id') memberId: ObjectId,
@@ -28,7 +28,7 @@ export class CommentResolver {
 	}
 
 	@UseGuards(AuthGuard)
-	@Mutation((returns) => Comment)
+	@Mutation(() => Comment)
 	public async updateComment(
 		@Args('input') input: CommentUpdate,
 		@AuthMember('_id') memberId: ObjectId,
@@ -39,7 +39,7 @@ export class CommentResolver {
 	}
 
 	@UseGuards(WithoutGuard)
-	@Query((returns) => Comments)
+	@Query(() => Comments)
 	public async getComments(
 		@Args('input') input: CommentsInquiry,
 		@AuthMember('_id') memberId: ObjectId,
@@ -52,7 +52,7 @@ export class CommentResolver {
 	/** ADMIN */
 	@Roles(MemberType.ADMIN)
 	@UseGuards(RolesGuard)
-	@Mutation((returns) => Comment)
+	@Mutation(() => Comment)
 	public async removeCommentByAdmin(@Args('commentId') input: string): Promise<Comment> {
 		console.log('Mutation: removeCommentByAdmin');
 		const commentId = shapeIntoMongoObjectId(input);

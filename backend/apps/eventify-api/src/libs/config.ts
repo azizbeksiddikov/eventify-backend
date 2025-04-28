@@ -20,6 +20,7 @@ export const availableMembersSorts = ['createdAt', 'updatedAt', 'memberLikes', '
 export const availableEventsSorts = ['createdAt', 'updatedAt', 'eventLikes', 'eventViews', 'attendeeCount'];
 export const availableTicketsSorts = ['createdAt', 'updatedAt', 'ticketPrice'];
 export const availableReviewsSorts = ['createdAt', 'updatedAt', 'rating'];
+export const availableCommentsSorts = ['createdAt', 'updatedAt', 'commentLikes'];
 
 export const lookupAuthMemberLiked = (memberId: MongooseId | null, targetRefId: string = '$_id') => {
 	return {

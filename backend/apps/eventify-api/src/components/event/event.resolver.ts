@@ -93,18 +93,18 @@ export class EventResolver {
 	}
 
 	@UseGuards(AuthGuard)
-	@Query(() => Event)
+	@Mutation(() => Event)
 	public async attendEvent(@Args('eventId') eventId: string, @AuthMember('_id') memberId: ObjectId): Promise<Event> {
-		console.log('Query: attendEvent');
+		console.log('Mutation: attendEvent');
 		const targetId = shapeIntoMongoObjectId(eventId);
 
 		return await this.eventService.attendEvent(memberId, targetId);
 	}
 
 	@UseGuards(AuthGuard)
-	@Query(() => Event)
+	@Mutation(() => Event)
 	public async withdrawEvent(@Args('eventId') eventId: string, @AuthMember('_id') memberId: ObjectId): Promise<Event> {
-		console.log('Query: withdrawEvent');
+		console.log('Mutation: withdrawEvent');
 		const targetId = shapeIntoMongoObjectId(eventId);
 
 		return await this.eventService.withdrawEvent(memberId, targetId);

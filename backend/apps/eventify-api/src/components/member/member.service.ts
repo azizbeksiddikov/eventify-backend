@@ -12,6 +12,10 @@ import { Follower, Following, MeFollowed } from '../../libs/dto/follow/follow';
 import { LikeGroup } from '../../libs/enums/like.enum';
 import { ViewGroup } from '../../libs/enums/view.enum';
 import { LikeInput } from '../../libs/dto/like/like.input';
+import { LikeService } from '../like/like.service';
+import { ViewInput } from '../../libs/dto/view/view.input';
+import { ViewService } from '../view/view.service';
+import { lookupAuthMemberLiked } from '../../libs/config';
 
 @Injectable()
 export class MemberService {
@@ -19,11 +23,12 @@ export class MemberService {
 		@InjectModel('Member') private readonly memberModel: Model<Member>,
 		@InjectModel('Follow') private readonly followModel: Model<Follower | Following>,
 		private authService: AuthService,
+		private readonly likeService: LikeService,
+		private readonly viewService: ViewService,
 	) {}
 
 	public async signup(input: MemberInput): Promise<Member> {
 		try {
-			// Check if username or phone already exists
 			const existingMember = await this.memberModel.findOne({ username: input.username });
 
 			if (existingMember) {
@@ -108,8 +113,20 @@ export class MemberService {
 		if (!targetMember) throw new BadRequestException(Message.NO_DATA_FOUND);
 
 		if (memberId) {
-			// TODO: Implement views, likes, follows tracking
-			// await this.trackMemberInteraction(memberId, targetId);
+			const viewInput: ViewInput = {
+				viewGroup: ViewGroup.MEMBER,
+				viewRefId: targetId,
+				memberId: memberId,
+			};
+			const newView = await this.viewService.recordView(viewInput);
+			if (newView) {
+				await this.memberModel.findByIdAndUpdate(targetId, { $inc: { memberViews: 1 } }).exec();
+				targetMember.memberViews++;
+			}
+			const likeInput: LikeInput = { memberId: memberId, likeRefId: targetId, likeGroup: LikeGroup.MEMBER };
+			targetMember.meLiked = await this.likeService.checkLikeExistence(likeInput);
+
+			targetMember.meFollowed = await this.checkSubscription(memberId, targetId);
 		}
 
 		return targetMember;
@@ -125,14 +142,13 @@ export class MemberService {
 
 		const sort: T = { [input?.sort ?? 'createdAt']: input?.direction ?? Direction.DESC };
 
-		// TODO: add views, likes, follows if memberId is provided
 		const result = await this.memberModel
 			.aggregate([
 				{ $match: match },
 				{ $sort: sort },
 				{
 					$facet: {
-						list: [{ $skip: (input.page - 1) * input.limit }, { $limit: input.limit }],
+						list: [{ $skip: (input.page - 1) * input.limit }, { $limit: input.limit }, lookupAuthMemberLiked(memberId)],
 						metaCounter: [{ $count: 'total' }],
 					},
 				},
@@ -148,17 +164,15 @@ export class MemberService {
 		const target: Member | null = await this.memberModel
 			.findOne({ _id: likeRefId, memberStatus: MemberStatus.ACTIVE })
 			.exec();
+		if (!target) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
 
-		if (!target) throw new BadRequestException(Message.NO_DATA_FOUND);
+		const input: LikeInput = { memberId: memberId, likeRefId: likeRefId, likeGroup: LikeGroup.MEMBER };
 
-		// TODO: Implement like functionality
-		// const input: LikeInput = { memberId, likeRefId, likeGroup: LikeGroup.MEMBER };
-		// const modifier = await this.likeService.toggleLike(input);
-		// const result = await this.memberStatsEditor({ _id: likeRefId, targetKey: 'memberLikes', modifier });
-		// if (!result) throw new BadRequestException(Message.SOMETHING_WENT_WRONG);
-		// return result;
+		const modifier = await this.likeService.toggleLike(input);
+		const result = await this.memberStatsEditor({ _id: likeRefId, targetKey: 'memberLikes', modifier: modifier });
+		if (!result) throw new InternalServerErrorException(Message.SOMETHING_WENT_WRONG);
 
-		return target;
+		return result;
 	}
 
 	public async deleteAccount(memberId: ObjectId): Promise<Member> {
@@ -212,6 +226,12 @@ export class MemberService {
 	}
 
 	// Other
+
+	private async checkSubscription(followerId: ObjectId, followingId: ObjectId): Promise<MeFollowed[]> {
+		const result = await this.followModel.findOne({ followerId: followerId, followingId: followingId }).exec();
+		return result ? [{ followingId: followingId, followerId: followerId, myFollowing: true }] : [];
+	}
+
 	public async memberStatsEditor(input: StatisticModifier): Promise<Member> {
 		const { _id, targetKey, modifier } = input;
 

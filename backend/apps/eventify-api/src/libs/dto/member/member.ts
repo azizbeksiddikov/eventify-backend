@@ -1,6 +1,8 @@
 import { Field, Int, ObjectType } from '@nestjs/graphql';
 import { MemberType, MemberStatus } from '../../enums/member.enum';
 import { ObjectId } from 'mongoose';
+import { MeFollowed } from '../follow/follow';
+import { MeLiked } from '../like/like';
 
 @ObjectType()
 export class Member {
@@ -61,6 +63,12 @@ export class Member {
 	// from aggregation
 	@Field(() => String, { nullable: true })
 	accessToken?: string;
+
+	@Field(() => [MeLiked], { nullable: true })
+	meLiked?: MeLiked[];
+
+	@Field(() => [MeFollowed], { nullable: true })
+	meFollowed?: MeFollowed[];
 }
 
 @ObjectType()

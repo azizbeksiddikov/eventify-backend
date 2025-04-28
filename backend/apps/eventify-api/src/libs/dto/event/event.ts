@@ -1,7 +1,8 @@
 import { Field, Int, ObjectType } from '@nestjs/graphql';
 import { EventStatus, EventCategory } from '../../enums/event.enum';
-import { TotalCounter } from '../member/member';
+import { Member, TotalCounter } from '../member/member';
 import { ObjectId } from 'mongoose';
+import { MeLiked } from '../like/like';
 
 @ObjectType()
 export class Event {
@@ -61,6 +62,13 @@ export class Event {
 
 	@Field(() => Date)
 	updatedAt: Date;
+
+	// From Aggregations
+	@Field(() => Member, { nullable: true })
+	memberData?: Member;
+
+	@Field(() => [MeLiked], { nullable: true })
+	meLiked?: MeLiked[];
 }
 
 @ObjectType()

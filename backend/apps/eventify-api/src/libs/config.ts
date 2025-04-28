@@ -19,6 +19,7 @@ export const availableOrganizersSorts = ['createdAt', 'updatedAt', 'memberLikes'
 export const availableMembersSorts = ['createdAt', 'updatedAt', 'memberLikes', 'memberViews', 'memberFollowers'];
 export const availableEventsSorts = ['createdAt', 'updatedAt', 'eventLikes', 'eventViews', 'attendeeCount'];
 export const availableTicketsSorts = ['createdAt', 'updatedAt', 'ticketPrice'];
+export const availableReviewsSorts = ['createdAt', 'updatedAt', 'rating'];
 
 export const lookupAuthMemberLiked = (memberId: MongooseId | null, targetRefId: string = '$_id') => {
 	return {
@@ -120,5 +121,14 @@ export const lookupFavorite = {
 		localField: 'favoriteEvent.memberId',
 		foreignField: '_id',
 		as: 'favoriteEvent.memberData',
+	},
+};
+
+export const lookupMember = {
+	$lookup: {
+		from: 'members',
+		localField: 'memberId',
+		foreignField: '_id',
+		as: 'memberData',
 	},
 };

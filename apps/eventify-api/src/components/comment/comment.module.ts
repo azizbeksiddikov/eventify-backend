@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
 // ===== Schemas =====
-import CommentSchema from '../../schemas/Comment.model';
+import CommentSchema from '../../schemas/Comment.schema';
 
 // ===== Components =====
 import { AuthModule } from '../auth/auth.module';

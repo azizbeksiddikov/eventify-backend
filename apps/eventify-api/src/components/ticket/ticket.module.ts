@@ -3,7 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 
 // ===== Schemas =====
 import MemberSchema from '../../schemas/Member.schema';
-import EventSchema from '../../schemas/Event.model';
+import EventSchema from '../../schemas/Event.schema';
 import TicketSchema from '../../schemas/Ticket.schema';
 
 // ===== Components =====

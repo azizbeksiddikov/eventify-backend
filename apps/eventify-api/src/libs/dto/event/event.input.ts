@@ -74,7 +74,7 @@ export class EventInput {
 
 // ============== Search Inputs ==============
 @InputType()
-class ESearch {
+class EISearch {
 	@IsOptional()
 	@Field(() => String, { nullable: true })
 	text?: string;
@@ -117,8 +117,8 @@ export class EventsInquiry {
 
 	// ===== Search =====
 	@IsNotEmpty()
-	@Field(() => ESearch)
-	search: ESearch;
+	@Field(() => EISearch)
+	search: EISearch;
 }
 
 @InputType()

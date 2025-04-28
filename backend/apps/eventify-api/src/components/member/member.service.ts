@@ -1,21 +1,29 @@
 import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
+
+// ===== Enums =====
 import { MemberStatus, MemberType } from '../../libs/enums/member.enum';
 import { Direction, Message } from '../../libs/enums/common.enum';
-import { AuthService } from '../auth/auth.service';
-import { StatisticModifier, T } from '../../libs/types/common';
+import { LikeGroup } from '../../libs/enums/like.enum';
+import { ViewGroup } from '../../libs/enums/view.enum';
+
+// ===== Types & DTOs =====
 import { Member, Members } from '../../libs/dto/member/member';
+import { StatisticModifier, T } from '../../libs/types/common';
 import { LoginInput, MemberInput, MembersInquiry, OrganizersInquiry } from '../../libs/dto/member/member.input';
 import { MemberUpdateInput, PasswordUpdateInput } from '../../libs/dto/member/member.update';
 import { Follower, Following, MeFollowed } from '../../libs/dto/follow/follow';
-import { LikeGroup } from '../../libs/enums/like.enum';
-import { ViewGroup } from '../../libs/enums/view.enum';
 import { LikeInput } from '../../libs/dto/like/like.input';
-import { LikeService } from '../like/like.service';
 import { ViewInput } from '../../libs/dto/view/view.input';
-import { ViewService } from '../view/view.service';
+
+// ===== Config =====
 import { lookupAuthMemberLiked } from '../../libs/config';
+
+// ===== Services =====
+import { AuthService } from '../auth/auth.service';
+import { LikeService } from '../like/like.service';
+import { ViewService } from '../view/view.service';
 
 @Injectable()
 export class MemberService {
@@ -27,6 +35,7 @@ export class MemberService {
 		private readonly viewService: ViewService,
 	) {}
 
+	// ============== Authentication Methods ==============
 	public async signup(input: MemberInput): Promise<Member> {
 		try {
 			const existingMember = await this.memberModel.findOne({ username: input.username });
@@ -97,6 +106,7 @@ export class MemberService {
 		return result;
 	}
 
+	// ============== Profile Management Methods ==============
 	public async updateMember(memberId: ObjectId, input: MemberUpdateInput): Promise<Member> {
 		const { _id, emailVerified, memberStatus, ...otherInput } = input;
 
@@ -108,6 +118,13 @@ export class MemberService {
 		return result;
 	}
 
+	public async deleteAccount(memberId: ObjectId): Promise<Member> {
+		const result: Member | null = await this.memberModel.findByIdAndDelete(memberId).exec();
+		if (!result) throw new BadRequestException(Message.NO_DATA_FOUND);
+		return result;
+	}
+
+	// ============== Member Interaction Methods ==============
 	public async getMember(memberId: ObjectId | null, targetId: ObjectId): Promise<Member> {
 		const targetMember: Member | null = await this.memberModel.findById(targetId).lean().exec();
 		if (!targetMember) throw new BadRequestException(Message.NO_DATA_FOUND);
@@ -175,13 +192,7 @@ export class MemberService {
 		return result;
 	}
 
-	public async deleteAccount(memberId: ObjectId): Promise<Member> {
-		const result: Member | null = await this.memberModel.findByIdAndDelete(memberId).exec();
-		if (!result) throw new BadRequestException(Message.NO_DATA_FOUND);
-		return result;
-	}
-
-	// ADMIN ONLY
+	// ============== Admin Only Methods ==============
 	public async getAllMembersByAdmin(input: MembersInquiry): Promise<Members> {
 		const { memberStatus, memberType, text } = input.search;
 		const match: T = {};
@@ -225,8 +236,7 @@ export class MemberService {
 		return result;
 	}
 
-	// Other
-
+	// ============== Helper Methods ==============
 	private async checkSubscription(followerId: ObjectId, followingId: ObjectId): Promise<MeFollowed[]> {
 		const result = await this.followModel.findOne({ followerId: followerId, followingId: followingId }).exec();
 		return result ? [{ followingId: followingId, followerId: followerId, myFollowing: true }] : [];

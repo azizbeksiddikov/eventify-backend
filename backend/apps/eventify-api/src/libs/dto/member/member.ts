@@ -4,8 +4,10 @@ import { ObjectId } from 'mongoose';
 import { MeFollowed } from '../follow/follow';
 import { MeLiked } from '../like/like';
 
+// ============== Core Member Type ==============
 @ObjectType()
 export class Member {
+	// ===== Basic Information =====
 	@Field(() => String)
 	_id: ObjectId;
 
@@ -21,23 +23,26 @@ export class Member {
 	@Field(() => String)
 	memberFullName: string;
 
+	// ===== Status and Type =====
 	@Field(() => MemberType)
 	memberType: MemberType;
-
-	@Field(() => Number)
-	memberPoints: number;
-
-	@Field(() => String, { nullable: true })
-	memberDesc?: string;
-
-	@Field(() => String, { nullable: true })
-	memberImage?: string;
 
 	@Field(() => MemberStatus)
 	memberStatus: MemberStatus;
 
 	@Field(() => Boolean)
 	emailVerified: boolean;
+
+	// ===== Profile Information =====
+	@Field(() => String, { nullable: true })
+	memberDesc?: string;
+
+	@Field(() => String, { nullable: true })
+	memberImage?: string;
+
+	// ===== Statistics =====
+	@Field(() => Number)
+	memberPoints: number;
 
 	@Field(() => Number)
 	memberLikes: number;
@@ -51,16 +56,17 @@ export class Member {
 	@Field(() => Number)
 	memberViews: number;
 
+	// ===== Timestamps =====
 	@Field(() => Date)
 	createdAt: Date;
 
 	@Field(() => Date)
 	updatedAt: Date;
 
-	// only for login
+	// ===== Internal Fields =====
 	memberPassword: string;
 
-	// from aggregation
+	// ===== Aggregated Fields =====
 	@Field(() => String, { nullable: true })
 	accessToken?: string;
 
@@ -71,6 +77,7 @@ export class Member {
 	meFollowed?: MeFollowed[];
 }
 
+// ============== Pagination Types ==============
 @ObjectType()
 export class TotalCounter {
 	@Field(() => Int, { nullable: true })

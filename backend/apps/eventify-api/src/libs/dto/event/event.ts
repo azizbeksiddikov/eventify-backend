@@ -6,6 +6,7 @@ import { MeLiked } from '../like/like';
 
 @ObjectType()
 export class Event {
+	// ===== Basic Information =====
 	@Field(() => String)
 	_id: ObjectId;
 
@@ -18,6 +19,7 @@ export class Event {
 	@Field(() => String)
 	eventImage: string;
 
+	// ===== Event Details =====
 	@Field(() => Date)
 	eventDate: Date;
 
@@ -36,12 +38,21 @@ export class Event {
 	@Field(() => Number)
 	eventPrice: number;
 
+	// ===== Type and Status =====
 	@Field(() => EventStatus)
 	eventStatus: EventStatus;
 
 	@Field(() => [EventCategory])
 	eventCategories: EventCategory[];
 
+	// ===== References =====
+	@Field(() => String)
+	groupId: ObjectId;
+
+	@Field(() => String)
+	eventOrganizerId: ObjectId;
+
+	// ===== Statistics =====
 	@Field(() => Int)
 	attendeeCount: number;
 
@@ -51,19 +62,14 @@ export class Event {
 	@Field(() => Int)
 	eventViews: number;
 
-	@Field(() => String)
-	groupId: ObjectId;
-
-	@Field(() => String)
-	eventOrganizerId: ObjectId;
-
+	// ===== Timestamps =====
 	@Field(() => Date)
 	createdAt: Date;
 
 	@Field(() => Date)
 	updatedAt: Date;
 
-	// From Aggregations
+	// ===== Aggregated Fields =====
 	@Field(() => Member, { nullable: true })
 	memberData?: Member;
 

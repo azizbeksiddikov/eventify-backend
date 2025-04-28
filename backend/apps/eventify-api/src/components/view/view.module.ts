@@ -1,7 +1,11 @@
 import { Module } from '@nestjs/common';
-import { ViewService } from './view.service';
 import { MongooseModule } from '@nestjs/mongoose';
+
+// ===== Schemas =====
 import ViewSchema from '../../schemas/View.schema';
+
+// ===== View Components =====
+import { ViewService } from './view.service';
 
 @Module({
 	imports: [MongooseModule.forFeature([{ name: 'View', schema: ViewSchema }])],

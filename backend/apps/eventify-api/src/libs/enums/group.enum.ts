@@ -1,5 +1,6 @@
 import { registerEnumType } from '@nestjs/graphql';
 
+// ===== Group Member Role =====
 export enum GroupMemberRole {
 	OWNER = 'OWNER',
 	MODERATOR = 'MODERATOR',
@@ -7,6 +8,7 @@ export enum GroupMemberRole {
 	BANNED = 'BANNED',
 }
 
+// ===== Group Category =====
 export enum GroupCategory {
 	SPORTS = 'SPORTS',
 	ART = 'ART',

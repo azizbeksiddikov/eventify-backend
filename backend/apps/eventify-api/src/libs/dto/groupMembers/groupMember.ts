@@ -1,20 +1,24 @@
 import { Field, ObjectType } from '@nestjs/graphql';
 import { GroupMemberRole } from '../../enums/group.enum';
+import { ObjectId } from 'mongoose';
 
 @ObjectType()
 export class GroupMember {
+	// ===== Basic Information =====
 	@Field(() => String)
-	_id: string;
+	_id: ObjectId;
 
 	@Field(() => String)
-	groupId: string;
+	groupId: ObjectId;
 
 	@Field(() => String)
-	memberId: string;
+	memberId: ObjectId;
 
+	// ===== Type and Status =====
 	@Field(() => GroupMemberRole)
 	groupMemberRole: GroupMemberRole;
 
+	// ===== Timestamps =====
 	@Field(() => Date)
 	joinDate: Date;
 

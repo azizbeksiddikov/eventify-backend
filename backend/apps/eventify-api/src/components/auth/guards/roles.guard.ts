@@ -43,7 +43,7 @@ export class RolesGuard implements CanActivate {
 
 				if (!hasPermission) {
 					console.error(`User ${authMember.username} does not have required roles: ${roles.join(', ')}`);
-					throw new ForbiddenException(Message.ONLY_SPECIFIC_ROLES_ALLOWED);
+					throw new ForbiddenException(Message.NOT_AUTHORIZED);
 				}
 
 				console.log('memberNick[roles] =>', authMember.username);
@@ -51,7 +51,7 @@ export class RolesGuard implements CanActivate {
 				return true;
 			} catch (error) {
 				console.error('Role verification error:', error.message);
-				throw new ForbiddenException(Message.ONLY_SPECIFIC_ROLES_ALLOWED);
+				throw new ForbiddenException(Message.NOT_AUTHORIZED);
 			}
 		}
 

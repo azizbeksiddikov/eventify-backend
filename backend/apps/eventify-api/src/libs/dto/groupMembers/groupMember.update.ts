@@ -5,6 +5,7 @@ import { ObjectId } from 'mongoose';
 
 @InputType()
 export class GroupMemberUpdateInput {
+	// ===== Basic Information =====
 	@Field(() => String)
 	@IsNotEmpty()
 	@IsString()
@@ -15,6 +16,7 @@ export class GroupMemberUpdateInput {
 	@IsString()
 	targetMemberId: ObjectId;
 
+	// ===== Type and Status =====
 	@Field(() => GroupMemberRole)
 	@IsNotEmpty()
 	groupMemberRole: GroupMemberRole;

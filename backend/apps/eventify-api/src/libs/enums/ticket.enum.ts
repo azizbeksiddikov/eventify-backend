@@ -1,5 +1,6 @@
 import { registerEnumType } from '@nestjs/graphql';
 
+// ===== Ticket Status =====
 export enum TicketStatus {
 	PURCHASED = 'PURCHASED',
 	CANCELLED = 'CANCELLED',

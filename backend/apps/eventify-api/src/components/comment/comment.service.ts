@@ -1,15 +1,25 @@
 import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
-import { MemberService } from '../member/member.service';
-import { EventService } from '../event/event.service';
-import { CommentInput, CommentsInquiry } from '../../libs/dto/comment/comment.input';
+
+// ===== Enums =====
 import { Direction, Message } from '../../libs/enums/common.enum';
 import { CommentGroup, CommentStatus } from '../../libs/enums/comment.enum';
+
+// ===== DTOs =====
+import { CommentInput, CommentsInquiry } from '../../libs/dto/comment/comment.input';
 import { Comment, Comments } from '../../libs/dto/comment/comment';
 import { CommentUpdate } from '../../libs/dto/comment/comment.update';
+
+// ===== Types =====
 import { T } from '../../libs/types/common';
+
+// ===== Config =====
 import { lookupMember } from '../../libs/config';
+
+// ===== Services =====
+import { MemberService } from '../member/member.service';
+import { EventService } from '../event/event.service';
 import { GroupService } from '../group/group.service';
 
 @Injectable()
@@ -21,6 +31,7 @@ export class CommentService {
 		private readonly groupService: GroupService,
 	) {}
 
+	// ============== Comment Management Methods ==============
 	public async createComment(memberId: ObjectId, input: CommentInput): Promise<Comment> {
 		input.memberId = memberId;
 		let result: Comment | null = null;
@@ -72,6 +83,7 @@ export class CommentService {
 		return result;
 	}
 
+	// ============== Comment Query Methods ==============
 	public async getComments(memberId: ObjectId, input: CommentsInquiry): Promise<Comments> {
 		const { commentRefId } = input.search;
 		const match: T = { commentRefId: commentRefId, commentStatus: CommentStatus.ACTIVE };
@@ -100,7 +112,7 @@ export class CommentService {
 		return result[0];
 	}
 
-	/** ADMIN */
+	// ============== Admin Methods ==============
 	public async removeCommentByAdmin(commentId: ObjectId): Promise<Comment> {
 		const result = await this.commentModel.findByIdAndDelete(commentId).exec();
 

@@ -3,13 +3,16 @@ import { IsOptional, IsString, IsEmail, IsNotEmpty, IsBoolean, IsEnum } from 'cl
 import { MemberType, MemberStatus } from '../../enums/member.enum';
 import { ObjectId } from 'mongoose';
 
+// ============== Member Update Input ==============
 @InputType()
 export class MemberUpdateInput {
+	// ===== Identification =====
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsString()
 	_id?: ObjectId;
 
+	// ===== Authentication Fields =====
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsString()
@@ -23,12 +26,13 @@ export class MemberUpdateInput {
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsString()
-	memberPhone?: string;
+	memberPassword?: string;
 
+	// ===== Profile Information =====
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsString()
-	memberPassword?: string;
+	memberPhone?: string;
 
 	@Field(() => String, { nullable: true })
 	@IsOptional()
@@ -45,6 +49,7 @@ export class MemberUpdateInput {
 	@IsString()
 	memberImage?: string;
 
+	// ===== Status Fields =====
 	@Field(() => MemberStatus, { nullable: true })
 	@IsOptional()
 	@IsEnum(MemberStatus)
@@ -56,6 +61,7 @@ export class MemberUpdateInput {
 	emailVerified?: boolean;
 }
 
+// ============== Password Update Input ==============
 @InputType()
 export class PasswordUpdateInput {
 	@Field(() => String)

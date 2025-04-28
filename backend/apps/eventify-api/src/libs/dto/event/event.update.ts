@@ -5,10 +5,12 @@ import { ObjectId } from 'mongoose';
 
 @InputType()
 export class EventUpdateInput {
+	// ===== Identification =====
 	@IsNotEmpty()
 	@Field(() => String)
 	_id: ObjectId;
 
+	// ===== Basic Information =====
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsString()
@@ -26,6 +28,7 @@ export class EventUpdateInput {
 	@IsString()
 	eventImage?: string;
 
+	// ===== Event Details =====
 	@Field(() => Date, { nullable: true })
 	@IsOptional()
 	@IsDate()
@@ -59,6 +62,7 @@ export class EventUpdateInput {
 	@Min(0)
 	eventPrice?: number;
 
+	// ===== Type and Status =====
 	@Field(() => EventStatus, { nullable: true })
 	@IsOptional()
 	@IsEnum(EventStatus)

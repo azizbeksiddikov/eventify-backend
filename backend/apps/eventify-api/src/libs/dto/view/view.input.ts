@@ -3,17 +3,20 @@ import { IsNotEmpty, IsString, IsEnum } from 'class-validator';
 import { ViewGroup } from '../../enums/view.enum';
 import { ObjectId } from 'mongoose';
 
+// ============== View Creation Input ==============
 @InputType()
 export class ViewInput {
-	@Field(() => String)
-	@IsNotEmpty()
-	@IsString()
-	memberId: ObjectId;
-
+	// ===== Type and Group =====
 	@Field(() => ViewGroup)
 	@IsNotEmpty()
 	@IsEnum(ViewGroup)
 	viewGroup: ViewGroup;
+
+	// ===== References =====
+	@Field(() => String)
+	@IsNotEmpty()
+	@IsString()
+	memberId: ObjectId;
 
 	@Field(() => String)
 	@IsNotEmpty()

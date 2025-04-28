@@ -2,30 +2,37 @@ import { Field, ObjectType } from '@nestjs/graphql';
 import { TicketStatus } from '../../enums/ticket.enum';
 import { TotalCounter } from '../member/member';
 import { Event } from '../event/event';
+import { ObjectId } from 'mongoose';
 
 @ObjectType()
 export class Ticket {
+	// ===== Basic Information =====
 	@Field(() => String)
-	_id: string;
+	_id: ObjectId;
+
+	// ===== References =====
+	@Field(() => String)
+	eventId: ObjectId;
 
 	@Field(() => String)
-	eventId: string;
+	memberId: ObjectId;
 
-	@Field(() => String)
-	memberId: string;
-
+	// ===== Type and Status =====
 	@Field(() => TicketStatus)
 	ticketStatus: TicketStatus;
 
+	// ===== Pricing =====
 	@Field(() => Number)
 	ticketPrice: number;
 
+	// ===== Timestamps =====
 	@Field(() => Date)
 	createdAt: Date;
 
 	@Field(() => Date)
 	updatedAt: Date;
 
+	// ===== Aggregated Fields =====
 	@Field(() => Event, { nullable: true })
 	event?: Event;
 }

@@ -2,6 +2,7 @@ import { Schema } from 'mongoose';
 
 const FollowSchema = new Schema(
 	{
+		// ===== References =====
 		followingId: {
 			type: Schema.Types.ObjectId,
 			ref: 'Member',

@@ -3,6 +3,7 @@ import { MemberType, MemberStatus } from '../libs/enums/member.enum';
 
 const MemberSchema = new Schema(
 	{
+		// ===== Basic Information =====
 		username: {
 			type: String,
 			required: true,
@@ -16,31 +17,23 @@ const MemberSchema = new Schema(
 		memberPhone: {
 			type: String,
 		},
+		memberFullName: {
+			type: String,
+			required: true,
+		},
+
+		// ===== Authentication =====
 		memberPassword: {
 			type: String,
 			required: true,
 			select: false,
 		},
-		memberFullName: {
-			type: String,
-			required: true,
-		},
+
+		// ===== Type and Status =====
 		memberType: {
 			type: String,
 			enum: MemberType,
 			default: MemberType.USER,
-		},
-		memberPoints: {
-			type: Number,
-			default: 50,
-			min: 0,
-		},
-		memberDesc: {
-			type: String,
-			maxlength: 500,
-		},
-		memberImage: {
-			type: String,
 		},
 		memberStatus: {
 			type: String,
@@ -50,6 +43,22 @@ const MemberSchema = new Schema(
 		emailVerified: {
 			type: Boolean,
 			default: false,
+		},
+
+		// ===== Profile Information =====
+		memberDesc: {
+			type: String,
+			maxlength: 500,
+		},
+		memberImage: {
+			type: String,
+		},
+
+		// ===== Statistics =====
+		memberPoints: {
+			type: Number,
+			default: 50,
+			min: 0,
 		},
 		memberLikes: {
 			type: Number,

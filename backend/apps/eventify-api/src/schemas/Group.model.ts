@@ -3,6 +3,7 @@ import { GroupCategory } from '../libs/enums/group.enum';
 
 const GroupSchema = new Schema(
 	{
+		// ===== Basic Information =====
 		groupLink: {
 			type: String,
 			required: true,
@@ -25,12 +26,20 @@ const GroupSchema = new Schema(
 			required: true,
 		},
 
+		// ===== Type and Status =====
 		groupOwnerId: {
 			type: Schema.Types.ObjectId,
 			ref: 'Member',
 			required: true,
 		},
 
+		groupCategories: {
+			type: [String],
+			enum: GroupCategory,
+			default: [],
+		},
+
+		// ===== Statistics =====
 		groupViews: {
 			type: Number,
 			default: 0,
@@ -39,12 +48,6 @@ const GroupSchema = new Schema(
 		groupLikes: {
 			type: Number,
 			default: 0,
-		},
-
-		groupCategories: {
-			type: [String],
-			enum: GroupCategory,
-			default: [],
 		},
 
 		memberCount: {

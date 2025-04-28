@@ -1,17 +1,23 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { AuthModule } from '../auth/auth.module';
+
+// ===== Schemas =====
 import EventSchema from '../../schemas/Event.schema';
-import { EventResolver } from './event.resolver';
-import { EventService } from './event.service';
 import MemberSchema from '../../schemas/Member.schema';
 import GroupSchema from '../../schemas/Group.schema';
-import { TicketModule } from '../ticket/ticket.module';
 import TicketSchema from '../../schemas/Ticket.schema';
+import GroupMemberSchema from '../../schemas/GroupMember.schema';
+
+// ===== Components =====
+import { AuthModule } from '../auth/auth.module';
+import { MemberModule } from '../member/member.module';
+import { TicketModule } from '../ticket/ticket.module';
 import { LikeModule } from '../like/like.module';
 import { ViewModule } from '../view/view.module';
-import GroupMemberSchema from '../../schemas/GroupMember.schema';
-import { MemberModule } from '../member/member.module';
+
+// ===== Event Components =====
+import { EventResolver } from './event.resolver';
+import { EventService } from './event.service';
 
 @Module({
 	imports: [
@@ -29,6 +35,4 @@ import { MemberModule } from '../member/member.module';
 	providers: [EventResolver, EventService],
 	exports: [EventService],
 })
-export class EventModule {
-	constructor() {}
-}
+export class EventModule {}

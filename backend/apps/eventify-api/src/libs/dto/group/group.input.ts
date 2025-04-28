@@ -3,8 +3,10 @@ import { IsNotEmpty, IsString, IsOptional, IsArray, IsNumber, Min, IsEnum } from
 import { GroupCategory } from '../../enums/group.enum';
 import { Direction } from '../../enums/common.enum';
 
+// ============== Group Creation Input ==============
 @InputType()
 export class GroupInput {
+	// ===== Required Fields =====
 	@Field(() => String)
 	@IsNotEmpty()
 	groupLink: string;
@@ -21,12 +23,14 @@ export class GroupInput {
 	@IsNotEmpty()
 	groupImage: string;
 
+	// ===== Optional Fields =====
 	@Field(() => [GroupCategory], { defaultValue: [] })
 	@IsOptional()
 	@IsArray()
 	groupCategories?: GroupCategory[];
 }
 
+// ============== Search Inputs ==============
 @InputType()
 export class GroupsSearch {
 	@Field(() => String, { nullable: true })
@@ -34,14 +38,16 @@ export class GroupsSearch {
 	@IsString()
 	text?: string;
 
-	@Field(() => [String], { nullable: true })
+	@Field(() => [GroupCategory], { nullable: true })
 	@IsOptional()
 	@IsArray()
-	categories?: string[];
+	groupCategories?: GroupCategory[];
 }
 
+// ============== Inquiry Inputs ==============
 @InputType()
 export class GroupsInquiry {
+	// ===== Pagination =====
 	@Field(() => Number, { defaultValue: 1 })
 	@IsNumber()
 	@Min(1)
@@ -52,6 +58,7 @@ export class GroupsInquiry {
 	@Min(1)
 	limit: number;
 
+	// ===== Sorting =====
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsString()
@@ -62,6 +69,7 @@ export class GroupsInquiry {
 	@IsEnum(Direction)
 	direction?: Direction;
 
+	// ===== Search =====
 	@Field(() => GroupsSearch, { nullable: true })
 	@IsOptional()
 	search?: GroupsSearch;

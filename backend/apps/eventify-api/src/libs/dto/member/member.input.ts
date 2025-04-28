@@ -4,8 +4,10 @@ import { MemberStatus, MemberType } from '../../enums/member.enum';
 import { Direction } from '../../enums/common.enum';
 import { availableMembersSorts, availableOrganizersSorts } from '../../config';
 
+// ============== Authentication Inputs ==============
 @InputType()
 export class MemberInput {
+	// ===== Required Fields =====
 	@Field(() => String)
 	@IsNotEmpty()
 	@IsString()
@@ -26,6 +28,7 @@ export class MemberInput {
 	@IsString()
 	memberFullName: string;
 
+	// ===== Optional Fields =====
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsString()
@@ -50,7 +53,7 @@ export class LoginInput {
 	memberPassword: string;
 }
 
-// Organizers Inquiry Search
+// ============== Search Inputs ==============
 @InputType()
 class OISearch {
 	@IsOptional()
@@ -58,33 +61,6 @@ class OISearch {
 	text?: string;
 }
 
-@InputType()
-export class OrganizersInquiry {
-	@IsNotEmpty()
-	@Min(1)
-	@Field(() => Int)
-	page: number;
-
-	@IsNotEmpty()
-	@Min(1)
-	@Field(() => Int)
-	limit: number;
-
-	@IsOptional()
-	@IsIn(availableOrganizersSorts)
-	@Field(() => String, { nullable: true })
-	sort?: string;
-
-	@IsOptional()
-	@Field(() => Direction, { nullable: true })
-	direction?: Direction;
-
-	@IsNotEmpty()
-	@Field(() => OISearch)
-	search: OISearch;
-}
-
-// Member Inquiry Search
 @InputType()
 class MISearch {
 	@IsOptional()
@@ -100,8 +76,10 @@ class MISearch {
 	text?: string;
 }
 
+// ============== Inquiry Inputs ==============
 @InputType()
-export class MembersInquiry {
+export class OrganizersInquiry {
+	// ===== Pagination =====
 	@IsNotEmpty()
 	@Min(1)
 	@Field(() => Int)
@@ -112,6 +90,36 @@ export class MembersInquiry {
 	@Field(() => Int)
 	limit: number;
 
+	// ===== Sorting =====
+	@IsOptional()
+	@IsIn(availableOrganizersSorts)
+	@Field(() => String, { nullable: true })
+	sort?: string;
+
+	@IsOptional()
+	@Field(() => Direction, { nullable: true })
+	direction?: Direction;
+
+	// ===== Search =====
+	@IsNotEmpty()
+	@Field(() => OISearch)
+	search: OISearch;
+}
+
+@InputType()
+export class MembersInquiry {
+	// ===== Pagination =====
+	@IsNotEmpty()
+	@Min(1)
+	@Field(() => Int)
+	page: number;
+
+	@IsNotEmpty()
+	@Min(1)
+	@Field(() => Int)
+	limit: number;
+
+	// ===== Sorting =====
 	@IsOptional()
 	@IsIn(availableMembersSorts)
 	@Field(() => String, { nullable: true })
@@ -121,6 +129,7 @@ export class MembersInquiry {
 	@Field(() => Direction, { nullable: true })
 	direction?: Direction;
 
+	// ===== Search =====
 	@IsNotEmpty()
 	@Field(() => MISearch)
 	search: MISearch;

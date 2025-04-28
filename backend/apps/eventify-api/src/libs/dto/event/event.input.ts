@@ -5,8 +5,10 @@ import { Direction } from '../../enums/common.enum';
 import { availableEventsSorts } from '../../config';
 import { ObjectId } from 'mongoose';
 
+// ============== Event Creation Input ==============
 @InputType()
 export class EventInput {
+	// ===== Basic Information =====
 	@Field(() => String)
 	@IsNotEmpty()
 	@MaxLength(100)
@@ -21,6 +23,7 @@ export class EventInput {
 	@IsNotEmpty()
 	eventImage: string;
 
+	// ===== Event Details =====
 	@Field(() => Date)
 	@IsNotEmpty()
 	@IsDate()
@@ -51,6 +54,7 @@ export class EventInput {
 	@Min(0)
 	eventPrice?: number;
 
+	// ===== Type and Status =====
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsEnum(EventStatus)
@@ -60,14 +64,15 @@ export class EventInput {
 	@IsNotEmpty()
 	@IsArray()
 	@IsEnum(EventCategory, { each: true })
-	eventCategories: string[];
+	eventCategories: EventCategory[];
 
-	// References
+	// ===== References =====
 	@Field(() => String)
 	@IsNotEmpty()
 	groupId: ObjectId;
 }
 
+// ============== Search Inputs ==============
 @InputType()
 class ESearch {
 	@IsOptional()
@@ -78,16 +83,18 @@ class ESearch {
 	@IsOptional()
 	@IsArray()
 	@IsEnum(EventCategory, { each: true })
-	category?: EventCategory[];
+	eventCategories?: EventCategory[];
 
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsEnum(EventStatus)
-	status?: EventStatus;
+	eventStatus?: EventStatus;
 }
 
+// ============== Inquiry Inputs ==============
 @InputType()
 export class EventsInquiry {
+	// ===== Pagination =====
 	@IsNotEmpty()
 	@Min(1)
 	@Field(() => Int)
@@ -98,6 +105,7 @@ export class EventsInquiry {
 	@Field(() => Int)
 	limit: number;
 
+	// ===== Sorting =====
 	@IsOptional()
 	@IsIn(availableEventsSorts)
 	@Field(() => String, { nullable: true })
@@ -107,6 +115,7 @@ export class EventsInquiry {
 	@Field(() => Direction, { nullable: true })
 	direction?: Direction;
 
+	// ===== Search =====
 	@IsNotEmpty()
 	@Field(() => ESearch)
 	search: ESearch;
@@ -114,6 +123,7 @@ export class EventsInquiry {
 
 @InputType()
 export class OrdinaryEventInquiry {
+	// ===== Pagination =====
 	@IsNotEmpty()
 	@Min(1)
 	@Field(() => Int)

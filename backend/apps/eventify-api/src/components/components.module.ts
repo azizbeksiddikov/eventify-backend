@@ -11,15 +11,15 @@ import { CommentModule } from './comment/comment.module';
 
 @Module({
 	imports: [
-		MemberModule,
 		AuthModule,
-		GroupModule,
-		EventModule,
-		TicketModule,
-		LikeModule,
-		ViewModule,
 		CommentModule,
+		EventModule,
 		FollowModule,
+		GroupModule,
+		LikeModule,
+		MemberModule,
+		TicketModule,
+		ViewModule,
 	],
 })
 export class ComponentsModule {}

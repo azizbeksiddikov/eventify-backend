@@ -4,6 +4,7 @@ import { TotalCounter } from '../member/member';
 
 @ObjectType()
 export class Group {
+	// ===== Basic Information =====
 	@Field(() => String)
 	_id: ObjectId;
 
@@ -17,23 +18,26 @@ export class Group {
 	groupDesc: string;
 
 	@Field(() => String)
-	groupOwnerId: ObjectId;
-
-	@Field(() => String)
 	groupImage: string;
 
+	@Field(() => String)
+	groupOwnerId: ObjectId;
+
+	// ===== Type and Status =====
+	@Field(() => [String])
+	groupCategories: string[];
+
+	// ===== Statistics =====
 	@Field(() => Number)
 	groupViews: number;
 
 	@Field(() => Number)
 	groupLikes: number;
 
-	@Field(() => [String])
-	groupCategories: string[];
-
 	@Field(() => Number)
 	memberCount: number;
 
+	// ===== Timestamps =====
 	@Field(() => Date)
 	createdAt: Date;
 

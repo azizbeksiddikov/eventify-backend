@@ -5,6 +5,7 @@ import { GroupMemberRole } from '../../enums/group.enum';
 
 @InputType()
 export class GroupMemberInput {
+	// ===== Basic Information =====
 	@Field(() => String)
 	@IsNotEmpty()
 	@IsString()
@@ -15,10 +16,12 @@ export class GroupMemberInput {
 	@IsString()
 	memberId: ObjectId;
 
+	// ===== Type and Status =====
 	@Field(() => GroupMemberRole)
 	@IsNotEmpty()
 	groupMemberRole: GroupMemberRole;
 
+	// ===== Timestamps =====
 	@Field(() => Date)
 	@IsNotEmpty()
 	joinDate: Date;

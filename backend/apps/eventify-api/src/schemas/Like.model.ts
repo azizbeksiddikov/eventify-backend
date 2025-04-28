@@ -3,16 +3,20 @@ import { LikeGroup } from '../libs/enums/like.enum';
 
 const LikeSchema = new Schema(
 	{
-		memberId: {
-			type: Schema.Types.ObjectId,
-			ref: 'Member',
-			required: true,
-		},
+		// ===== Type and Group =====
 		likeGroup: {
 			type: String,
 			enum: LikeGroup,
 			required: true,
 		},
+
+		// ===== References =====
+		memberId: {
+			type: Schema.Types.ObjectId,
+			ref: 'Member',
+			required: true,
+		},
+
 		likeRefId: {
 			type: Schema.Types.ObjectId,
 			required: true,

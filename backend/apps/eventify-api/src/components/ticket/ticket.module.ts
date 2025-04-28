@@ -1,10 +1,15 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+
+// ===== Schemas =====
 import MemberSchema from '../../schemas/Member.schema';
-import FollowSchema from '../../schemas/Follow.schema';
-import { AuthModule } from '../auth/auth.module';
-import EventSchema from '../../schemas/Event.schema';
+import EventSchema from '../../schemas/Event.model';
 import TicketSchema from '../../schemas/Ticket.schema';
+
+// ===== Components =====
+import { AuthModule } from '../auth/auth.module';
+
+// ===== Ticket Components =====
 import { TicketService } from './ticket.service';
 
 @Module({
@@ -17,6 +22,4 @@ import { TicketService } from './ticket.service';
 	providers: [TicketService],
 	exports: [TicketService],
 })
-export class TicketModule {
-	constructor() {}
-}
+export class TicketModule {}

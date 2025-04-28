@@ -3,16 +3,20 @@ import { ViewGroup } from '../libs/enums/view.enum';
 
 const ViewSchema = new Schema(
 	{
-		memberId: {
-			type: Schema.Types.ObjectId,
-			ref: 'Member',
-			required: true,
-		},
+		// ===== Type and Group =====
 		viewGroup: {
 			type: String,
 			enum: ViewGroup,
 			required: true,
 		},
+
+		// ===== References =====
+		memberId: {
+			type: Schema.Types.ObjectId,
+			ref: 'Member',
+			required: true,
+		},
+
 		viewRefId: {
 			type: Schema.Types.ObjectId,
 			required: true,

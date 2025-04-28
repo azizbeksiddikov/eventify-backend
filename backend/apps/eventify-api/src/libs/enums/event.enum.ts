@@ -1,5 +1,6 @@
 import { registerEnumType } from '@nestjs/graphql';
 
+// ===== Event Status =====
 export enum EventStatus {
 	UPCOMING = 'UPCOMING',
 	ONGOING = 'ONGOING',
@@ -8,6 +9,7 @@ export enum EventStatus {
 	DELETED = 'DELETED',
 }
 
+// ===== Event Category =====
 export enum EventCategory {
 	SPORTS = 'SPORTS',
 	ART = 'ART',
@@ -23,5 +25,6 @@ export enum EventCategory {
 	OTHER = 'OTHER',
 }
 
+// Register Event enums
 registerEnumType(EventStatus, { name: 'EventStatus' });
 registerEnumType(EventCategory, { name: 'EventCategory' });

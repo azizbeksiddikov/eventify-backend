@@ -1,27 +1,35 @@
 import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
-import { GroupService } from './group.service';
 import { UseGuards } from '@nestjs/common';
-import { AuthGuard } from '../auth/guards/auth.guard';
-import { AuthMember } from '../auth/decorators/authMember.decorator';
 import { ObjectId } from 'mongoose';
-import { MemberType } from '../../libs/enums/member.enum';
-import { Roles } from '../auth/decorators/roles.decorator';
+
+// ===== Nest Guards and Decorators =====
+import { AuthGuard } from '../auth/guards/auth.guard';
+import { WithoutGuard } from '../auth/guards/without.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { shapeIntoMongoObjectId } from '../../libs/config';
+import { AuthMember } from '../auth/decorators/authMember.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+
+// ===== Enums =====
+import { MemberType } from '../../libs/enums/member.enum';
+
+// ===== DTOs =====
 import { Group, Groups } from '../../libs/dto/group/group';
 import { GroupInput, GroupsInquiry } from '../../libs/dto/group/group.input';
 import { GroupUpdateInput } from '../../libs/dto/group/group.update';
 import { GroupMember } from '../../libs/dto/groupMembers/groupMember';
-import { GroupMemberRole } from '../../libs/enums/group.enum';
-import { Member } from '../../libs/dto/member/member';
 import { GroupMemberUpdateInput } from '../../libs/dto/groupMembers/groupMember.update';
-import { Message } from '../../libs/enums/common.enum';
-import { WithoutGuard } from '../auth/guards/without.guard';
+
+// ===== Config =====
+import { shapeIntoMongoObjectId } from '../../libs/config';
+
+// ===== Services =====
+import { GroupService } from './group.service';
 
 @Resolver(() => Group)
 export class GroupResolver {
 	constructor(private readonly groupService: GroupService) {}
 
+	// ============== Group Management Methods ==============
 	@Roles(MemberType.ORGANIZER)
 	@UseGuards(RolesGuard)
 	@Mutation(() => Group)
@@ -76,6 +84,7 @@ export class GroupResolver {
 		return await this.groupService.deleteGroup(memberId, targetId);
 	}
 
+	// ============== Group Member Methods ==============
 	@UseGuards(AuthGuard)
 	@Mutation(() => GroupMember)
 	public async joinGroup(
@@ -95,7 +104,6 @@ export class GroupResolver {
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<GroupMember> {
 		console.log('Mutation: updateGroupMemberRole');
-
 		input.groupId = shapeIntoMongoObjectId(input.groupId);
 		input.targetMemberId = shapeIntoMongoObjectId(input.targetMemberId);
 		return await this.groupService.updateGroupMemberRole(memberId, input);
@@ -108,7 +116,6 @@ export class GroupResolver {
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<GroupMember> {
 		console.log('Mutation: leaveGroup');
-
 		const targetId = shapeIntoMongoObjectId(groupId);
 		return await this.groupService.leaveGroup(memberId, targetId);
 	}

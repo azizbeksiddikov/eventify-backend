@@ -5,17 +5,21 @@ import { CommentGroup } from '../../enums/comment.enum';
 import { Direction } from '../../enums/common.enum';
 import { availableCommentsSorts } from '../../config';
 
+// ============== Comment Creation Input ==============
 @InputType()
 export class CommentInput {
+	// ===== Type and Status =====
 	@IsNotEmpty()
 	@Field(() => CommentGroup)
 	commentGroup: CommentGroup;
 
+	// ===== Content =====
 	@IsNotEmpty()
 	@Length(1, 100)
 	@Field(() => String)
 	commentContent: string;
 
+	// ===== References =====
 	@IsNotEmpty()
 	@Field(() => String)
 	commentRefId: ObjectId;
@@ -23,6 +27,7 @@ export class CommentInput {
 	memberId?: ObjectId;
 }
 
+// ============== Search Inputs ==============
 @InputType()
 class CISearch {
 	@IsNotEmpty()
@@ -30,8 +35,10 @@ class CISearch {
 	commentRefId: ObjectId;
 }
 
+// ============== Inquiry Inputs ==============
 @InputType()
 export class CommentsInquiry {
+	// ===== Pagination =====
 	@IsNotEmpty()
 	@Min(1)
 	@Field(() => Int)
@@ -42,6 +49,7 @@ export class CommentsInquiry {
 	@Field(() => Int)
 	limit: number;
 
+	// ===== Sorting =====
 	@IsOptional()
 	@IsIn(availableCommentsSorts)
 	@Field(() => String, { nullable: true })
@@ -51,6 +59,7 @@ export class CommentsInquiry {
 	@Field(() => Direction, { nullable: true })
 	direction?: Direction;
 
+	// ===== Search =====
 	@IsNotEmpty()
 	@Field(() => CISearch)
 	search: CISearch;

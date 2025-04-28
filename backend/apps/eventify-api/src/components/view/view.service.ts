@@ -1,18 +1,27 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
+
+// ===== Enums =====
+import { ViewGroup } from '../../libs/enums/view.enum';
+
+// ===== DTOs =====
 import { View } from '../../libs/dto/view/view';
 import { ViewInput } from '../../libs/dto/view/view.input';
-import { T } from '../../libs/types/common';
-import { ViewGroup } from '../../libs/enums/view.enum';
-import { EventsInquiry, OrdinaryEventInquiry } from '../../libs/dto/event/event.input';
-import { lookupVisit } from '../../libs/config';
 import { Events } from '../../libs/dto/event/event';
+import { EventsInquiry, OrdinaryEventInquiry } from '../../libs/dto/event/event.input';
+
+// ===== Types =====
+import { T } from '../../libs/types/common';
+
+// ===== Config =====
+import { lookupVisit } from '../../libs/config';
 
 @Injectable()
 export class ViewService {
 	constructor(@InjectModel('View') private readonly viewModel: Model<View>) {}
 
+	// ============== View Management Methods ==============
 	public async recordView(input: ViewInput): Promise<View | null> {
 		const viewExist = await this.checkViewExistnce(input);
 		if (!viewExist) {
@@ -26,6 +35,7 @@ export class ViewService {
 		return this.viewModel.findOne(search).exec() as unknown as View;
 	}
 
+	// ============== View Query Methods ==============
 	public async getVisitedEvents(memberId: ObjectId, input: OrdinaryEventInquiry): Promise<Events> {
 		const { page, limit } = input;
 		const match: T = { viewGroup: ViewGroup.EVENT, memberId: memberId };

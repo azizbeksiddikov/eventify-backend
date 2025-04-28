@@ -4,10 +4,12 @@ import { ObjectId } from 'mongoose';
 
 @InputType()
 export class GroupUpdateInput {
+	// ===== Identification =====
 	@IsNotEmpty()
 	@Field(() => String)
 	_id: ObjectId;
 
+	// ===== Basic Information =====
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsString()
@@ -28,6 +30,7 @@ export class GroupUpdateInput {
 	@IsString()
 	groupImage?: string;
 
+	// ===== Type and Status =====
 	@Field(() => [String], { nullable: true })
 	@IsOptional()
 	@IsArray()

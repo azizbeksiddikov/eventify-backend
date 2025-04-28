@@ -5,35 +5,39 @@ import { MeLiked } from '../like/like';
 
 @ObjectType()
 export class MeFollowed {
+	// ===== References =====
 	@Field(() => String)
 	followingId: ObjectId;
 
 	@Field(() => String)
 	followerId: ObjectId;
 
+	// ===== Status =====
 	@Field(() => Boolean)
 	myFollowing: boolean;
 }
 
 @ObjectType()
 export class Follower {
+	// ===== Basic Information =====
 	@Field(() => String)
 	_id: ObjectId;
 
+	// ===== References =====
 	@Field(() => String)
 	followingId: ObjectId;
 
 	@Field(() => String)
 	followerId: ObjectId;
 
+	// ===== Timestamps =====
 	@Field(() => Date)
 	createdAt: Date;
 
 	@Field(() => Date)
 	updatedAt: Date;
 
-	// from aggregation
-
+	// ===== Aggregated Fields =====
 	@Field(() => [MeLiked], { nullable: true })
 	meLiked?: MeLiked[];
 
@@ -46,23 +50,25 @@ export class Follower {
 
 @ObjectType()
 export class Following {
+	// ===== Basic Information =====
 	@Field(() => String)
 	_id: ObjectId;
 
+	// ===== References =====
 	@Field(() => String)
 	followingId: ObjectId;
 
 	@Field(() => String)
 	followerId: ObjectId;
 
+	// ===== Timestamps =====
 	@Field(() => Date)
 	createdAt: Date;
 
 	@Field(() => Date)
 	updatedAt: Date;
 
-	// from aggregation
-
+	// ===== Aggregated Fields =====
 	@Field(() => [MeLiked], { nullable: true })
 	meLiked?: MeLiked[];
 

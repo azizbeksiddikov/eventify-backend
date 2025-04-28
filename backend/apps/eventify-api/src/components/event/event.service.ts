@@ -1,34 +1,38 @@
 import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
+
+// ===== Enums =====
 import { Direction, Message } from '../../libs/enums/common.enum';
-import { Group, Groups } from '../../libs/dto/group/group';
-import { GroupInput, GroupsInquiry } from '../../libs/dto/group/group.input';
-import { GroupUpdateInput } from '../../libs/dto/group/group.update';
-import { StatisticModifier, T } from '../../libs/types/common';
-import { Member } from '../../libs/dto/member/member';
-import { GroupMember } from '../../libs/dto/groupMembers/groupMember';
-import { GroupMemberInput } from '../../libs/dto/groupMembers/groupMember.input';
+import { EventStatus } from '../../libs/enums/event.enum';
+import { MemberType } from '../../libs/enums/member.enum';
+import { TicketStatus } from '../../libs/enums/ticket.enum';
+import { LikeGroup } from '../../libs/enums/like.enum';
+import { ViewGroup } from '../../libs/enums/view.enum';
 import { GroupMemberRole } from '../../libs/enums/group.enum';
-import { GroupMemberUpdateInput } from '../../libs/dto/groupMembers/groupMember.update';
+
+// ===== Types & DTOs =====
+import { StatisticModifier, T } from '../../libs/types/common';
 import { Event, Events } from '../../libs/dto/event/event';
 import { EventInput, EventsInquiry, OrdinaryEventInquiry } from '../../libs/dto/event/event.input';
 import { EventUpdateInput } from '../../libs/dto/event/event.update';
-import { EventStatus } from '../../libs/enums/event.enum';
-import { MemberType } from '../../libs/enums/member.enum';
+import { Member } from '../../libs/dto/member/member';
 import { Ticket } from '../../libs/dto/ticket/ticket';
-import { TicketStatus } from '../../libs/enums/ticket.enum';
 import { TicketInput } from '../../libs/dto/ticket/ticket.input';
+import { View } from '../../libs/dto/view/view';
+import { ViewInput } from '../../libs/dto/view/view.input';
+import { LikeInput } from '../../libs/dto/like/like.input';
+import { Group } from '../../libs/dto/group/group';
+import { GroupMember } from '../../libs/dto/groupMembers/groupMember';
+
+// ===== Config =====
+import { lookupMember } from '../../libs/config';
+
+// ===== Services =====
 import { TicketService } from '../ticket/ticket.service';
 import { LikeService } from '../like/like.service';
 import { ViewService } from '../view/view.service';
-import { LikeGroup } from '../../libs/enums/like.enum';
-import { View } from '../../libs/dto/view/view';
-import { ViewInput } from '../../libs/dto/view/view.input';
-import { ViewGroup } from '../../libs/enums/view.enum';
-import { LikeInput } from '../../libs/dto/like/like.input';
 import { MemberService } from '../member/member.service';
-import { lookupMember } from '../../libs/config';
 
 @Injectable()
 export class EventService {
@@ -37,26 +41,41 @@ export class EventService {
 		@InjectModel('Ticket') private readonly ticketModel: Model<Ticket>,
 		@InjectModel('Member') private readonly memberModel: Model<Member>,
 		@InjectModel('GroupMember') private readonly groupMemberModel: Model<GroupMember>,
+		@InjectModel('Group') private readonly groupModel: Model<Group>,
 		private readonly ticketService: TicketService,
 		private readonly likeService: LikeService,
 		private readonly viewService: ViewService,
 		private readonly memberService: MemberService,
 	) {}
 
+	// ============== Event Management Methods ==============
 	public async createEvent(memberId: ObjectId, input: EventInput): Promise<Event> {
 		if (input.eventPrice <= 0) input.eventPrice = 0;
 		if (!input?.eventStatus) input.eventStatus = EventStatus.UPCOMING;
 
-		const groupMember = await this.groupMemberModel.findOne({ memberId, groupId: input.groupId });
-		if (!groupMember) {
-			throw new Error(Message.NOT_AUTHORIZED);
+		const group = await this.groupModel.findById(input.groupId);
+		if (!group) {
+			throw new BadRequestException(Message.EVENT_GROUP_REQUIRED);
 		}
 
-		const event = await this.eventModel.create({
-			...input,
-			eventOrganizerId: memberId,
+		const groupMember = await this.groupMemberModel.findOne({
+			memberId,
+			groupId: input.groupId,
+			groupMemberRole: { $in: [GroupMemberRole.OWNER, GroupMemberRole.MODERATOR] },
 		});
-		return event;
+		if (!groupMember) {
+			throw new BadRequestException(Message.NOT_AUTHORIZED);
+		}
+
+		try {
+			const event = await this.eventModel.create({
+				...input,
+				eventOrganizerId: memberId,
+			});
+			return event;
+		} catch (error) {
+			throw new BadRequestException(Message.EVENT_ALREADY_EXISTS);
+		}
 	}
 
 	public async getEvent(memberId: ObjectId | null, eventId: ObjectId): Promise<Event> {
@@ -86,16 +105,17 @@ export class EventService {
 	}
 
 	public async getEvents(input: EventsInquiry): Promise<Events> {
-		const { text, category, status } = input.search;
+		const { text, eventCategories, eventStatus } = input.search;
 		const match: T = {
 			eventStatus: { $ne: EventStatus.DELETED },
 		};
-		if (status) match.eventStatus = status === EventStatus.DELETED ? { $ne: EventStatus.DELETED } : status;
+		if (eventStatus)
+			match.eventStatus = eventStatus === EventStatus.DELETED ? { $ne: EventStatus.DELETED } : eventStatus;
 
 		if (text) {
 			match.$or = [{ eventName: { $regex: new RegExp(text, 'i') } }, { eventDesc: { $regex: new RegExp(text, 'i') } }];
 		}
-		if (category && category.length > 0) match.eventCategories = { $in: category };
+		if (eventCategories && eventCategories.length > 0) match.eventCategories = { $in: eventCategories };
 
 		const sort: T = { [input?.sort ?? 'createdAt']: input?.direction ?? Direction.DESC };
 
@@ -148,6 +168,7 @@ export class EventService {
 		return result;
 	}
 
+	// ============== Event Interaction Methods ==============
 	public async attendEvent(memberId: ObjectId, eventId: ObjectId): Promise<Event> {
 		const event = await this.eventModel.findById(eventId).exec();
 		if (!event || event.eventStatus === EventStatus.DELETED) throw new Error(Message.EVENT_NOT_FOUND);
@@ -191,14 +212,6 @@ export class EventService {
 		return ticket.event;
 	}
 
-	public async getFavorites(memberId: ObjectId, input: OrdinaryEventInquiry): Promise<Events> {
-		return await this.likeService.getFavoriteEvents(memberId, input);
-	}
-
-	public async getVisited(memberId: ObjectId, input: OrdinaryEventInquiry): Promise<Events> {
-		return await this.viewService.getVisitedEvents(memberId, input);
-	}
-
 	public async likeTargetEvent(memberId: ObjectId, likeRefId: ObjectId): Promise<Event> {
 		const target: Event | null = await this.eventModel
 			.findOne({ _id: likeRefId, eventStatus: { $ne: EventStatus.DELETED } })
@@ -214,10 +227,18 @@ export class EventService {
 		return result;
 	}
 
-	// ADMIN ONLY
+	public async getFavorites(memberId: ObjectId, input: OrdinaryEventInquiry): Promise<Events> {
+		return await this.likeService.getFavoriteEvents(memberId, input);
+	}
+
+	public async getVisited(memberId: ObjectId, input: OrdinaryEventInquiry): Promise<Events> {
+		return await this.viewService.getVisitedEvents(memberId, input);
+	}
+
+	// ============== Admin Methods ==============
 	public async getAllEventsByAdmin(input: EventsInquiry): Promise<Events> {
 		const { page, limit, sort, direction, search } = input;
-		const { text, category, status } = search;
+		const { text, eventCategories, eventStatus } = search;
 
 		const match: T = {};
 		const sortFinal = { [sort ?? 'createdAt']: direction ?? Direction.DESC };
@@ -226,7 +247,7 @@ export class EventService {
 		if (text) {
 			match.$or = [{ eventName: { $regex: new RegExp(text, 'i') } }, { eventDesc: { $regex: new RegExp(text, 'i') } }];
 		}
-		if (category && category.length > 0) match.eventCategories = { $in: category };
+		if (eventCategories && eventCategories.length > 0) match.eventCategories = { $in: eventCategories };
 
 		const result = await this.eventModel
 			.aggregate([
@@ -254,7 +275,7 @@ export class EventService {
 		throw new Error(Message.EVENT_NOT_DELETED);
 	}
 
-	// OTHER
+	// ============== Helper Methods ==============
 	public async eventStatsEditor(input: StatisticModifier): Promise<Event> {
 		const { _id, targetKey, modifier } = input;
 		const event = await this.eventModel

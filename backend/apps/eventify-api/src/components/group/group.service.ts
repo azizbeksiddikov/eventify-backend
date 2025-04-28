@@ -1,16 +1,20 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
+
+// ===== Enums =====
+import { GroupMemberRole } from '../../libs/enums/group.enum';
 import { Direction, Message } from '../../libs/enums/common.enum';
+
+// ===== Types & DTOs =====
+import { StatisticModifier, T } from '../../libs/types/common';
 import { Group, Groups } from '../../libs/dto/group/group';
 import { GroupInput, GroupsInquiry } from '../../libs/dto/group/group.input';
 import { GroupUpdateInput } from '../../libs/dto/group/group.update';
-import { StatisticModifier, T } from '../../libs/types/common';
-import { Member } from '../../libs/dto/member/member';
 import { GroupMember } from '../../libs/dto/groupMembers/groupMember';
 import { GroupMemberInput } from '../../libs/dto/groupMembers/groupMember.input';
-import { GroupMemberRole } from '../../libs/enums/group.enum';
 import { GroupMemberUpdateInput } from '../../libs/dto/groupMembers/groupMember.update';
+import { Member } from '../../libs/dto/member/member';
 
 @Injectable()
 export class GroupService {
@@ -20,6 +24,7 @@ export class GroupService {
 		@InjectModel('Member') private readonly memberModel: Model<Member>,
 	) {}
 
+	// ============== Group Management Methods ==============
 	public async createGroup(memberId: ObjectId, input: GroupInput): Promise<Group> {
 		const existingGroup = await this.groupModel.findOne({ groupLink: input.groupLink });
 		if (existingGroup) throw new BadRequestException(Message.GROUP_ALREADY_EXISTS);
@@ -71,8 +76,8 @@ export class GroupService {
 				{ groupDesc: { $regex: search.text, $options: 'i' } },
 			];
 		}
-		if (search?.categories?.length) {
-			match.groupCategories = { $in: search.categories };
+		if (search?.groupCategories?.length) {
+			match.groupCategories = { $in: search.groupCategories };
 		}
 
 		const result = await this.groupModel
@@ -94,7 +99,6 @@ export class GroupService {
 
 	public async getMyGroups(memberId: ObjectId): Promise<Group[]> {
 		const groups = await this.groupModel.find({ groupOwnerId: memberId }).sort({ createdAt: -1 }).exec();
-
 		return groups;
 	}
 
@@ -121,11 +125,10 @@ export class GroupService {
 			throw new BadRequestException(Message.NOT_GROUP_ADMIN);
 		}
 
-		if (group.groupOwnerId.toString() !== memberId.toString()) throw new BadRequestException(Message.NOT_GROUP_ADMIN);
-
 		return await this.groupModel.findByIdAndDelete(groupId);
 	}
 
+	// ============== Group Member Methods ==============
 	public async joinGroup(memberId: ObjectId, groupId: ObjectId): Promise<GroupMember> {
 		const groupExists = await this.groupModel.findById(groupId);
 		if (!groupExists) throw new NotFoundException(Message.GROUP_NOT_FOUND);
@@ -146,6 +149,26 @@ export class GroupService {
 		await this.groupStatsEditor({ _id: groupId, targetKey: 'memberCount', modifier: 1 });
 
 		return groupMember;
+	}
+
+	public async leaveGroup(memberId: ObjectId, groupId: ObjectId): Promise<GroupMember> {
+		const group = await this.groupModel.findById(groupId);
+		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
+
+		const groupMember = await this.groupMemberModel.findOne({ groupId, memberId });
+		if (!groupMember) throw new BadRequestException(Message.NOT_JOINED);
+
+		if (group.groupOwnerId.toString() === memberId.toString()) {
+			throw new BadRequestException(Message.OWNER_CANNOT_LEAVE);
+		}
+
+		const removedMember = await this.groupMemberModel.findOneAndDelete({ groupId, memberId });
+		if (!removedMember) throw new BadRequestException(Message.LEAVE_FAILED);
+
+		if (groupMember.groupMemberRole !== GroupMemberRole.BANNED) {
+			await this.groupStatsEditor({ _id: groupId, targetKey: 'memberCount', modifier: -1 });
+		}
+		return removedMember;
 	}
 
 	public async updateGroupMemberRole(memberId: ObjectId, input: GroupMemberUpdateInput): Promise<GroupMember> {
@@ -177,27 +200,7 @@ export class GroupService {
 		return updatedMember;
 	}
 
-	public async leaveGroup(memberId: ObjectId, groupId: ObjectId): Promise<GroupMember> {
-		const group = await this.groupModel.findById(groupId);
-		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
-
-		const groupMember = await this.groupMemberModel.findOne({ groupId, memberId });
-		if (!groupMember) throw new BadRequestException(Message.NOT_JOINED);
-
-		if (group.groupOwnerId.toString() === memberId.toString()) {
-			throw new BadRequestException(Message.OWNER_CANNOT_LEAVE);
-		}
-
-		const removedMember = await this.groupMemberModel.findOneAndDelete({ groupId, memberId });
-		if (!removedMember) throw new BadRequestException(Message.DELETE_FAILED);
-
-		if (groupMember.groupMemberRole !== GroupMemberRole.BANNED) {
-			await this.groupStatsEditor({ _id: groupId, targetKey: 'memberCount', modifier: -1 });
-		}
-		return removedMember;
-	}
-
-	// Other
+	// ============== Helper Methods ==============
 	public async groupStatsEditor(input: StatisticModifier): Promise<Group> {
 		const { _id, targetKey, modifier } = input;
 

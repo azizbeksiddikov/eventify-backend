@@ -8,19 +8,30 @@ export const shapeIntoMongoObjectId = (target: any) => {
 	return typeof target === 'string' ? new ObjectId(target) : target;
 };
 
-// IMAGE CONFIGURATION
+// ============== File Configuration ==============
 export const validMimeTypes = ['image/png', 'image/jpg', 'image/jpeg'];
 export const getSerialForImage = (filename: string) => {
 	const ext = path.parse(filename).ext;
 	return uuidv4() + ext;
 };
 
+// ============== Sort Configuration ==============
 export const availableOrganizersSorts = ['createdAt', 'updatedAt', 'memberLikes', 'memberViews'];
 export const availableMembersSorts = ['createdAt', 'updatedAt', 'memberLikes', 'memberViews', 'memberFollowers'];
 export const availableEventsSorts = ['createdAt', 'updatedAt', 'eventLikes', 'eventViews', 'attendeeCount'];
 export const availableTicketsSorts = ['createdAt', 'updatedAt', 'ticketPrice'];
 export const availableReviewsSorts = ['createdAt', 'updatedAt', 'rating'];
 export const availableCommentsSorts = ['createdAt', 'updatedAt', 'commentLikes'];
+
+// ===== Member Lookups =====
+export const lookupMember = {
+	$lookup: {
+		from: 'members',
+		localField: 'memberId',
+		foreignField: '_id',
+		as: 'memberData',
+	},
+};
 
 export const lookupAuthMemberLiked = (memberId: MongooseId | null, targetRefId: string = '$_id') => {
 	return {
@@ -53,10 +64,12 @@ export const lookupAuthMemberLiked = (memberId: MongooseId | null, targetRefId: 
 	};
 };
 
+// ============== Lookup Configuration ==============
 interface LookupAuthMemberFollowed {
 	followerId: MongooseId | null;
 	followingId: string;
 }
+
 export const lookupAuthMemberFollowed = (input: LookupAuthMemberFollowed) => {
 	const { followerId, followingId } = input;
 	return {
@@ -89,6 +102,7 @@ export const lookupAuthMemberFollowed = (input: LookupAuthMemberFollowed) => {
 	};
 };
 
+// ===== Follow Lookups =====
 export const lookupFollowingData = {
 	$lookup: {
 		from: 'members',
@@ -107,6 +121,7 @@ export const lookupFollowerData = {
 	},
 };
 
+// ===== View Lookups =====
 export const lookupVisit = {
 	$lookup: {
 		from: 'members',
@@ -122,14 +137,5 @@ export const lookupFavorite = {
 		localField: 'favoriteEvent.memberId',
 		foreignField: '_id',
 		as: 'favoriteEvent.memberData',
-	},
-};
-
-export const lookupMember = {
-	$lookup: {
-		from: 'members',
-		localField: 'memberId',
-		foreignField: '_id',
-		as: 'memberData',
 	},
 };

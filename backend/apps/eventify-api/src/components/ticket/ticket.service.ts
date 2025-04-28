@@ -1,21 +1,18 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
-import { Direction, Message } from '../../libs/enums/common.enum';
-import { Group, Groups } from '../../libs/dto/group/group';
-import { GroupInput, GroupsInquiry } from '../../libs/dto/group/group.input';
-import { GroupUpdateInput } from '../../libs/dto/group/group.update';
-import { StatisticModifier, T } from '../../libs/types/common';
-import { Member } from '../../libs/dto/member/member';
-import { GroupMember } from '../../libs/dto/groupMembers/groupMember';
-import { GroupMemberInput } from '../../libs/dto/groupMembers/groupMember.input';
-import { GroupMemberRole } from '../../libs/enums/group.enum';
-import { GroupMemberUpdateInput } from '../../libs/dto/groupMembers/groupMember.update';
+
+// ===== Enums =====
+import { EventStatus } from '../../libs/enums/event.enum';
+import { TicketStatus } from '../../libs/enums/ticket.enum';
+
+// ===== DTOs =====
 import { Event } from '../../libs/dto/event/event';
 import { Ticket } from '../../libs/dto/ticket/ticket';
 import { TicketInput } from '../../libs/dto/ticket/ticket.input';
-import { EventStatus } from '../../libs/enums/event.enum';
-import { TicketStatus } from '../../libs/enums/ticket.enum';
+
+// ===== Types =====
+import { Member } from '../../libs/dto/member/member';
 
 @Injectable()
 export class TicketService {
@@ -25,6 +22,7 @@ export class TicketService {
 		@InjectModel('Event') private readonly eventModel: Model<Event>,
 	) {}
 
+	// ============== Ticket Management Methods ==============
 	public async checkTicketExist(eventId: ObjectId, memberId: ObjectId): Promise<Ticket> {
 		const ticket = await this.ticketModel
 			.findOne({
@@ -76,6 +74,7 @@ export class TicketService {
 		return ticket;
 	}
 
+	// ============== Ticket Query Methods ==============
 	public async getEventsByTickets(memberId: ObjectId, eventStatus: EventStatus[]): Promise<Event[]> {
 		const result = await this.ticketModel
 			.aggregate([

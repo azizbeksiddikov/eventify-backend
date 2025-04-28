@@ -2,8 +2,10 @@ import { Field, InputType, Int } from '@nestjs/graphql';
 import { IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 import { ObjectId } from 'mongoose';
 
+// ============== Follow Creation Input ==============
 @InputType()
 export class FollowInput {
+	// ===== References =====
 	@Field(() => String)
 	@IsNotEmpty()
 	followingId: ObjectId;
@@ -13,8 +15,10 @@ export class FollowInput {
 	followerId: ObjectId;
 }
 
+// ============== Search Inputs ==============
 @InputType()
 class FollowSearch {
+	// ===== References =====
 	@IsOptional()
 	@Field(() => String, { nullable: true })
 	followingId?: ObjectId;
@@ -24,8 +28,10 @@ class FollowSearch {
 	followerId?: ObjectId;
 }
 
+// ============== Inquiry Inputs ==============
 @InputType()
 export class FollowInquiry {
+	// ===== Pagination =====
 	@IsNotEmpty()
 	@Min(1)
 	@Field(() => Int)
@@ -36,6 +42,7 @@ export class FollowInquiry {
 	@Field(() => Int)
 	limit: number;
 
+	// ===== Search =====
 	@IsNotEmpty()
 	@Field(() => FollowSearch)
 	search: FollowSearch;

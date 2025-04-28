@@ -1,17 +1,27 @@
 import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Follower, Followers, Following, Followings } from '../../libs/dto/follow/follow';
 import { Model, ObjectId } from 'mongoose';
-import { MemberService } from '../member/member.service';
+
+// ===== Enums =====
 import { Direction, Message } from '../../libs/enums/common.enum';
+
+// ===== DTOs =====
+import { Follower, Followers, Following, Followings } from '../../libs/dto/follow/follow';
 import { FollowInquiry } from '../../libs/dto/follow/follow.input';
+
+// ===== Types =====
 import { T } from '../../libs/types/common';
+
+// ===== Config =====
 import {
 	lookupAuthMemberFollowed,
 	lookupAuthMemberLiked,
 	lookupFollowerData,
 	lookupFollowingData,
 } from '../../libs/config';
+
+// ===== Services =====
+import { MemberService } from '../member/member.service';
 
 @Injectable()
 export class FollowService {
@@ -20,6 +30,7 @@ export class FollowService {
 		private readonly memberService: MemberService,
 	) {}
 
+	// ============== Follow Management Methods ==============
 	public async subscribe(followerId: ObjectId, followingId: ObjectId): Promise<Follower> {
 		if (followerId.toString() === followingId.toString()) {
 			throw new InternalServerErrorException(Message.SELF_SUBSRIPTION_DENIED);
@@ -58,6 +69,7 @@ export class FollowService {
 		return result;
 	}
 
+	// ============== Follow Query Methods ==============
 	public async getMemberFollowings(memberId: ObjectId | null, input: FollowInquiry): Promise<Followings> {
 		const { page, limit, search } = input;
 		if (!search?.followerId) throw new InternalServerErrorException(Message.BAD_REQUEST);
@@ -107,7 +119,6 @@ export class FollowService {
 							{ $limit: limit },
 							lookupAuthMemberLiked(memberId, '$followerId'),
 							lookupAuthMemberFollowed({ followerId: memberId, followingId: '$followerId' }),
-
 							lookupFollowerData,
 							{ $unwind: '$followerData' },
 						],

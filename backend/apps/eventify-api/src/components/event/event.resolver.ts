@@ -33,12 +33,15 @@ export class EventResolver {
 		return await this.eventService.createEvent(memberId, input);
 	}
 
-	@UseGuards(AuthGuard)
+	@UseGuards(WithoutGuard)
 	@Query(() => Event)
-	public async getEvent(@Args('eventId') eventId: string): Promise<Event> {
+	public async getEvent(
+		@Args('eventId') eventId: string,
+		@AuthMember('_id') memberId: ObjectId | null,
+	): Promise<Event> {
 		console.log('Query: getEvent');
 		const targetId = shapeIntoMongoObjectId(eventId);
-		return await this.eventService.getEvent(targetId);
+		return await this.eventService.getEvent(memberId, targetId);
 	}
 
 	@UseGuards(AuthGuard)
@@ -105,6 +108,13 @@ export class EventResolver {
 		const targetId = shapeIntoMongoObjectId(eventId);
 
 		return await this.eventService.withdrawEvent(memberId, targetId);
+	}
+	@UseGuards(AuthGuard)
+	@Mutation(() => Event)
+	public async likeTargetEvent(@Args('eventId') input: string, @AuthMember('_id') memberId: ObjectId): Promise<Event> {
+		console.log('Mutation: likeTargetEvent');
+		const likeRefId = shapeIntoMongoObjectId(input);
+		return await this.eventService.likeTargetEvent(memberId, likeRefId);
 	}
 
 	// ADMIN ONLY

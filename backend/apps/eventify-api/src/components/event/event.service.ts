@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
 import { Direction, Message } from '../../libs/enums/common.enum';
@@ -22,6 +22,13 @@ import { TicketInput } from '../../libs/dto/ticket/ticket.input';
 import { TicketService } from '../ticket/ticket.service';
 import { LikeService } from '../like/like.service';
 import { ViewService } from '../view/view.service';
+import { LikeGroup } from '../../libs/enums/like.enum';
+import { View } from '../../libs/dto/view/view';
+import { ViewInput } from '../../libs/dto/view/view.input';
+import { ViewGroup } from '../../libs/enums/view.enum';
+import { LikeInput } from '../../libs/dto/like/like.input';
+import { MemberService } from '../member/member.service';
+import { lookupMember } from '../../libs/config';
 
 @Injectable()
 export class EventService {
@@ -33,13 +40,12 @@ export class EventService {
 		private readonly ticketService: TicketService,
 		private readonly likeService: LikeService,
 		private readonly viewService: ViewService,
+		private readonly memberService: MemberService,
 	) {}
 
 	public async createEvent(memberId: ObjectId, input: EventInput): Promise<Event> {
 		if (input.eventPrice <= 0) input.eventPrice = 0;
 		if (!input?.eventStatus) input.eventStatus = EventStatus.UPCOMING;
-
-		// check who is creating event, is this person a group organizer?
 
 		const groupMember = await this.groupMemberModel.findOne({ memberId, groupId: input.groupId });
 		if (!groupMember) {
@@ -53,9 +59,29 @@ export class EventService {
 		return event;
 	}
 
-	public async getEvent(eventId: ObjectId): Promise<Event> {
-		const event = await this.eventModel.findById(eventId).exec();
+	public async getEvent(memberId: ObjectId | null, eventId: ObjectId): Promise<Event> {
+		const search: T = {
+			_id: eventId,
+			eventStatus: { $ne: EventStatus.DELETED },
+		};
+
+		const event = await this.eventModel.findOne(search).exec();
 		if (!event) throw new Error(Message.EVENT_NOT_FOUND);
+
+		if (memberId) {
+			const viewInput: ViewInput = { memberId: memberId, viewRefId: eventId, viewGroup: ViewGroup.EVENT };
+			const newView: View | null = await this.viewService.recordView(viewInput);
+
+			if (newView) {
+				await this.eventStatsEditor({ _id: eventId, targetKey: 'eventViews', modifier: 1 });
+				event.eventViews += 1;
+			}
+
+			const likeInput: LikeInput = { memberId: memberId, likeRefId: eventId, likeGroup: LikeGroup.EVENT };
+			event.meLiked = await this.likeService.checkLikeExistence(likeInput);
+		}
+		event.memberData = await this.memberService.getMember(null, event.eventOrganizerId);
+
 		return event;
 	}
 
@@ -173,7 +199,52 @@ export class EventService {
 		return await this.viewService.getVisitedEvents(memberId, input);
 	}
 
+	public async likeTargetEvent(memberId: ObjectId, likeRefId: ObjectId): Promise<Event> {
+		const target: Event | null = await this.eventModel
+			.findOne({ _id: likeRefId, eventStatus: { $ne: EventStatus.DELETED } })
+			.exec();
+		if (!target) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
+
+		const input: LikeInput = { memberId: memberId, likeRefId: likeRefId, likeGroup: LikeGroup.EVENT };
+
+		const modifier = await this.likeService.toggleLike(input);
+		const result = await this.eventStatsEditor({ _id: likeRefId, targetKey: 'eventLikes', modifier: modifier });
+		if (!result) throw new InternalServerErrorException(Message.SOMETHING_WENT_WRONG);
+
+		return result;
+	}
+
 	// ADMIN ONLY
+	public async getAllEventsByAdmin(input: EventsInquiry): Promise<Events> {
+		const { page, limit, sort, direction, search } = input;
+		const { text, category, status } = search;
+
+		const match: T = {};
+		const sortFinal = { [sort ?? 'createdAt']: direction ?? Direction.DESC };
+		if (status) match.eventStatus = status;
+
+		if (text) {
+			match.$or = [{ eventName: { $regex: new RegExp(text, 'i') } }, { eventDesc: { $regex: new RegExp(text, 'i') } }];
+		}
+		if (category && category.length > 0) match.eventCategories = { $in: category };
+
+		const result = await this.eventModel
+			.aggregate([
+				{ $match: match },
+				{ $sort: sortFinal },
+				{
+					$facet: {
+						list: [{ $skip: page - 1 }, { $limit: limit }, lookupMember, { $unwind: '$memberData' }],
+						metaCounter: [{ $count: 'total' }],
+					},
+				},
+			])
+			.exec();
+		if (!result) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
+
+		return result[0];
+	}
+
 	public async deleteEventByAdmin(eventId: ObjectId): Promise<Event | null> {
 		const event = await this.eventModel.findById(eventId).exec();
 		if (!event) throw new Error(Message.EVENT_NOT_FOUND);
@@ -181,5 +252,14 @@ export class EventService {
 			return await this.eventModel.findByIdAndDelete(eventId).exec();
 		}
 		throw new Error(Message.EVENT_NOT_DELETED);
+	}
+
+	// OTHER
+	public async eventStatsEditor(input: StatisticModifier): Promise<Event> {
+		const { _id, targetKey, modifier } = input;
+		const event = await this.eventModel
+			.findByIdAndUpdate(_id, { $inc: { [targetKey]: modifier } }, { new: true })
+			.exec();
+		return event;
 	}
 }

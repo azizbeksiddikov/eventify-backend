@@ -13,8 +13,13 @@ import { GroupMemberRole } from '../../libs/enums/group.enum';
 
 // ===== Types & DTOs =====
 import { StatisticModifier, T } from '../../libs/types/common';
-import { Event, Events } from '../../libs/dto/event/event';
-import { EventInput, EventsInquiry, OrdinaryEventInquiry } from '../../libs/dto/event/event.input';
+import { Event, Events, EventsByCategory } from '../../libs/dto/event/event';
+import {
+	EventInput,
+	EventsByCategoryInquiry,
+	EventsInquiry,
+	OrdinaryEventInquiry,
+} from '../../libs/dto/event/event.input';
 import { EventUpdateInput } from '../../libs/dto/event/event.update';
 import { Member } from '../../libs/dto/member/member';
 import { Ticket } from '../../libs/dto/ticket/ticket';
@@ -105,7 +110,17 @@ export class EventService {
 	}
 
 	public async getEvents(input: EventsInquiry): Promise<Events> {
-		const { text, eventCategories, eventStatus } = input.search;
+		const pipeline = this.getPipeline(input);
+
+		const result = await this.eventModel.aggregate(pipeline).exec();
+
+		if (!result.length) throw new BadRequestException(Message.NO_DATA_FOUND);
+
+		return result[0];
+	}
+
+	private getPipeline(input: EventsInquiry): any[] {
+		const { text, eventCategories, eventStatus, eventStartDay, eventEndDay } = input.search;
 		const match: T = {
 			eventStatus: { $ne: EventStatus.DELETED },
 		};
@@ -118,23 +133,51 @@ export class EventService {
 		if (eventCategories && eventCategories.length > 0) match.eventCategories = { $in: eventCategories };
 
 		const sort: T = { [input?.sort ?? 'createdAt']: input?.direction ?? Direction.DESC };
+		if (eventStartDay && eventEndDay) {
+			match.eventStartDay = { $gte: new Date(eventStartDay), $lte: new Date(eventEndDay) };
+		} else if (eventStartDay) {
+			match.eventStartDay = { $gte: new Date(eventStartDay) };
+		} else if (eventEndDay) {
+			match.eventEndDay = { $lte: new Date(eventEndDay) };
+		}
 
-		const result = await this.eventModel
-			.aggregate([
-				{ $match: match },
-				{ $sort: sort },
-				{
-					$facet: {
-						list: [{ $skip: (input.page - 1) * input.limit }, { $limit: input.limit }],
-						metaCounter: [{ $count: 'total' }],
-					},
-				},
-			])
-			.exec();
+		const pipeline: any[] = [{ $match: match }, { $sort: sort }];
+		const facet: any = {
+			list: [],
+			metaCounter: [{ $count: 'total' }],
+		};
 
-		if (!result.length) throw new BadRequestException(Message.NO_DATA_FOUND);
+		if (input?.limit) {
+			const page = input.page > 0 ? input.page : 1;
+			facet.list.push({ $skip: (page - 1) * input.limit }, { $limit: input.limit });
+		}
 
-		return result[0];
+		pipeline.push({ $facet: facet });
+
+		return pipeline;
+	}
+
+	public async getEventsByCategory(input: EventsByCategoryInquiry): Promise<EventsByCategory> {
+		const categoryEvents = await Promise.all(
+			input.categories.map(async (category) => {
+				const events = await this.eventModel
+					.aggregate([
+						{ $match: { eventCategories: category } },
+						{ $sort: { createdAt: Direction.DESC } },
+						{ $limit: input.limit },
+					])
+					.exec();
+
+				return {
+					category,
+					events: events.length ? events : [],
+				};
+			}),
+		);
+
+		return {
+			categories: categoryEvents,
+		};
 	}
 
 	public async updateEvent(memberId: ObjectId, input: EventUpdateInput): Promise<Event> {

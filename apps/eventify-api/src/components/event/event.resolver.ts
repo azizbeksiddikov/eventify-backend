@@ -16,8 +16,13 @@ import { Member } from '../../libs/dto/member/member';
 import { GroupMemberUpdateInput } from '../../libs/dto/groupMembers/groupMember.update';
 import { Message } from '../../libs/enums/common.enum';
 import { WithoutGuard } from '../auth/guards/without.guard';
-import { Event, Events } from '../../libs/dto/event/event';
-import { EventInput, EventsInquiry, OrdinaryEventInquiry } from '../../libs/dto/event/event.input';
+import { Event, Events, EventsByCategory } from '../../libs/dto/event/event';
+import {
+	EventInput,
+	EventsByCategoryInquiry,
+	EventsInquiry,
+	OrdinaryEventInquiry,
+} from '../../libs/dto/event/event.input';
 import { EventUpdateInput } from '../../libs/dto/event/event.update';
 import { EventService } from './event.service';
 
@@ -44,11 +49,16 @@ export class EventResolver {
 		return await this.eventService.getEvent(memberId, targetId);
 	}
 
-	@UseGuards(AuthGuard)
 	@Query(() => Events)
 	public async getEvents(@Args('input') input: EventsInquiry): Promise<Events> {
 		console.log('Query: getEvents');
 		return await this.eventService.getEvents(input);
+	}
+
+	@Query(() => EventsByCategory)
+	public async getEventsByCategory(@Args('input') input: EventsByCategoryInquiry): Promise<EventsByCategory> {
+		console.log('Query: getEventsByCategory');
+		return await this.eventService.getEventsByCategory(input);
 	}
 
 	@UseGuards(AuthGuard)

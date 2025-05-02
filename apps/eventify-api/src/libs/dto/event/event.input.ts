@@ -89,6 +89,14 @@ class EISearch {
 	@IsOptional()
 	@IsEnum(EventStatus)
 	eventStatus?: EventStatus;
+
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	eventStartDay?: Date;
+
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	eventEndDay?: Date;
 }
 
 // ============== Inquiry Inputs ==============
@@ -100,10 +108,9 @@ export class EventsInquiry {
 	@Field(() => Int)
 	page: number;
 
-	@IsNotEmpty()
-	@Min(1)
-	@Field(() => Int)
-	limit: number;
+	@IsOptional()
+	@Field(() => Int, { nullable: true })
+	limit?: number;
 
 	// ===== Sorting =====
 	@IsOptional()
@@ -131,6 +138,17 @@ export class OrdinaryEventInquiry {
 
 	@IsNotEmpty()
 	@Min(1)
+	@Field(() => Int)
+	limit: number;
+}
+
+@InputType()
+export class EventsByCategoryInquiry {
+	@IsNotEmpty()
+	@Field(() => [EventCategory])
+	categories: EventCategory[];
+
+	@IsNotEmpty()
 	@Field(() => Int)
 	limit: number;
 }

@@ -19,7 +19,7 @@ export class LoggingInterceptor implements NestInterceptor {
 			return next.handle().pipe(
 				tap((response) => {
 					const responseTime = Date.now() - recordTime;
-					this.logger.verbose(`HTTP Response: ${JSON.stringify(response)} - ${responseTime}ms`, 'RESPONSE');
+					this.logger.verbose(`HTTP Response: ${JSON.stringify(response)} - ${responseTime}ms\n\n`, 'RESPONSE');
 				}),
 			);
 		} else if (requestType === 'graphql') {

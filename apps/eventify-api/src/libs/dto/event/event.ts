@@ -85,3 +85,18 @@ export class Events {
 	@Field(() => [TotalCounter], { nullable: true })
 	metaCounter: TotalCounter[];
 }
+
+@ObjectType()
+export class CategoryEvents {
+	@Field(() => String)
+	category: EventCategory;
+
+	@Field(() => [Event])
+	events: Event[];
+}
+
+@ObjectType()
+export class EventsByCategory {
+	@Field(() => [CategoryEvents])
+	categories: CategoryEvents[];
+}

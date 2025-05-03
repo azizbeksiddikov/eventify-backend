@@ -22,6 +22,7 @@ import {
 
 // ===== Services =====
 import { MemberService } from '../member/member.service';
+import { Member } from '../../libs/dto/member/member';
 
 @Injectable()
 export class FollowService {
@@ -31,7 +32,7 @@ export class FollowService {
 	) {}
 
 	// ============== Follow Management Methods ==============
-	public async subscribe(followerId: ObjectId, followingId: ObjectId): Promise<Follower> {
+	public async subscribe(followerId: ObjectId, followingId: ObjectId): Promise<Member> {
 		if (followerId.toString() === followingId.toString()) {
 			throw new InternalServerErrorException(Message.SELF_SUBSRIPTION_DENIED);
 		}
@@ -39,24 +40,32 @@ export class FollowService {
 		const targetMember = await this.memberService.getMember(null, followingId);
 		if (!targetMember) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
 
-		const result = await this.registerSubscription(followerId, followingId);
+		const existingSubscription = await this.followModel
+			.findOne({ followingId: followingId, followerId: followerId })
+			.exec();
+		if (existingSubscription) throw new InternalServerErrorException(Message.ALREADY_SUBSCRIBED);
 
-		await this.memberService.memberStatsEditor({ _id: followerId, targetKey: 'memberFollowings', modifier: 1 });
-		await this.memberService.memberStatsEditor({ _id: followingId, targetKey: 'memberFollowers', modifier: 1 });
-
-		return result;
-	}
-
-	private async registerSubscription(followerId: ObjectId, followingId: ObjectId): Promise<Follower> {
 		try {
-			return await this.followModel.create({ followingId: followingId, followerId: followerId });
+			await this.followModel.create({ followingId: followingId, followerId: followerId });
+
+			await this.memberService.memberStatsEditor({ _id: followerId, targetKey: 'memberFollowings', modifier: 1 });
+			await this.memberService.memberStatsEditor({
+				_id: followingId,
+				targetKey: 'memberFollowers',
+				modifier: 1,
+			});
+
+			targetMember.memberFollowers += 1;
+			targetMember.meFollowed = [{ followingId: followingId, followerId: followerId, myFollowing: true }];
+
+			return targetMember;
 		} catch (err) {
 			console.log('Error, Service.model', err);
 			throw new BadRequestException(Message.CREATE_FAILED);
 		}
 	}
 
-	public async unsubscribe(followerId: ObjectId, followingId: ObjectId): Promise<Follower> {
+	public async unsubscribe(followerId: ObjectId, followingId: ObjectId): Promise<Member> {
 		const targetMember = await this.memberService.getMember(null, followingId);
 		if (!targetMember) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
 
@@ -66,7 +75,10 @@ export class FollowService {
 		await this.memberService.memberStatsEditor({ _id: followerId, targetKey: 'memberFollowings', modifier: -1 });
 		await this.memberService.memberStatsEditor({ _id: followingId, targetKey: 'memberFollowers', modifier: -1 });
 
-		return result;
+		targetMember.memberFollowers -= 1;
+		targetMember.meFollowed = [];
+
+		return targetMember;
 	}
 
 	// ============== Follow Query Methods ==============

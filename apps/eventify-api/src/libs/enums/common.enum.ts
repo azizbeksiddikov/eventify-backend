@@ -23,6 +23,7 @@ export enum Message {
 	PROVIDE_ALLOWED_FORMAT = 'Please upload an image in JPG, JPEG, or PNG format.',
 	SELF_SUBSRIPTION_DENIED = 'You cannot subscribe to yourself.',
 	INSUFFICIENT_POINTS = 'You do not have enough points for this action.',
+	ALREADY_SUBSCRIBED = 'You are already subscribed to this member.',
 
 	// ===== Event Related Messages =====
 	EVENT_NOT_FOUND = 'Event not found.',

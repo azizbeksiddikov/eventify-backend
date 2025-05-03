@@ -34,18 +34,18 @@ export class TicketService {
 		return ticket;
 	}
 
-	public async createTicket(ticket: TicketInput): Promise<Ticket> {
-		const { eventId, memberId, ticketPrice } = ticket;
+	public async createTicket(memberId: ObjectId, ticket: TicketInput): Promise<Ticket> {
+		const { eventId, ticketPrice } = ticket;
 		let newTicket;
 
 		if (ticket.ticketStatus === TicketStatus.CANCELLED) {
 			newTicket = await this.ticketModel.findOneAndUpdate(
 				{ eventId: eventId, memberId: memberId },
-				{ ticketStatus: TicketStatus.PURCHASED },
+				{ ticketStatus: TicketStatus.CANCELLED },
 				{ new: true },
 			);
 		} else {
-			newTicket = await this.ticketModel.create({ ...ticket, ticketStatus: TicketStatus.PURCHASED });
+			newTicket = await this.ticketModel.create({ ...ticket, memberId: memberId });
 		}
 
 		await this.memberModel.findByIdAndUpdate(memberId, { $inc: { memberPoints: -ticketPrice } }).exec();

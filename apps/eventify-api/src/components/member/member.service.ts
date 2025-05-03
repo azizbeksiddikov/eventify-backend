@@ -18,7 +18,7 @@ import { LikeInput } from '../../libs/dto/like/like.input';
 import { ViewInput } from '../../libs/dto/view/view.input';
 
 // ===== Config =====
-import { lookupAuthMemberLiked } from '../../libs/config';
+import { lookupAuthMemberFollowed, lookupAuthMemberLiked } from '../../libs/config';
 
 // ===== Services =====
 import { AuthService } from '../auth/auth.service';
@@ -165,7 +165,12 @@ export class MemberService {
 				{ $sort: sort },
 				{
 					$facet: {
-						list: [{ $skip: (input.page - 1) * input.limit }, { $limit: input.limit }, lookupAuthMemberLiked(memberId)],
+						list: [
+							{ $skip: (input.page - 1) * input.limit },
+							{ $limit: input.limit },
+							lookupAuthMemberLiked(memberId),
+							lookupAuthMemberFollowed({ followerId: memberId, followingId: '$_id' }),
+						],
 						metaCounter: [{ $count: 'total' }],
 					},
 				},
@@ -178,18 +183,27 @@ export class MemberService {
 	}
 
 	public async likeTargetMember(memberId: ObjectId, likeRefId: ObjectId): Promise<Member> {
-		const target: Member | null = await this.memberModel
+		const member: Member | null = await this.memberModel
 			.findOne({ _id: likeRefId, memberStatus: MemberStatus.ACTIVE })
+			.lean()
 			.exec();
-		if (!target) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
+		if (!member) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
+
+		console.log('member', member);
 
 		const input: LikeInput = { memberId: memberId, likeRefId: likeRefId, likeGroup: LikeGroup.MEMBER };
 
 		const modifier = await this.likeService.toggleLike(input);
-		const result = await this.memberStatsEditor({ _id: likeRefId, targetKey: 'memberLikes', modifier: modifier });
-		if (!result) throw new InternalServerErrorException(Message.SOMETHING_WENT_WRONG);
+		await this.memberStatsEditor({ _id: likeRefId, targetKey: 'memberLikes', modifier: modifier });
+		member.memberLikes += modifier;
 
-		return result;
+		if (modifier > 0) {
+			member.meLiked = [{ memberId: memberId, likeRefId: likeRefId, myFavorite: true }];
+		} else {
+			member.meLiked = [];
+		}
+
+		return member;
 	}
 
 	// ============== Admin Only Methods ==============

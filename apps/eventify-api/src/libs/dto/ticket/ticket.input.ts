@@ -13,10 +13,6 @@ export class TicketInput {
 	@IsNotEmpty()
 	eventId: ObjectId;
 
-	@Field(() => String)
-	@IsNotEmpty()
-	memberId: ObjectId;
-
 	// ===== Pricing =====
 	@Field(() => Number)
 	@IsNotEmpty()
@@ -25,7 +21,7 @@ export class TicketInput {
 	// ===== Type and Status =====
 	@Field(() => TicketStatus, { defaultValue: TicketStatus.PURCHASED })
 	@IsEnum(TicketStatus)
-	ticketStatus: TicketStatus;
+	ticketStatus?: TicketStatus;
 
 	@Field(() => Number)
 	@IsNotEmpty()

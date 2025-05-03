@@ -3,7 +3,7 @@ import { EventStatus, EventCategory } from '../../enums/event.enum';
 import { Member, TotalCounter } from '../member/member';
 import { ObjectId } from 'mongoose';
 import { MeLiked } from '../like/like';
-import { MeJoined } from '../group/group';
+import { Group, MeJoined } from '../group/group';
 
 @ObjectType()
 export class Event {
@@ -77,8 +77,14 @@ export class Event {
 	@Field(() => Member, { nullable: true })
 	memberData?: Member;
 
+	@Field(() => Group, { nullable: true })
+	hostingGroup?: Group;
+
 	@Field(() => [MeLiked], { nullable: true })
 	meLiked?: MeLiked[];
+
+	@Field(() => [Event], { nullable: true })
+	similarEvents?: Event[];
 }
 
 @ObjectType()

@@ -105,6 +105,16 @@ export class EventService {
 			event.meLiked = await this.likeService.checkLikeExistence(likeInput);
 		}
 		event.memberData = await this.memberService.getMember(null, event.memberId);
+		event.hostingGroup = await this.groupModel.findById(event.groupId).exec();
+
+		event.similarEvents = await this.eventModel
+			.aggregate([
+				{ $match: { eventCategories: { $in: event.eventCategories }, _id: { $ne: event._id } } },
+				{ $sort: { createdAt: Direction.DESC } },
+				{ $limit: 5 },
+				lookupAuthMemberLiked(memberId),
+			])
+			.exec();
 
 		return event;
 	}

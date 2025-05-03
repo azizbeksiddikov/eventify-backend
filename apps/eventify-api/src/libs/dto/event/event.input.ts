@@ -39,6 +39,11 @@ export class EventInput {
 
 	@Field(() => String)
 	@IsNotEmpty()
+	@MaxLength(100)
+	eventCity: string;
+
+	@Field(() => String)
+	@IsNotEmpty()
 	@MaxLength(200)
 	eventAddress: string;
 

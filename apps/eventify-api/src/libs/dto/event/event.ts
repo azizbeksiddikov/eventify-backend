@@ -31,6 +31,9 @@ export class Event {
 	eventEndTime: string;
 
 	@Field(() => String)
+	eventCity: string;
+
+	@Field(() => String)
 	eventAddress: string;
 
 	@Field(() => Int)

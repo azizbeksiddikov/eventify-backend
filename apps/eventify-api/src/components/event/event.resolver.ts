@@ -25,6 +25,7 @@ import {
 } from '../../libs/dto/event/event.input';
 import { EventUpdateInput } from '../../libs/dto/event/event.update';
 import { EventService } from './event.service';
+import { TicketInput } from '../../libs/dto/ticket/ticket.input';
 
 @Resolver(() => Event)
 export class EventResolver {
@@ -49,10 +50,14 @@ export class EventResolver {
 		return await this.eventService.getEvent(memberId, targetId);
 	}
 
+	@UseGuards(WithoutGuard)
 	@Query(() => Events)
-	public async getEvents(@Args('input') input: EventsInquiry): Promise<Events> {
+	public async getEvents(
+		@Args('input') input: EventsInquiry,
+		@AuthMember('_id') memberId: ObjectId | null,
+	): Promise<Events> {
 		console.log('Query: getEvents');
-		return await this.eventService.getEvents(input);
+		return await this.eventService.getEvents(memberId, input);
 	}
 
 	@UseGuards(WithoutGuard)
@@ -90,13 +95,13 @@ export class EventResolver {
 	@Roles(MemberType.ORGANIZER)
 	@UseGuards(RolesGuard)
 	@Mutation(() => Event)
-	public async updateEvent(
+	public async updateEventByOrganizer(
 		@Args('input') input: EventUpdateInput,
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<Event> {
 		console.log('Mutation: updateEvent');
 		input._id = shapeIntoMongoObjectId(input._id);
-		return await this.eventService.updateEvent(memberId, input);
+		return await this.eventService.updateEventByOrganizer(memberId, input);
 	}
 
 	@UseGuards(AuthGuard)
@@ -106,23 +111,6 @@ export class EventResolver {
 		return await this.eventService.getMyEvents(member);
 	}
 
-	@UseGuards(AuthGuard)
-	@Mutation(() => Event)
-	public async attendEvent(@Args('eventId') eventId: string, @AuthMember('_id') memberId: ObjectId): Promise<Event> {
-		console.log('Mutation: attendEvent');
-		const targetId = shapeIntoMongoObjectId(eventId);
-
-		return await this.eventService.attendEvent(memberId, targetId);
-	}
-
-	@UseGuards(AuthGuard)
-	@Mutation(() => Event)
-	public async withdrawEvent(@Args('eventId') eventId: string, @AuthMember('_id') memberId: ObjectId): Promise<Event> {
-		console.log('Mutation: withdrawEvent');
-		const targetId = shapeIntoMongoObjectId(eventId);
-
-		return await this.eventService.withdrawEvent(memberId, targetId);
-	}
 	@UseGuards(AuthGuard)
 	@Mutation(() => Event)
 	public async likeTargetEvent(@Args('eventId') input: string, @AuthMember('_id') memberId: ObjectId): Promise<Event> {

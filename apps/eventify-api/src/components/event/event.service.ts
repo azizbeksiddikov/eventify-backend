@@ -109,8 +109,8 @@ export class EventService {
 		return event;
 	}
 
-	public async getEvents(input: EventsInquiry): Promise<Events> {
-		const pipeline = this.getPipeline(input);
+	public async getEvents(memberId: ObjectId | null, input: EventsInquiry): Promise<Events> {
+		const pipeline = this.getPipeline(memberId, input);
 
 		const result = await this.eventModel.aggregate(pipeline).exec();
 
@@ -119,7 +119,7 @@ export class EventService {
 		return result[0];
 	}
 
-	private getPipeline(input: EventsInquiry): any[] {
+	private getPipeline(memberId: ObjectId | null, input: EventsInquiry): any[] {
 		const { text, eventCategories, eventStatus, eventStartDay, eventEndDay } = input.search;
 		const match: T = {
 			eventStatus: { $ne: EventStatus.DELETED },
@@ -134,11 +134,11 @@ export class EventService {
 
 		const sort: T = { [input?.sort ?? 'createdAt']: input?.direction ?? Direction.DESC };
 		if (eventStartDay && eventEndDay) {
-			match.eventStartDay = { $gte: new Date(eventStartDay), $lte: new Date(eventEndDay) };
+			match.eventDate = { $gte: new Date(eventStartDay), $lte: new Date(eventEndDay) };
 		} else if (eventStartDay) {
-			match.eventStartDay = { $gte: new Date(eventStartDay) };
+			match.eventDate = { $gte: new Date(eventStartDay) };
 		} else if (eventEndDay) {
-			match.eventEndDay = { $lte: new Date(eventEndDay) };
+			match.eventDate = { $lte: new Date(eventEndDay) };
 		}
 
 		const pipeline: any[] = [{ $match: match }, { $sort: sort }];
@@ -149,7 +149,7 @@ export class EventService {
 
 		if (input?.limit) {
 			const page = input.page > 0 ? input.page : 1;
-			facet.list.push({ $skip: (page - 1) * input.limit }, { $limit: input.limit });
+			facet.list.push({ $skip: (page - 1) * input.limit }, { $limit: input.limit }, lookupAuthMemberLiked(memberId));
 		}
 
 		pipeline.push({ $facet: facet });
@@ -186,7 +186,7 @@ export class EventService {
 		};
 	}
 
-	public async updateEvent(memberId: ObjectId, input: EventUpdateInput): Promise<Event> {
+	public async updateEventByOrganizer(memberId: ObjectId, input: EventUpdateInput): Promise<Event> {
 		const event = await this.eventModel.findById(input._id).exec();
 		if (!event || event.eventStatus === EventStatus.DELETED) throw new Error(Message.EVENT_NOT_FOUND);
 		if (event.memberId.toString() !== memberId.toString()) {
@@ -218,49 +218,6 @@ export class EventService {
 	}
 
 	// ============== Event Interaction Methods ==============
-	public async attendEvent(memberId: ObjectId, eventId: ObjectId): Promise<Event> {
-		const event = await this.eventModel.findById(eventId).exec();
-		if (!event || event.eventStatus === EventStatus.DELETED) throw new Error(Message.EVENT_NOT_FOUND);
-
-		if (event.eventStatus === EventStatus.CANCELLED) throw new Error(Message.EVENT_CANCELLED);
-		if (event.eventStatus === EventStatus.COMPLETED) throw new Error(Message.EVENT_COMPLETED);
-
-		if (event.attendeeCount >= event.eventCapacity) throw new Error(Message.EVENT_FULL);
-
-		if (event.eventPrice > 0) {
-			const member = await this.memberModel.findById(memberId).exec();
-			if (member.memberPoints < event.eventPrice) throw new Error(Message.INSUFFICIENT_POINTS);
-		}
-
-		const ticketExist = await this.ticketService.checkTicketExist(eventId, memberId);
-		if (ticketExist && ticketExist.ticketStatus !== TicketStatus.CANCELLED)
-			throw new Error(Message.TICKET_ALREADY_PURCHASED);
-
-		const newTicket: TicketInput = {
-			eventId: eventId,
-			memberId: memberId,
-			ticketPrice: event.eventPrice,
-			ticketStatus: ticketExist.ticketStatus ?? TicketStatus.PURCHASED,
-		};
-		const ticket = await this.ticketService.createTicket(newTicket);
-		if (!ticket) throw new Error(Message.TICKET_CREATION_FAILED);
-
-		return ticket.event;
-	}
-
-	public async withdrawEvent(memberId: ObjectId, eventId: ObjectId): Promise<Event> {
-		const event = await this.eventModel.findById(eventId).exec();
-		if (!event || event.eventStatus === EventStatus.DELETED) throw new Error(Message.EVENT_NOT_FOUND);
-		if (event.eventStatus !== EventStatus.UPCOMING) throw new Error(Message.UNABLE_TO_CANCEL_EVENT);
-
-		const ticketExist = await this.ticketService.checkTicketExist(eventId, memberId);
-		if (!ticketExist) throw new Error(Message.TICKET_NOT_FOUND);
-		if (ticketExist.ticketStatus === TicketStatus.CANCELLED) throw new Error(Message.TICKET_ALREADY_CANCELLED);
-
-		const ticket = await this.ticketService.cancelTicket(eventId, memberId);
-		return ticket.event;
-	}
-
 	public async likeTargetEvent(memberId: ObjectId, likeRefId: ObjectId): Promise<Event> {
 		// find event
 		const event: Event | null = await this.eventModel.findById(likeRefId).lean().exec();

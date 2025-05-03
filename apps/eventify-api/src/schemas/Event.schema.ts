@@ -42,6 +42,11 @@ const EventSchema = new Schema(
 			required: true,
 			maxlength: 200,
 		},
+		eventCity: {
+			type: String,
+			required: true,
+			maxlength: 100,
+		},
 
 		eventCapacity: {
 			type: Number,

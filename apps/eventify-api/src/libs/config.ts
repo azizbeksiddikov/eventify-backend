@@ -64,6 +64,39 @@ export const lookupAuthMemberLiked = (memberId: MongooseId | null, targetRefId: 
 	};
 };
 
+export const lookupAuthMemberJoined = (memberId: MongooseId | null, targetRefId: string = '$_id') => {
+	return {
+		$lookup: {
+			from: 'groupMembers',
+			let: {
+				localGroupId: targetRefId,
+				localMemberId: memberId,
+				localMeJoined: true,
+			},
+			pipeline: [
+				{
+					$match: {
+						$expr: {
+							$and: [{ $eq: ['$groupId', '$$localGroupId'] }, { $eq: ['$memberId', '$$localMemberId'] }],
+						},
+					},
+				},
+				{
+					$project: {
+						_id: 0,
+						memberId: 1,
+						groupId: 1,
+						groupMemberRole: 1,
+						joinDate: 1,
+						meJoined: '$$localMeJoined',
+					},
+				},
+			],
+			as: 'meJoined',
+		},
+	};
+};
+
 // ============== Lookup Configuration ==============
 interface LookupAuthMemberFollowed {
 	followerId: MongooseId | null;

@@ -2,15 +2,30 @@ import { Field, ObjectType } from '@nestjs/graphql';
 import { ObjectId } from 'mongoose';
 import { Member, TotalCounter } from '../member/member';
 import { MeLiked } from '../like/like';
+import { GroupMemberRole } from '../../enums/group.enum';
+@ObjectType()
+export class MeJoined {
+	@Field(() => String)
+	memberId: ObjectId;
+
+	@Field(() => String)
+	groupId: ObjectId;
+
+	@Field(() => GroupMemberRole)
+	groupMemberRole: GroupMemberRole;
+
+	@Field(() => Date)
+	joinDate: Date;
+
+	@Field(() => Boolean)
+	meJoined: boolean;
+}
 
 @ObjectType()
 export class Group {
 	// ===== Basic Information =====
 	@Field(() => String)
 	_id: ObjectId;
-
-	@Field(() => String)
-	groupLink: string;
 
 	@Field(() => String)
 	groupName: string;
@@ -51,6 +66,9 @@ export class Group {
 
 	@Field(() => [MeLiked], { nullable: true })
 	meLiked?: MeLiked[];
+
+	@Field(() => [MeJoined], { nullable: true })
+	meJoined?: MeJoined[];
 }
 
 @ObjectType()

@@ -8,12 +8,10 @@ export class GroupMemberInput {
 	// ===== Basic Information =====
 	@Field(() => String)
 	@IsNotEmpty()
-	@IsString()
 	groupId: ObjectId;
 
 	@Field(() => String)
 	@IsNotEmpty()
-	@IsString()
 	memberId: ObjectId;
 
 	// ===== Type and Status =====

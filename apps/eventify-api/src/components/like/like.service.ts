@@ -40,6 +40,9 @@ export class LikeService {
 		const result = await this.likeModel
 			.findOne({ likeGroup: likeGroup, memberId: memberId, likeRefId: likeRefId })
 			.exec();
+
+		console.log('result of checkMeLiked:', result);
+
 		return result ? [{ memberId: memberId, likeRefId: likeRefId, myFavorite: true }] : [];
 	}
 

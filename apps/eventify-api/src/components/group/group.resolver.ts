@@ -46,6 +46,7 @@ export class GroupResolver {
 		@AuthMember('_id') memberId: ObjectId | null,
 	): Promise<Group> {
 		console.log('Query: getGroup');
+
 		const targetId = shapeIntoMongoObjectId(groupId);
 		return await this.groupService.getGroup(memberId, targetId);
 	}
@@ -99,11 +100,8 @@ export class GroupResolver {
 
 	// ============== Group Member Methods ==============
 	@UseGuards(AuthGuard)
-	@Mutation(() => GroupMember)
-	public async joinGroup(
-		@Args('groupId') groupId: string,
-		@AuthMember('_id') memberId: ObjectId,
-	): Promise<GroupMember> {
+	@Mutation(() => Group)
+	public async joinGroup(@Args('groupId') groupId: string, @AuthMember('_id') memberId: ObjectId): Promise<Group> {
 		console.log('Mutation: joinGroup');
 		const targetId = shapeIntoMongoObjectId(groupId);
 		return await this.groupService.joinGroup(memberId, targetId);
@@ -123,11 +121,8 @@ export class GroupResolver {
 	}
 
 	@UseGuards(AuthGuard)
-	@Mutation(() => GroupMember)
-	public async leaveGroup(
-		@Args('groupId') groupId: string,
-		@AuthMember('_id') memberId: ObjectId,
-	): Promise<GroupMember> {
+	@Mutation(() => Group)
+	public async leaveGroup(@Args('groupId') groupId: string, @AuthMember('_id') memberId: ObjectId): Promise<Group> {
 		console.log('Mutation: leaveGroup');
 		const targetId = shapeIntoMongoObjectId(groupId);
 		return await this.groupService.leaveGroup(memberId, targetId);

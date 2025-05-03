@@ -6,11 +6,6 @@ import { Direction } from '../../enums/common.enum';
 // ============== Group Creation Input ==============
 @InputType()
 export class GroupInput {
-	// ===== Required Fields =====
-	@Field(() => String)
-	@IsNotEmpty()
-	groupLink: string;
-
 	@Field(() => String)
 	@IsNotEmpty()
 	groupName: string;

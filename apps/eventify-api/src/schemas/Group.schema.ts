@@ -4,11 +4,6 @@ import { GroupCategory } from '../libs/enums/group.enum';
 const GroupSchema = new Schema(
 	{
 		// ===== Basic Information =====
-		groupLink: {
-			type: String,
-			required: true,
-			unique: true,
-		},
 
 		groupName: {
 			type: String,

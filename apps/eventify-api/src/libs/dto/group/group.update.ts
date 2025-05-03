@@ -9,12 +9,6 @@ export class GroupUpdateInput {
 	@Field(() => String)
 	_id: ObjectId;
 
-	// ===== Basic Information =====
-	@Field(() => String, { nullable: true })
-	@IsOptional()
-	@IsString()
-	groupLink?: string;
-
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsString()

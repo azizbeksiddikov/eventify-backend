@@ -8,7 +8,7 @@ import { Direction, Message } from '../../libs/enums/common.enum';
 
 // ===== Types & DTOs =====
 import { StatisticModifier, T } from '../../libs/types/common';
-import { Group, Groups } from '../../libs/dto/group/group';
+import { Group, Groups, MeJoined } from '../../libs/dto/group/group';
 import { GroupInput, GroupsInquiry } from '../../libs/dto/group/group.input';
 import { GroupUpdateInput } from '../../libs/dto/group/group.update';
 import { GroupMember } from '../../libs/dto/groupMembers/groupMember';
@@ -19,7 +19,7 @@ import { MemberStatus } from '../../libs/enums/member.enum';
 import { LikeGroup } from '../../libs/enums/like.enum';
 import { LikeInput } from '../../libs/dto/like/like.input';
 import { LikeService } from '../like/like.service';
-import { lookupAuthMemberLiked } from '../../libs/config';
+import { lookupAuthMemberJoined, lookupAuthMemberLiked } from '../../libs/config';
 import { lookupMember } from '../../libs/config';
 import { ViewGroup } from '../../libs/enums/view.enum';
 import { ViewService } from '../view/view.service';
@@ -35,9 +35,6 @@ export class GroupService {
 
 	// ============== Group Management Methods ==============
 	public async createGroup(memberId: ObjectId, input: GroupInput): Promise<Group> {
-		const existingGroup = await this.groupModel.findOne({ groupLink: input.groupLink });
-		if (existingGroup) throw new BadRequestException(Message.GROUP_ALREADY_EXISTS);
-
 		const member = await this.memberModel.findById(memberId);
 		if (!member) throw new NotFoundException(Message.MEMBER_NOT_FOUND);
 
@@ -64,10 +61,15 @@ export class GroupService {
 	}
 
 	public async getGroup(memberId: ObjectId | null, groupId: ObjectId): Promise<Group> {
+		// find a group
 		const group: Group | null = await this.groupModel.findById(groupId).lean().exec();
 		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
 
+		// find a group owner
+		group.memberData = (await this.memberModel.findById(group.memberId).lean().exec()) as unknown as Member;
+
 		if (memberId) {
+			// update group views if new view
 			const newView = await this.viewService.recordView({
 				memberId: memberId,
 				viewGroup: ViewGroup.GROUP,
@@ -78,12 +80,15 @@ export class GroupService {
 				await this.groupStatsEditor({ _id: groupId, targetKey: 'groupViews', modifier: 1 });
 			}
 
-			// check for meLIked
+			// check for meLiked
 			group.meLiked = await this.likeService.checkMeLiked({
-				memberId: memberId,
 				likeGroup: LikeGroup.GROUP,
+				memberId: memberId,
 				likeRefId: groupId,
 			});
+
+			// check for meJoined
+			group.meJoined = await this.checkMeJoined(memberId, groupId);
 		}
 		return group;
 	}
@@ -114,8 +119,10 @@ export class GroupService {
 							{ $skip: skip },
 							{ $limit: limit },
 							lookupAuthMemberLiked(memberId),
+							lookupAuthMemberJoined(memberId),
 							lookupMember,
 							{ $unwind: '$memberData' },
+							// check for meJoined
 						],
 						metaCounter: [{ $count: 'total' }],
 					},
@@ -139,11 +146,6 @@ export class GroupService {
 			throw new BadRequestException(Message.NOT_GROUP_ADMIN);
 		}
 
-		if (input.groupLink) {
-			const existingGroup = await this.groupModel.findOne({ groupLink: input.groupLink });
-			if (existingGroup) throw new BadRequestException(Message.GROUP_ALREADY_EXISTS);
-		}
-
 		if (input.groupCategories?.length > 3) input.groupCategories = input.groupCategories.slice(0, 3);
 		return await this.groupModel.findByIdAndUpdate(input._id, { ...input }, { new: true });
 	}
@@ -159,59 +161,64 @@ export class GroupService {
 	}
 
 	public async likeTargetGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {
-		const target: Group | null = await this.groupModel.findOne({ _id: groupId }).exec();
+		const target: Group | null = await this.groupModel.findOne({ _id: groupId }).lean().exec();
 		if (!target) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
 
 		const input: LikeInput = { memberId: memberId, likeRefId: groupId, likeGroup: LikeGroup.GROUP };
 
 		const modifier = await this.likeService.toggleLike(input);
-		const result = await this.groupStatsEditor({ _id: groupId, targetKey: 'groupLikes', modifier: modifier });
-		if (!result) throw new InternalServerErrorException(Message.SOMETHING_WENT_WRONG);
+		this.groupStatsEditor({ _id: groupId, targetKey: 'groupLikes', modifier: modifier });
 
-		return result;
+		target.groupLikes += modifier;
+		target.meLiked = await this.likeService.checkMeLiked(input);
+		return target;
 	}
 
 	// ============== Group Member Methods ==============
-	public async joinGroup(memberId: ObjectId, groupId: ObjectId): Promise<GroupMember> {
-		const groupExists = await this.groupModel.findById(groupId);
-		if (!groupExists) throw new NotFoundException(Message.GROUP_NOT_FOUND);
+	public async joinGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {
+		const group: Group | null = await this.groupModel.findById(groupId).lean().exec();
+		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
 
-		const memberExists = await this.groupMemberModel.findOne({ groupId, memberId });
-		if (memberExists) throw new BadRequestException(Message.ALREADY_JOINED);
+		const groupMemberExists: GroupMember | null = await this.groupMemberModel.findOne({ groupId, memberId });
+		if (groupMemberExists) throw new BadRequestException(Message.ALREADY_JOINED);
 
-		const newGroupMember: GroupMemberInput = {
-			groupId,
-			memberId,
+		const newGroupMemberInput: GroupMemberInput = {
+			groupId: groupId,
+			memberId: memberId,
 			groupMemberRole: GroupMemberRole.MEMBER,
 			joinDate: new Date(),
 		};
 
-		const groupMember = await this.groupMemberModel.create(newGroupMember);
+		const groupMember = await this.groupMemberModel.create(newGroupMemberInput);
 		if (!groupMember) throw new BadRequestException(Message.CREATE_FAILED);
 
 		await this.groupStatsEditor({ _id: groupId, targetKey: 'memberCount', modifier: 1 });
 
-		return groupMember;
+		group.memberCount += 1;
+		group.meJoined = [{ ...newGroupMemberInput, meJoined: true }];
+		return group;
 	}
 
-	public async leaveGroup(memberId: ObjectId, groupId: ObjectId): Promise<GroupMember> {
-		const group = await this.groupModel.findById(groupId);
+	public async leaveGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {
+		const group: Group | null = await this.groupModel.findById(groupId).lean().exec();
 		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
 
-		const groupMember = await this.groupMemberModel.findOne({ groupId, memberId });
+		const groupMember: GroupMember | null = await this.groupMemberModel.findOne({ groupId, memberId }).lean().exec();
 		if (!groupMember) throw new BadRequestException(Message.NOT_JOINED);
 
 		if (group.memberId.toString() === memberId.toString()) {
 			throw new BadRequestException(Message.OWNER_CANNOT_LEAVE);
 		}
 
-		const removedMember = await this.groupMemberModel.findOneAndDelete({ groupId, memberId });
-		if (!removedMember) throw new BadRequestException(Message.LEAVE_FAILED);
+		await this.groupMemberModel.findOneAndDelete({ groupId, memberId });
 
 		if (groupMember.groupMemberRole !== GroupMemberRole.BANNED) {
 			await this.groupStatsEditor({ _id: groupId, targetKey: 'memberCount', modifier: -1 });
+			group.memberCount -= 1;
 		}
-		return removedMember;
+
+		group.meJoined = [];
+		return group;
 	}
 
 	public async updateGroupMemberRole(memberId: ObjectId, input: GroupMemberUpdateInput): Promise<GroupMember> {
@@ -241,6 +248,20 @@ export class GroupService {
 
 		if (!updatedMember) throw new BadRequestException(Message.UPDATE_FAILED);
 		return updatedMember;
+	}
+
+	private async checkMeJoined(memberId: ObjectId, groupId: ObjectId): Promise<MeJoined[]> {
+		const meJoined = await this.groupMemberModel.findOne({ groupId: groupId, memberId: memberId });
+		if (!meJoined) return [];
+		const meJoinedData: MeJoined = {
+			memberId: meJoined.memberId,
+			groupId: meJoined.groupId,
+			groupMemberRole: meJoined.groupMemberRole,
+			joinDate: meJoined.joinDate,
+			meJoined: true,
+		};
+
+		return [meJoinedData];
 	}
 
 	// ============== Helper Methods ==============

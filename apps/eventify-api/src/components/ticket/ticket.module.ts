@@ -11,7 +11,7 @@ import { AuthModule } from '../auth/auth.module';
 
 // ===== Ticket Components =====
 import { TicketService } from './ticket.service';
-
+import { TicketResolver } from './ticket.resolver';
 @Module({
 	imports: [
 		MongooseModule.forFeature([{ name: 'Ticket', schema: TicketSchema }]),
@@ -19,7 +19,7 @@ import { TicketService } from './ticket.service';
 		MongooseModule.forFeature([{ name: 'Event', schema: EventSchema }]),
 		AuthModule,
 	],
-	providers: [TicketService],
+	providers: [TicketService, TicketResolver],
 	exports: [TicketService],
 })
 export class TicketModule {}

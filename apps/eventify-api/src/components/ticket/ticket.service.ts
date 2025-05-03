@@ -13,6 +13,7 @@ import { TicketInput } from '../../libs/dto/ticket/ticket.input';
 
 // ===== Types =====
 import { Member } from '../../libs/dto/member/member';
+import { Message } from '../../libs/enums/common.enum';
 
 @Injectable()
 export class TicketService {
@@ -22,55 +23,50 @@ export class TicketService {
 		@InjectModel('Event') private readonly eventModel: Model<Event>,
 	) {}
 
-	// ============== Ticket Management Methods ==============
-	public async checkTicketExist(eventId: ObjectId, memberId: ObjectId): Promise<Ticket> {
-		const ticket = await this.ticketModel
-			.findOne({
-				eventId: eventId,
-				memberId: memberId,
-			})
-			.exec();
-
-		return ticket;
-	}
-
 	public async createTicket(memberId: ObjectId, ticket: TicketInput): Promise<Ticket> {
-		const { eventId, ticketPrice } = ticket;
-		let newTicket;
+		const { eventId, totalPrice } = ticket;
 
-		if (ticket.ticketStatus === TicketStatus.CANCELLED) {
-			newTicket = await this.ticketModel.findOneAndUpdate(
-				{ eventId: eventId, memberId: memberId },
-				{ ticketStatus: TicketStatus.CANCELLED },
-				{ new: true },
-			);
-		} else {
-			newTicket = await this.ticketModel.create({ ...ticket, memberId: memberId });
+		// Check if the event is in the group
+		const event = await this.eventModel.findById(eventId).exec();
+		if (!event) {
+			throw new BadRequestException(Message.EVENT_NOT_FOUND);
 		}
 
-		await this.memberModel.findByIdAndUpdate(memberId, { $inc: { memberPoints: -ticketPrice } }).exec();
+		// Check if the member has enough points
+		const member = await this.memberModel.findById(memberId).exec();
+		if (member.memberPoints < totalPrice) {
+			throw new BadRequestException(Message.INSUFFICIENT_POINTS);
+		}
+
+		const newTicket = await this.ticketModel.create({
+			...ticket,
+			memberId: memberId,
+			ticketStatus: TicketStatus.PURCHASED,
+		});
+
+		await this.memberModel.findByIdAndUpdate(memberId, { $inc: { memberPoints: -totalPrice } }).exec();
 
 		newTicket.event = await this.eventModel
-			.findByIdAndUpdate(eventId, { $inc: { attendeeCount: 1 } }, { new: true })
+			.findByIdAndUpdate(eventId, { $inc: { attendeeCount: newTicket.ticketQuantity } }, { new: true })
 			.lean()
 			.exec();
 
 		return newTicket;
 	}
 
-	public async cancelTicket(eventId: ObjectId, memberId: ObjectId): Promise<Ticket> {
+	public async cancelTicket(memberId: ObjectId, ticketId: ObjectId): Promise<Ticket> {
 		const ticket = await this.ticketModel
-			.findOneAndUpdate(
-				{ eventId: eventId, memberId: memberId },
-				{ ticketStatus: TicketStatus.CANCELLED },
-				{ new: true },
-			)
-			.exec();
-		await this.memberModel.findByIdAndUpdate(memberId, { $inc: { memberPoints: ticket.ticketPrice } }).exec();
-		ticket.event = await this.eventModel
-			.findByIdAndUpdate(eventId, { $inc: { attendeeCount: -1 } }, { new: true })
+			.findOneAndUpdate({ _id: ticketId, memberId: memberId }, { ticketStatus: TicketStatus.CANCELLED }, { new: true })
 			.lean()
 			.exec();
+
+		await this.memberModel.findByIdAndUpdate(memberId, { $inc: { memberPoints: ticket.totalPrice } }).exec();
+
+		ticket.event = await this.eventModel
+			.findByIdAndUpdate(ticket.eventId, { $inc: { attendeeCount: -ticket.ticketQuantity } }, { new: true })
+			.lean()
+			.exec();
+
 		return ticket;
 	}
 

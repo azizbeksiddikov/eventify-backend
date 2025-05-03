@@ -17,9 +17,6 @@ export class Ticket {
 	@Field(() => String)
 	memberId: ObjectId;
 
-	@Field(() => String)
-	groupId: ObjectId;
-
 	// ===== Type and Status =====
 	@Field(() => TicketStatus)
 	ticketStatus: TicketStatus;

@@ -3,6 +3,7 @@ import { EventStatus, EventCategory } from '../../enums/event.enum';
 import { Member, TotalCounter } from '../member/member';
 import { ObjectId } from 'mongoose';
 import { MeLiked } from '../like/like';
+import { MeJoined } from '../group/group';
 
 @ObjectType()
 export class Event {

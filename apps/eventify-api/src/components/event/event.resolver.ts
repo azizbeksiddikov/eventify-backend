@@ -55,10 +55,14 @@ export class EventResolver {
 		return await this.eventService.getEvents(input);
 	}
 
+	@UseGuards(WithoutGuard)
 	@Query(() => EventsByCategory)
-	public async getEventsByCategory(@Args('input') input: EventsByCategoryInquiry): Promise<EventsByCategory> {
+	public async getEventsByCategory(
+		@Args('input') input: EventsByCategoryInquiry,
+		@AuthMember('_id') memberId: ObjectId | null,
+	): Promise<EventsByCategory> {
 		console.log('Query: getEventsByCategory');
-		return await this.eventService.getEventsByCategory(input);
+		return await this.eventService.getEventsByCategory(memberId, input);
 	}
 
 	@UseGuards(AuthGuard)

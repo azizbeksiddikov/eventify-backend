@@ -31,7 +31,7 @@ import { Group } from '../../libs/dto/group/group';
 import { GroupMember } from '../../libs/dto/groupMembers/groupMember';
 
 // ===== Config =====
-import { lookupMember } from '../../libs/config';
+import { lookupAuthMemberLiked, lookupMember } from '../../libs/config';
 
 // ===== Services =====
 import { TicketService } from '../ticket/ticket.service';
@@ -157,7 +157,10 @@ export class EventService {
 		return pipeline;
 	}
 
-	public async getEventsByCategory(input: EventsByCategoryInquiry): Promise<EventsByCategory> {
+	public async getEventsByCategory(
+		memberId: ObjectId | null,
+		input: EventsByCategoryInquiry,
+	): Promise<EventsByCategory> {
 		const categoryEvents = await Promise.all(
 			input.categories.map(async (category) => {
 				const events = await this.eventModel
@@ -165,6 +168,9 @@ export class EventService {
 						{ $match: { eventCategories: category } },
 						{ $sort: { createdAt: Direction.DESC } },
 						{ $limit: input.limit },
+						lookupMember,
+						{ $unwind: '$memberData' },
+						lookupAuthMemberLiked(memberId),
 					])
 					.exec();
 
@@ -256,18 +262,26 @@ export class EventService {
 	}
 
 	public async likeTargetEvent(memberId: ObjectId, likeRefId: ObjectId): Promise<Event> {
-		const target: Event | null = await this.eventModel
-			.findOne({ _id: likeRefId, eventStatus: { $ne: EventStatus.DELETED } })
-			.exec();
-		if (!target) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
+		// find event
+		const event: Event | null = await this.eventModel.findById(likeRefId).lean().exec();
+		if (!event) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
 
 		const input: LikeInput = { memberId: memberId, likeRefId: likeRefId, likeGroup: LikeGroup.EVENT };
-
 		const modifier = await this.likeService.toggleLike(input);
-		const result = await this.eventStatsEditor({ _id: likeRefId, targetKey: 'eventLikes', modifier: modifier });
-		if (!result) throw new InternalServerErrorException(Message.SOMETHING_WENT_WRONG);
 
-		return result;
+		await this.eventStatsEditor({ _id: likeRefId, targetKey: 'eventLikes', modifier: modifier });
+		event.eventLikes += modifier;
+
+		// find organizer
+		event.memberData = await this.memberModel.findById(event.memberId).lean().exec();
+
+		if (modifier > 0) {
+			event.meLiked = [{ memberId: memberId, likeRefId: likeRefId, myFavorite: true }];
+		} else {
+			event.meLiked = [];
+		}
+
+		return event;
 	}
 
 	public async getFavorites(memberId: ObjectId, input: OrdinaryEventInquiry): Promise<Events> {

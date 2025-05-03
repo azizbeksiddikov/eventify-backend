@@ -11,24 +11,33 @@ export class TicketInput {
 	// ===== References =====
 	@Field(() => String)
 	@IsNotEmpty()
-	@IsString()
 	eventId: ObjectId;
 
 	@Field(() => String)
 	@IsNotEmpty()
-	@IsString()
 	memberId: ObjectId;
 
 	// ===== Pricing =====
 	@Field(() => Number)
 	@IsNotEmpty()
-	@IsNumber()
 	ticketPrice: number;
 
 	// ===== Type and Status =====
 	@Field(() => TicketStatus, { defaultValue: TicketStatus.PURCHASED })
 	@IsEnum(TicketStatus)
 	ticketStatus: TicketStatus;
+
+	@Field(() => Number)
+	@IsNotEmpty()
+	ticketQuantity: number;
+
+	@Field(() => Number)
+	@IsNotEmpty()
+	totalPrice: number;
+
+	@Field(() => String)
+	@IsNotEmpty()
+	groupId: ObjectId;
 }
 
 // ============== Search Inputs ==============

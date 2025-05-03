@@ -15,6 +15,12 @@ const TicketSchema = new Schema(
 			required: true,
 		},
 
+		groupId: {
+			type: Schema.Types.ObjectId,
+			ref: 'Group',
+			required: true,
+		},
+
 		// ===== Type and Status =====
 		ticketStatus: {
 			type: String,
@@ -25,6 +31,16 @@ const TicketSchema = new Schema(
 
 		// ===== Pricing =====
 		ticketPrice: {
+			type: Number,
+			required: true,
+		},
+
+		ticketQuantity: {
+			type: Number,
+			required: true,
+		},
+
+		totalPrice: {
 			type: Number,
 			required: true,
 		},

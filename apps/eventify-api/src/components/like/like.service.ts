@@ -35,6 +35,14 @@ export class LikeService {
 		return modifier;
 	}
 
+	public async checkMeLiked(input: LikeInput): Promise<MeLiked[]> {
+		const { likeGroup, memberId, likeRefId } = input;
+		const result = await this.likeModel
+			.findOne({ likeGroup: likeGroup, memberId: memberId, likeRefId: likeRefId })
+			.exec();
+		return result ? [{ memberId: memberId, likeRefId: likeRefId, myFavorite: true }] : [];
+	}
+
 	public async checkLikeExistence(input: LikeInput): Promise<MeLiked[]> {
 		const { memberId, likeRefId } = input;
 

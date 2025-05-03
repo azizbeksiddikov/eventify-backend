@@ -75,7 +75,7 @@ const EventSchema = new Schema(
 			required: true,
 		},
 
-		eventOrganizerId: {
+		memberId: {
 			type: Schema.Types.ObjectId,
 			ref: 'Member',
 			required: true,

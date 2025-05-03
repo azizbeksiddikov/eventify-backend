@@ -1,6 +1,7 @@
 import { Field, ObjectType } from '@nestjs/graphql';
 import { ObjectId } from 'mongoose';
-import { TotalCounter } from '../member/member';
+import { Member, TotalCounter } from '../member/member';
+import { MeLiked } from '../like/like';
 
 @ObjectType()
 export class Group {
@@ -21,7 +22,7 @@ export class Group {
 	groupImage: string;
 
 	@Field(() => String)
-	groupOwnerId: ObjectId;
+	memberId: ObjectId;
 
 	// ===== Type and Status =====
 	@Field(() => [String])
@@ -43,6 +44,13 @@ export class Group {
 
 	@Field(() => Date)
 	updatedAt: Date;
+
+	/** from aggregation **/
+	@Field(() => Member, { nullable: true })
+	memberData?: Member;
+
+	@Field(() => [MeLiked], { nullable: true })
+	meLiked?: MeLiked[];
 }
 
 @ObjectType()

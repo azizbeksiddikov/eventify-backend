@@ -8,17 +8,20 @@ import MemberSchema from '../../schemas/Member.schema';
 
 // ===== Components =====
 import { AuthModule } from '../auth/auth.module';
+import { LikeModule } from '../like/like.module';
+import { ViewModule } from '../view/view.module';
 
 // ===== Group Components =====
 import { GroupResolver } from './group.resolver';
 import { GroupService } from './group.service';
-
 @Module({
 	imports: [
 		MongooseModule.forFeature([{ name: 'Group', schema: GroupSchema }]),
 		MongooseModule.forFeature([{ name: 'GroupMember', schema: GroupMemberSchema }]),
 		MongooseModule.forFeature([{ name: 'Member', schema: MemberSchema }]),
 		AuthModule,
+		LikeModule,
+		ViewModule,
 	],
 	providers: [GroupResolver, GroupService],
 	exports: [GroupService],

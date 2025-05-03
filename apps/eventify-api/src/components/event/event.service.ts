@@ -75,7 +75,7 @@ export class EventService {
 		try {
 			const event = await this.eventModel.create({
 				...input,
-				eventOrganizerId: memberId,
+				memberId: memberId,
 			});
 			return event;
 		} catch (error) {
@@ -104,7 +104,7 @@ export class EventService {
 			const likeInput: LikeInput = { memberId: memberId, likeRefId: eventId, likeGroup: LikeGroup.EVENT };
 			event.meLiked = await this.likeService.checkLikeExistence(likeInput);
 		}
-		event.memberData = await this.memberService.getMember(null, event.eventOrganizerId);
+		event.memberData = await this.memberService.getMember(null, event.memberId);
 
 		return event;
 	}
@@ -183,7 +183,7 @@ export class EventService {
 	public async updateEvent(memberId: ObjectId, input: EventUpdateInput): Promise<Event> {
 		const event = await this.eventModel.findById(input._id).exec();
 		if (!event || event.eventStatus === EventStatus.DELETED) throw new Error(Message.EVENT_NOT_FOUND);
-		if (event.eventOrganizerId.toString() !== memberId.toString()) {
+		if (event.memberId.toString() !== memberId.toString()) {
 			throw new Error(Message.NOT_AUTHORIZED);
 		}
 
@@ -205,7 +205,7 @@ export class EventService {
 		]);
 
 		if (member.memberType === MemberType.ORGANIZER) {
-			const events = await this.eventModel.find({ eventOrganizerId: member._id }).lean().exec();
+			const events = await this.eventModel.find({ memberId: member._id }).lean().exec();
 			return [...events, ...result].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 		}
 		return result;

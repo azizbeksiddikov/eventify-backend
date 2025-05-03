@@ -50,7 +50,7 @@ export class Event {
 	groupId: ObjectId;
 
 	@Field(() => String)
-	eventOrganizerId: ObjectId;
+	memberId: ObjectId;
 
 	// ===== Statistics =====
 	@Field(() => Int)

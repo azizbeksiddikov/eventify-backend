@@ -23,13 +23,13 @@ export class ViewService {
 
 	// ============== View Management Methods ==============
 	public async recordView(input: ViewInput): Promise<View | null> {
-		const viewExist = await this.checkViewExistnce(input);
+		const viewExist = await this.checkViewExistance(input);
 		if (!viewExist) {
 			return this.viewModel.create(input);
 		} else return null;
 	}
 
-	private async checkViewExistnce(input: ViewInput): Promise<View> {
+	private async checkViewExistance(input: ViewInput): Promise<View> {
 		const { memberId, viewGroup, viewRefId } = input;
 		const search: T = { memberId: memberId, viewGroup: viewGroup, viewRefId: viewRefId };
 		return this.viewModel.findOne(search).exec() as unknown as View;

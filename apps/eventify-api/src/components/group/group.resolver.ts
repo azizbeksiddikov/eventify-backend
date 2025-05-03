@@ -24,6 +24,7 @@ import { shapeIntoMongoObjectId } from '../../libs/config';
 
 // ===== Services =====
 import { GroupService } from './group.service';
+import { Member } from '../../libs/dto/member/member';
 
 @Resolver(() => Group)
 export class GroupResolver {
@@ -49,10 +50,14 @@ export class GroupResolver {
 		return await this.groupService.getGroup(memberId, targetId);
 	}
 
+	@UseGuards(WithoutGuard)
 	@Query(() => Groups)
-	public async getGroups(@Args('input') input: GroupsInquiry): Promise<Groups> {
+	public async getGroups(
+		@Args('input') input: GroupsInquiry,
+		@AuthMember('_id') memberId: ObjectId | null,
+	): Promise<Groups> {
 		console.log('Query: getGroups');
-		return await this.groupService.getGroups(input);
+		return await this.groupService.getGroups(memberId, input);
 	}
 
 	@Roles(MemberType.ORGANIZER)
@@ -82,6 +87,14 @@ export class GroupResolver {
 		console.log('Mutation: deleteGroup');
 		const targetId = shapeIntoMongoObjectId(groupId);
 		return await this.groupService.deleteGroup(memberId, targetId);
+	}
+
+	@UseGuards(AuthGuard)
+	@Mutation(() => Group)
+	public async likeTargetGroup(@Args('groupId') input: string, @AuthMember('_id') memberId: ObjectId): Promise<Group> {
+		console.log('Mutation: likeTargetGroup');
+		const likeRefId = shapeIntoMongoObjectId(input);
+		return await this.groupService.likeTargetGroup(memberId, likeRefId);
 	}
 
 	// ============== Group Member Methods ==============

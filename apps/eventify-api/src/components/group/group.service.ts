@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
 
@@ -15,13 +15,22 @@ import { GroupMember } from '../../libs/dto/groupMembers/groupMember';
 import { GroupMemberInput } from '../../libs/dto/groupMembers/groupMember.input';
 import { GroupMemberUpdateInput } from '../../libs/dto/groupMembers/groupMember.update';
 import { Member } from '../../libs/dto/member/member';
-
+import { MemberStatus } from '../../libs/enums/member.enum';
+import { LikeGroup } from '../../libs/enums/like.enum';
+import { LikeInput } from '../../libs/dto/like/like.input';
+import { LikeService } from '../like/like.service';
+import { lookupAuthMemberLiked } from '../../libs/config';
+import { lookupMember } from '../../libs/config';
+import { ViewGroup } from '../../libs/enums/view.enum';
+import { ViewService } from '../view/view.service';
 @Injectable()
 export class GroupService {
 	constructor(
 		@InjectModel(Group.name) private readonly groupModel: Model<Group>,
 		@InjectModel('GroupMember') private readonly groupMemberModel: Model<GroupMember>,
 		@InjectModel('Member') private readonly memberModel: Model<Member>,
+		private readonly likeService: LikeService,
+		private readonly viewService: ViewService,
 	) {}
 
 	// ============== Group Management Methods ==============
@@ -35,7 +44,7 @@ export class GroupService {
 		try {
 			const newGroup: Group = await this.groupModel.create({
 				...input,
-				groupOwnerId: memberId,
+				memberId: memberId,
 			});
 
 			// Create group member record for the owner
@@ -55,16 +64,31 @@ export class GroupService {
 	}
 
 	public async getGroup(memberId: ObjectId | null, groupId: ObjectId): Promise<Group> {
-		const group = await this.groupModel.findById(groupId);
+		const group: Group | null = await this.groupModel.findById(groupId).lean().exec();
 		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
 
 		if (memberId) {
-			// TODO: Implement view, likes
+			const newView = await this.viewService.recordView({
+				memberId: memberId,
+				viewGroup: ViewGroup.GROUP,
+				viewRefId: groupId,
+			});
+			if (newView) {
+				group.groupViews += 1;
+				await this.groupStatsEditor({ _id: groupId, targetKey: 'groupViews', modifier: 1 });
+			}
+
+			// check for meLIked
+			group.meLiked = await this.likeService.checkMeLiked({
+				memberId: memberId,
+				likeGroup: LikeGroup.GROUP,
+				likeRefId: groupId,
+			});
 		}
 		return group;
 	}
 
-	public async getGroups(input: GroupsInquiry): Promise<Groups> {
+	public async getGroups(memberId: ObjectId | null, input: GroupsInquiry): Promise<Groups> {
 		const { page, limit, search } = input;
 		const skip = (page - 1) * limit;
 		const sort: T = { [input?.sort ?? 'createdAt']: input?.direction ?? Direction.DESC };
@@ -86,7 +110,13 @@ export class GroupService {
 				{ $sort: sort },
 				{
 					$facet: {
-						list: [{ $skip: skip }, { $limit: limit }],
+						list: [
+							{ $skip: skip },
+							{ $limit: limit },
+							lookupAuthMemberLiked(memberId),
+							lookupMember,
+							{ $unwind: '$memberData' },
+						],
 						metaCounter: [{ $count: 'total' }],
 					},
 				},
@@ -98,14 +128,14 @@ export class GroupService {
 	}
 
 	public async getMyGroups(memberId: ObjectId): Promise<Group[]> {
-		const groups = await this.groupModel.find({ groupOwnerId: memberId }).sort({ createdAt: -1 }).exec();
+		const groups = await this.groupModel.find({ memberId: memberId }).sort({ createdAt: -1 }).exec();
 		return groups;
 	}
 
 	public async updateGroup(memberId: ObjectId, input: GroupUpdateInput): Promise<Group> {
 		const group: Group | null = await this.groupModel.findById(input._id);
 		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
-		if (group.groupOwnerId.toString() !== memberId.toString()) {
+		if (group.memberId.toString() !== memberId.toString()) {
 			throw new BadRequestException(Message.NOT_GROUP_ADMIN);
 		}
 
@@ -121,11 +151,24 @@ export class GroupService {
 	public async deleteGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {
 		const group = await this.groupModel.findById(groupId);
 		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
-		if (group.groupOwnerId.toString() !== memberId.toString()) {
+		if (group.memberId.toString() !== memberId.toString()) {
 			throw new BadRequestException(Message.NOT_GROUP_ADMIN);
 		}
 
 		return await this.groupModel.findByIdAndDelete(groupId);
+	}
+
+	public async likeTargetGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {
+		const target: Group | null = await this.groupModel.findOne({ _id: groupId }).exec();
+		if (!target) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
+
+		const input: LikeInput = { memberId: memberId, likeRefId: groupId, likeGroup: LikeGroup.GROUP };
+
+		const modifier = await this.likeService.toggleLike(input);
+		const result = await this.groupStatsEditor({ _id: groupId, targetKey: 'groupLikes', modifier: modifier });
+		if (!result) throw new InternalServerErrorException(Message.SOMETHING_WENT_WRONG);
+
+		return result;
 	}
 
 	// ============== Group Member Methods ==============
@@ -158,7 +201,7 @@ export class GroupService {
 		const groupMember = await this.groupMemberModel.findOne({ groupId, memberId });
 		if (!groupMember) throw new BadRequestException(Message.NOT_JOINED);
 
-		if (group.groupOwnerId.toString() === memberId.toString()) {
+		if (group.memberId.toString() === memberId.toString()) {
 			throw new BadRequestException(Message.OWNER_CANNOT_LEAVE);
 		}
 
@@ -177,7 +220,7 @@ export class GroupService {
 		// Check if the requesting member is an organizer of the group
 		const group = await this.groupModel.findById(groupId);
 		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
-		if (group.groupOwnerId.toString() !== memberId.toString()) {
+		if (group.memberId.toString() !== memberId.toString()) {
 			throw new BadRequestException(Message.NOT_GROUP_ADMIN);
 		}
 

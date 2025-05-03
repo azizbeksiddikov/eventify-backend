@@ -27,7 +27,7 @@ const GroupSchema = new Schema(
 		},
 
 		// ===== Type and Status =====
-		groupOwnerId: {
+		memberId: {
 			type: Schema.Types.ObjectId,
 			ref: 'Member',
 			required: true,

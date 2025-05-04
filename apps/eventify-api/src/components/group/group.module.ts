@@ -14,11 +14,13 @@ import { ViewModule } from '../view/view.module';
 // ===== Group Components =====
 import { GroupResolver } from './group.resolver';
 import { GroupService } from './group.service';
+import EventSchema from '../../schemas/Event.schema';
 @Module({
 	imports: [
 		MongooseModule.forFeature([{ name: 'Group', schema: GroupSchema }]),
 		MongooseModule.forFeature([{ name: 'GroupMember', schema: GroupMemberSchema }]),
 		MongooseModule.forFeature([{ name: 'Member', schema: MemberSchema }]),
+		MongooseModule.forFeature([{ name: 'Event', schema: EventSchema }]),
 		AuthModule,
 		LikeModule,
 		ViewModule,

@@ -3,6 +3,9 @@ import { ObjectId } from 'mongoose';
 import { Member, TotalCounter } from '../member/member';
 import { MeLiked } from '../like/like';
 import { GroupMemberRole } from '../../enums/group.enum';
+import { GroupMember } from '../groupMembers/groupMember';
+import { Event } from '../event/event';
+
 @ObjectType()
 export class MeJoined {
 	@Field(() => String)
@@ -69,6 +72,18 @@ export class Group {
 
 	@Field(() => [MeJoined], { nullable: true })
 	meJoined?: MeJoined[];
+
+	@Field(() => [Group], { nullable: true })
+	similarGroups?: Group[];
+
+	@Field(() => [Event], { nullable: true })
+	groupUpcomingEvents?: Event[];
+
+	@Field(() => Boolean, { nullable: true })
+	meOwner?: boolean;
+
+	@Field(() => [GroupMember], { nullable: true })
+	groupModerators?: GroupMember[];
 }
 
 @ObjectType()

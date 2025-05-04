@@ -23,12 +23,16 @@ import { lookupAuthMemberJoined, lookupAuthMemberLiked } from '../../libs/config
 import { lookupMember } from '../../libs/config';
 import { ViewGroup } from '../../libs/enums/view.enum';
 import { ViewService } from '../view/view.service';
+import { Event } from '../../libs/dto/event/event';
+import { EventStatus } from '../../libs/enums/event.enum';
+
 @Injectable()
 export class GroupService {
 	constructor(
 		@InjectModel(Group.name) private readonly groupModel: Model<Group>,
 		@InjectModel('GroupMember') private readonly groupMemberModel: Model<GroupMember>,
 		@InjectModel('Member') private readonly memberModel: Model<Member>,
+		@InjectModel('Event') private readonly eventModel: Model<Event>,
 		private readonly likeService: LikeService,
 		private readonly viewService: ViewService,
 	) {}
@@ -61,12 +65,103 @@ export class GroupService {
 	}
 
 	public async getGroup(memberId: ObjectId | null, groupId: ObjectId): Promise<Group> {
-		// find a group
-		const group: Group | null = await this.groupModel.findById(groupId).lean().exec();
-		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
+		const result = await this.groupModel
+			.aggregate([
+				// Match the requested group
+				{ $match: { _id: groupId } },
 
-		// find a group owner
-		group.memberData = (await this.memberModel.findById(group.memberId).lean().exec()) as unknown as Member;
+				// Lookup member data
+				{
+					$lookup: {
+						from: 'members',
+						localField: 'memberId',
+						foreignField: '_id',
+						as: 'memberData',
+					},
+				},
+				{ $unwind: '$memberData' },
+
+				// Add moderators to the result
+				{
+					$lookup: {
+						from: 'groupMembers',
+						let: { groupId: '$_id' },
+						pipeline: [
+							{
+								$match: {
+									$expr: {
+										$and: [
+											{ $eq: ['$groupId', '$$groupId'] },
+											{ $eq: ['$groupMemberRole', GroupMemberRole.MODERATOR] },
+										],
+									},
+								},
+							},
+						],
+						as: 'groupModerators',
+					},
+				},
+
+				// Add upcoming events to the result
+				{
+					$lookup: {
+						from: 'events',
+						let: { groupId: '$_id' },
+						pipeline: [
+							{
+								$match: {
+									$expr: {
+										$and: [
+											{ $eq: ['$groupId', '$$groupId'] },
+											{ $gte: ['$eventDate', new Date()] },
+											{
+												$lte: ['$eventDate', new Date(new Date().setMonth(new Date().getMonth() + 1))],
+											},
+										],
+									},
+								},
+							},
+							lookupAuthMemberLiked(memberId),
+						],
+						as: 'groupUpcomingEvents',
+					},
+				},
+
+				// Add similar groups to the result
+				{
+					$lookup: {
+						from: 'groups',
+						let: {
+							groupId: '$_id',
+							categories: '$groupCategories',
+						},
+						pipeline: [
+							{
+								$match: {
+									$expr: {
+										$and: [
+											{ $ne: ['$_id', '$$groupId'] },
+											{
+												$gt: [{ $size: { $setIntersection: ['$groupCategories', '$$categories'] } }, 0],
+											},
+										],
+									},
+								},
+							},
+							{ $sort: { groupViews: -1 } },
+							{ $limit: 5 },
+						],
+						as: 'similarGroups',
+					},
+				},
+				lookupAuthMemberLiked(memberId),
+				lookupAuthMemberJoined(memberId),
+			])
+			.exec();
+
+		// Validate group exists
+		if (!result.length) throw new NotFoundException(Message.GROUP_NOT_FOUND);
+		const group = result[0];
 
 		if (memberId) {
 			// update group views if new view
@@ -80,15 +175,7 @@ export class GroupService {
 				await this.groupStatsEditor({ _id: groupId, targetKey: 'groupViews', modifier: 1 });
 			}
 
-			// check for meLiked
-			group.meLiked = await this.likeService.checkMeLiked({
-				likeGroup: LikeGroup.GROUP,
-				memberId: memberId,
-				likeRefId: groupId,
-			});
-
-			// check for meJoined
-			group.meJoined = await this.checkMeJoined(memberId, groupId);
+			group.meOwner = group.memberId.toString() === memberId.toString();
 		}
 		return group;
 	}

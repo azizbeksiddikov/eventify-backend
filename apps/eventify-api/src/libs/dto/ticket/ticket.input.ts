@@ -33,6 +33,10 @@ class TISearch {
 	@IsOptional()
 	@Field(() => TicketStatus, { nullable: true })
 	ticketStatus?: TicketStatus;
+
+	@IsOptional()
+	@Field(() => String, { nullable: true })
+	eventId?: ObjectId;
 }
 
 // ============== Inquiry Inputs ==============

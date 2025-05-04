@@ -49,6 +49,7 @@ export enum Message {
 	TICKET_ALREADY_PURCHASED = 'You have already purchased a ticket for this event.',
 	TICKET_NOT_FOUND = 'Ticket not found.',
 	TICKET_ALREADY_CANCELLED = 'This ticket has already been cancelled.',
+	TICKET_QUANTITY_INVALID = 'Ticket quantity must be greater than 0.',
 }
 
 // ===== Direction =====

@@ -1,12 +1,18 @@
 import { UseGuards } from '@nestjs/common';
-import { Args, Mutation, Resolver } from '@nestjs/graphql';
-import { TicketService } from './ticket.service';
-import { Ticket } from '../../libs/dto/ticket/ticket';
-import { TicketInput } from '../../libs/dto/ticket/ticket.input';
-import { shapeIntoMongoObjectId } from '../../libs/config';
-import { AuthMember } from '../auth/decorators/authMember.decorator';
+import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { ObjectId } from 'mongoose';
+
+// ===== Configs =====
+import { shapeIntoMongoObjectId } from '../../libs/config';
+
+// ===== DTOs =====
+import { Ticket, Tickets } from '../../libs/dto/ticket/ticket';
+import { TicketInput, TicketInquiry } from '../../libs/dto/ticket/ticket.input';
+
+// ===== Services =====
+import { TicketService } from './ticket.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
+import { AuthMember } from '../auth/decorators/authMember.decorator';
 
 @Resolver()
 export class TicketResolver {
@@ -15,13 +21,24 @@ export class TicketResolver {
 	@UseGuards(AuthGuard)
 	@Mutation(() => Ticket)
 	async createTicket(@Args('input') input: TicketInput, @AuthMember('_id') memberId: ObjectId): Promise<Ticket> {
+		console.log('Mutation: createTicket');
+		console.log('memberId:', memberId);
 		return this.ticketService.createTicket(memberId, input);
 	}
 
 	@UseGuards(AuthGuard)
 	@Mutation(() => Ticket)
 	async cancelTicket(@Args('input') input: string, @AuthMember('_id') memberId: ObjectId): Promise<Ticket> {
+		console.log('Mutation: cancelTicket');
 		const ticketId = shapeIntoMongoObjectId(input);
 		return this.ticketService.cancelTicket(memberId, ticketId);
+	}
+
+	@UseGuards(AuthGuard)
+	@Query(() => Tickets)
+	async getTickets(@Args('input') input: TicketInquiry, @AuthMember('_id') memberId: ObjectId): Promise<Tickets> {
+		console.log('Query: getTickets');
+		console.log('memberId:', memberId);
+		return this.ticketService.getTickets(memberId, input);
 	}
 }

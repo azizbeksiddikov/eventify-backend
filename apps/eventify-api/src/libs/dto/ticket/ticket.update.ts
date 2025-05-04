@@ -10,23 +10,6 @@ export class UpdateTicketInput {
 	@Field(() => String)
 	_id: ObjectId;
 
-	// ===== References =====
-	@Field(() => String, { nullable: true })
-	@IsOptional()
-	@IsString()
-	eventId?: ObjectId;
-
-	@Field(() => String, { nullable: true })
-	@IsOptional()
-	@IsString()
-	memberId?: ObjectId;
-
-	// ===== Pricing =====
-	@Field(() => Number, { nullable: true })
-	@IsOptional()
-	@IsNumber()
-	ticketPrice?: number;
-
 	// ===== Type and Status =====
 	@Field(() => TicketStatus, { nullable: true })
 	@IsOptional()

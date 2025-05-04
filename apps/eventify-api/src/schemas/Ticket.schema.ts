@@ -15,12 +15,6 @@ const TicketSchema = new Schema(
 			required: true,
 		},
 
-		groupId: {
-			type: Schema.Types.ObjectId,
-			ref: 'Group',
-			required: true,
-		},
-
 		// ===== Type and Status =====
 		ticketStatus: {
 			type: String,
@@ -50,8 +44,5 @@ const TicketSchema = new Schema(
 		collection: 'tickets',
 	},
 );
-
-// Create compound index for eventId and memberId
-TicketSchema.index({ eventId: 1, memberId: 1 }, { unique: true });
 
 export default TicketSchema;

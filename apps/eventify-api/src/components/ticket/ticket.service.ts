@@ -88,7 +88,15 @@ export class TicketService {
 	public async getTickets(memberId: ObjectId): Promise<Ticket[]> {
 		const match: T = { memberId: memberId };
 
-		const result = await this.ticketModel.find(match).sort({ createdAt: Direction.DESC }).exec();
+		const result = await this.ticketModel
+			.aggregate([
+				{ $match: match },
+				{ $sort: { createdAt: Direction.DESC } },
+				{ $lookup: { from: 'events', localField: 'eventId', foreignField: '_id', as: 'event' } },
+				{ $unwind: '$event' },
+			])
+			.exec();
+
 		return result;
 	}
 

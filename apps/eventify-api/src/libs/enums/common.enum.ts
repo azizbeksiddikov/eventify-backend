@@ -24,6 +24,7 @@ export enum Message {
 	SELF_SUBSRIPTION_DENIED = 'You cannot subscribe to yourself.',
 	INSUFFICIENT_POINTS = 'You do not have enough points for this action.',
 	ALREADY_SUBSCRIBED = 'You are already subscribed to this member.',
+	ADMIN_COUNT_MAX = 'The maximum number of admins has been reached.',
 
 	// ===== Event Related Messages =====
 	EVENT_NOT_FOUND = 'Event not found.',

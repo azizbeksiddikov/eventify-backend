@@ -125,9 +125,6 @@ export class EventService {
 		const pipeline = this.getPipeline(memberId, input);
 
 		const result = await this.eventModel.aggregate(pipeline).exec();
-
-		if (!result.length) throw new BadRequestException(Message.NO_DATA_FOUND);
-
 		return result[0];
 	}
 

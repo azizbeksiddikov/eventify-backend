@@ -216,10 +216,6 @@ export class GroupService {
 			])
 			.exec();
 
-		if (!result.length) {
-			throw new BadRequestException(Message.NO_DATA_FOUND);
-		}
-
 		return result;
 	}
 

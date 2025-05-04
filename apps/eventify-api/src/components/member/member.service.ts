@@ -45,11 +45,13 @@ export class MemberService {
 	// ============== Authentication Methods ==============
 	public async signup(input: MemberInput): Promise<Member> {
 		try {
-			const existingMember = await this.memberModel.findOne({ username: input.username });
-
-			if (existingMember) {
-				throw new BadRequestException(Message.USED_MEMBER_NICK_OR_PHONE);
+			if (input.memberType === MemberType.ADMIN) {
+				const adminCount = await this.memberModel.countDocuments({ memberType: MemberType.ADMIN });
+				if (adminCount >= 3) throw new BadRequestException(Message.ADMIN_COUNT_MAX);
 			}
+
+			const existingMember = await this.memberModel.findOne({ username: input.username });
+			if (existingMember) throw new BadRequestException(Message.USED_MEMBER_NICK_OR_PHONE);
 
 			input.memberPassword = await this.authService.hashPassword(input.memberPassword);
 

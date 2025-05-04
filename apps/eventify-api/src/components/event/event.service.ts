@@ -104,6 +104,7 @@ export class EventService {
 			const likeInput: LikeInput = { memberId: memberId, likeRefId: eventId, likeGroup: LikeGroup.EVENT };
 			event.meLiked = await this.likeService.checkLikeExistence(likeInput);
 		}
+
 		event.memberData = await this.memberService.getMember(null, event.memberId);
 		event.hostingGroup = await this.groupModel.findById(event.groupId).exec();
 

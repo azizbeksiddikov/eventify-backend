@@ -47,6 +47,7 @@ export class EventResolver {
 	): Promise<Event> {
 		console.log('Query: getEvent');
 		const targetId = shapeIntoMongoObjectId(eventId);
+
 		return await this.eventService.getEvent(memberId, targetId);
 	}
 

@@ -100,6 +100,14 @@ export class MemberResolver {
 		return await this.memberService.getOrganizers(memberId, input);
 	}
 
+	@UseGuards(WithoutGuard)
+	@Query(() => Member)
+	public async getOrganizer(@Args('input') input: string, @AuthMember('_id') memberId: ObjectId): Promise<Member> {
+		console.log('Query: getOrganizer');
+		const targetId = shapeIntoMongoObjectId(input);
+		return await this.memberService.getOrganizer(memberId, targetId);
+	}
+
 	@UseGuards(AuthGuard)
 	@Mutation(() => Member)
 	public async likeTargetMember(

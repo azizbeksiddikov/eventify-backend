@@ -3,6 +3,8 @@ import { MemberType, MemberStatus } from '../../enums/member.enum';
 import { ObjectId } from 'mongoose';
 import { MeFollowed } from '../follow/follow';
 import { MeLiked } from '../like/like';
+import { Group } from '../group/group';
+import { Event } from '../event/event';
 
 // ============== Core Member Type ==============
 @ObjectType()
@@ -84,6 +86,12 @@ export class Member {
 
 	@Field(() => [MeFollowed], { nullable: true })
 	meFollowed?: MeFollowed[];
+
+	@Field(() => [Event], { nullable: true })
+	organizedEvents?: Event[];
+
+	@Field(() => [Group], { nullable: true })
+	organizedGroups?: Group[];
 }
 
 // ============== Pagination Types ==============

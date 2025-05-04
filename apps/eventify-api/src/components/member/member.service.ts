@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
 
@@ -184,6 +184,80 @@ export class MemberService {
 		if (!result.length) throw new BadRequestException(Message.NO_DATA_FOUND);
 
 		return result[0];
+	}
+
+	public async getOrganizer(memberId: ObjectId | null, targetId: ObjectId): Promise<Member> {
+		const result = await this.memberModel
+			.aggregate([
+				// Match the requested member
+				{ $match: { _id: targetId } },
+
+				// Add organizedEvents events to the result
+				{
+					$lookup: {
+						from: 'events',
+						let: { memberId: '$_id' },
+						pipeline: [
+							{
+								$match: {
+									$expr: {
+										$and: [
+											{ $eq: ['$memberId', '$$memberId'] },
+											{ $gte: ['$eventDate', new Date(new Date().setDate(new Date().getDate() - 7))] },
+											{
+												$lte: ['$eventDate', new Date(new Date().setMonth(new Date().getMonth() + 1))],
+											},
+										],
+									},
+								},
+							},
+							lookupAuthMemberLiked(memberId),
+						],
+						as: 'organizedEvents',
+					},
+				},
+
+				// Add organizedGroups to the result
+				{
+					$lookup: {
+						from: 'groups',
+						let: { memberId: '$_id' },
+						pipeline: [
+							{
+								$match: {
+									$expr: {
+										$eq: ['$memberId', '$$memberId'],
+									},
+								},
+							},
+							{ $sort: { groupViews: -1 } },
+							{ $limit: 5 },
+						],
+						as: 'organizedGroups',
+					},
+				},
+				lookupAuthMemberLiked(memberId),
+				lookupAuthMemberFollowed({ followerId: memberId, followingId: '$_id' }),
+			])
+			.exec();
+
+		if (!result.length) throw new NotFoundException(Message.MEMBER_NOT_FOUND);
+		const member = result[0];
+
+		if (memberId) {
+			const viewInput: ViewInput = {
+				viewGroup: ViewGroup.MEMBER,
+				viewRefId: targetId,
+				memberId: memberId,
+			};
+			const newView = await this.viewService.recordView(viewInput);
+			if (newView) {
+				await this.memberModel.findByIdAndUpdate(targetId, { $inc: { memberViews: 1 } }).exec();
+				member.memberViews++;
+			}
+		}
+
+		return member;
 	}
 
 	public async likeTargetMember(memberId: ObjectId, likeRefId: ObjectId): Promise<Member> {

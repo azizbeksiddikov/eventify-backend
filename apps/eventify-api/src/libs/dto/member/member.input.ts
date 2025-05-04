@@ -2,7 +2,6 @@ import { Field, InputType, Int } from '@nestjs/graphql';
 import { IsNotEmpty, IsOptional, Min, IsIn, IsString, IsArray, IsNumber, IsEnum } from 'class-validator';
 import { MemberStatus, MemberType } from '../../enums/member.enum';
 import { Direction } from '../../enums/common.enum';
-import { availableMembersSorts, availableOrganizersSorts } from '../../config';
 
 // ============== Authentication Inputs ==============
 @InputType()
@@ -92,7 +91,6 @@ export class OrganizersInquiry {
 
 	// ===== Sorting =====
 	@IsOptional()
-	@IsIn(availableOrganizersSorts)
 	@Field(() => String, { nullable: true })
 	sort?: string;
 
@@ -121,7 +119,6 @@ export class MembersInquiry {
 
 	// ===== Sorting =====
 	@IsOptional()
-	@IsIn(availableMembersSorts)
 	@Field(() => String, { nullable: true })
 	sort?: string;
 

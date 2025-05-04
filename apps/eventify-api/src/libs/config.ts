@@ -15,23 +15,6 @@ export const getSerialForImage = (filename: string) => {
 	return uuidv4() + ext;
 };
 
-// ============== Sort Configuration ==============
-
-export const availableEventsSorts = [
-	'createdAt',
-	'updatedAt',
-	'eventDate',
-	'eventLikes',
-	'eventViews',
-	'attendeeCount',
-	'eventPrice',
-];
-export const availableOrganizersSorts = ['createdAt', 'updatedAt', 'memberLikes', 'memberViews', 'memberRank'];
-export const availableMembersSorts = ['createdAt', 'updatedAt', 'memberLikes', 'memberViews', 'memberFollowers'];
-export const availableTicketsSorts = ['createdAt', 'updatedAt', 'ticketPrice'];
-export const availableReviewsSorts = ['createdAt', 'updatedAt', 'rating'];
-export const availableCommentsSorts = ['createdAt', 'updatedAt', 'commentLikes'];
-
 // ===== Member Lookups =====
 export const lookupMember = {
 	$lookup: {

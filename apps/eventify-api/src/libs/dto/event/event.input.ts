@@ -2,7 +2,6 @@ import { Field, InputType, Int } from '@nestjs/graphql';
 import { IsNotEmpty, IsOptional, IsNumber, IsArray, IsEnum, IsDate, Min, MaxLength, IsIn } from 'class-validator';
 import { EventStatus, EventCategory } from '../../enums/event.enum';
 import { Direction } from '../../enums/common.enum';
-import { availableEventsSorts } from '../../config';
 import { ObjectId } from 'mongoose';
 
 // ============== Event Creation Input ==============
@@ -119,7 +118,6 @@ export class EventsInquiry {
 
 	// ===== Sorting =====
 	@IsOptional()
-	@IsIn(availableEventsSorts)
 	@Field(() => String, { nullable: true })
 	sort?: string;
 

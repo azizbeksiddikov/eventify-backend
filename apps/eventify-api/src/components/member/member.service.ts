@@ -155,8 +155,12 @@ export class MemberService {
 			memberType: MemberType.ORGANIZER,
 			memberStatus: MemberStatus.ACTIVE,
 		};
-		if (text) match.username = { $regex: new RegExp(text, 'i') };
-
+		if (text) {
+			match.$or = [
+				{ username: { $regex: new RegExp(text, 'i') } },
+				{ memberFullName: { $regex: new RegExp(text, 'i') } },
+			];
+		}
 		const sort: T = { [input?.sort ?? 'createdAt']: input?.direction ?? Direction.DESC };
 
 		const result = await this.memberModel
@@ -188,8 +192,6 @@ export class MemberService {
 			.lean()
 			.exec();
 		if (!member) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
-
-		console.log('member', member);
 
 		const input: LikeInput = { memberId: memberId, likeRefId: likeRefId, likeGroup: LikeGroup.MEMBER };
 

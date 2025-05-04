@@ -2,7 +2,6 @@ import { Field, InputType, Int } from '@nestjs/graphql';
 import { IsNotEmpty, IsString, IsNumber, IsEnum, IsOptional, IsIn, Min, IsArray } from 'class-validator';
 import { TicketStatus } from '../../enums/ticket.enum';
 import { Direction } from '../../enums/common.enum';
-import { availableTicketsSorts } from '../../config';
 import { ObjectId } from 'mongoose';
 
 // ============== Ticket Creation Input ==============
@@ -55,7 +54,6 @@ export class TicketInquiry {
 
 	// ===== Sorting =====
 	@IsOptional()
-	@IsIn(availableTicketsSorts)
 	@Field(() => String, { nullable: true })
 	sort?: string;
 

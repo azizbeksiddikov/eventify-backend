@@ -86,6 +86,16 @@ const MemberSchema = new Schema(
 			default: 0,
 			min: 0,
 		},
+		memberGroups: {
+			type: Number,
+			default: 0,
+			min: 0,
+		},
+		memberEvents: {
+			type: Number,
+			default: 0,
+			min: 0,
+		},
 	},
 
 	{

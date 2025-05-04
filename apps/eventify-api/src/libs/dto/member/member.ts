@@ -59,6 +59,12 @@ export class Member {
 	@Field(() => Number)
 	memberRank: number;
 
+	@Field(() => Number)
+	memberGroups: number;
+
+	@Field(() => Number)
+	memberEvents: number;
+
 	// ===== Timestamps =====
 	@Field(() => Date)
 	createdAt: Date;

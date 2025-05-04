@@ -69,7 +69,7 @@ export class EventService {
 			groupMemberRole: { $in: [GroupMemberRole.OWNER, GroupMemberRole.MODERATOR] },
 		});
 		if (!groupMember) {
-			throw new BadRequestException(Message.NOT_AUTHORIZED);
+			throw new BadRequestException(Message.NOT_GROUP_ADMIN);
 		}
 
 		try {
@@ -77,6 +77,7 @@ export class EventService {
 				...input,
 				memberId: memberId,
 			});
+			await this.memberModel.findByIdAndUpdate(memberId, { $inc: { memberEvents: 1 } });
 			return event;
 		} catch (error) {
 			throw new BadRequestException(Message.EVENT_ALREADY_EXISTS);
@@ -210,6 +211,9 @@ export class EventService {
 		}
 
 		const updatedEvent = await this.eventModel.findByIdAndUpdate(input._id, input, { new: true }).exec();
+		if (input.eventStatus === EventStatus.DELETED) {
+			await this.memberModel.findByIdAndUpdate(memberId, { $inc: { memberEvents: -1 } });
+		}
 		return updatedEvent;
 	}
 

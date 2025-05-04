@@ -56,6 +56,10 @@ export class GroupService {
 				joinDate: new Date(),
 			};
 			const groupMember = await this.groupMemberModel.create(newGroupMember);
+			await this.memberModel.findByIdAndUpdate(memberId, { $inc: { memberGroups: 1 } });
+
+			newGroup.meOwner = true;
+			newGroup.meJoined = [{ ...newGroupMember, meJoined: true }];
 
 			return newGroup;
 		} catch (err) {
@@ -243,6 +247,8 @@ export class GroupService {
 		if (group.memberId.toString() !== memberId.toString()) {
 			throw new BadRequestException(Message.NOT_GROUP_ADMIN);
 		}
+
+		await this.memberModel.findByIdAndUpdate(memberId, { $inc: { memberGroups: -1 } });
 
 		return await this.groupModel.findByIdAndDelete(groupId);
 	}

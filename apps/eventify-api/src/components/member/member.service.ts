@@ -1,6 +1,12 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+	BadRequestException,
+	Injectable,
+	InternalServerErrorException,
+	NotFoundException,
+	UseGuards,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, ObjectId } from 'mongoose';
+import { Model, ObjectId, Query } from 'mongoose';
 
 // ===== Enums =====
 import { MemberStatus, MemberType } from '../../libs/enums/member.enum';
@@ -24,6 +30,7 @@ import { lookupAuthMemberFollowed, lookupAuthMemberLiked } from '../../libs/conf
 import { AuthService } from '../auth/auth.service';
 import { LikeService } from '../like/like.service';
 import { ViewService } from '../view/view.service';
+import { AuthGuard } from '../auth/guards/auth.guard';
 
 @Injectable()
 export class MemberService {

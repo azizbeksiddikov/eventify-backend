@@ -184,6 +184,45 @@ export class GroupService {
 		return group;
 	}
 
+	public async getJoinedGroups(memberId: ObjectId): Promise<Group[]> {
+		const result = await this.groupMemberModel
+			.aggregate([
+				{ $match: { memberId: memberId } },
+				{ $sort: { joinDate: -1 } },
+				{
+					$lookup: {
+						from: 'groups',
+						localField: 'groupId',
+						foreignField: '_id',
+						as: 'group',
+					},
+				},
+				{ $unwind: '$group' },
+				{
+					$addFields: {
+						'group.meJoined': [
+							{
+								memberId: '$memberId',
+								groupId: '$groupId',
+								groupMemberRole: '$groupMemberRole',
+								joinDate: '$joinDate',
+								meJoined: true,
+							},
+						],
+					},
+				},
+				{ $replaceRoot: { newRoot: '$group' } },
+				lookupAuthMemberLiked(memberId),
+			])
+			.exec();
+
+		if (!result.length) {
+			throw new BadRequestException(Message.NO_DATA_FOUND);
+		}
+
+		return result;
+	}
+
 	public async getGroups(memberId: ObjectId | null, input: GroupsInquiry): Promise<Groups> {
 		const { page, limit, search } = input;
 		const skip = (page - 1) * limit;
@@ -213,7 +252,6 @@ export class GroupService {
 							lookupAuthMemberJoined(memberId),
 							lookupMember,
 							{ $unwind: '$memberData' },
-							// check for meJoined
 						],
 						metaCounter: [{ $count: 'total' }],
 					},

@@ -141,4 +141,46 @@ export class FollowService {
 
 		return result[0];
 	}
+
+	public async getMemberFollowingsList(memberId: ObjectId): Promise<Member[]> {
+		const result = await this.followModel
+			.aggregate([
+				{ $match: { followerId: memberId } },
+				{ $sort: { created: Direction.DESC } },
+				{ $lookup: { from: 'members', localField: 'followingId', foreignField: '_id', as: 'followingData' } },
+				{ $unwind: '$followingData' },
+				{
+					$addFields: {
+						'followingData.meFollowed': [
+							{
+								followerId: '$followerId',
+								followingId: '$followingId',
+								myFollowing: true,
+							},
+						],
+					},
+				},
+				{ $replaceRoot: { newRoot: '$followingData' } },
+				lookupAuthMemberLiked(memberId, '$_id'),
+			])
+			.exec();
+
+		return result;
+	}
+
+	public async getMemberFollowersList(memberId: ObjectId): Promise<Member[]> {
+		const result = await this.followModel
+			.aggregate([
+				{ $match: { followingId: memberId } },
+				{ $sort: { created: Direction.DESC } },
+				{ $lookup: { from: 'members', localField: 'followerId', foreignField: '_id', as: 'followerData' } },
+				{ $unwind: '$followerData' },
+				{ $replaceRoot: { newRoot: '$followerData' } },
+				lookupAuthMemberLiked(memberId, '$_id'),
+				lookupAuthMemberFollowed({ followerId: memberId, followingId: '$_id' }),
+			])
+			.exec();
+
+		return result;
+	}
 }

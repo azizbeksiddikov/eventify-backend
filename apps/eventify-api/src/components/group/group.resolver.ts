@@ -69,6 +69,13 @@ export class GroupResolver {
 		return await this.groupService.getMyGroups(memberId);
 	}
 
+	@UseGuards(AuthGuard)
+	@Query(() => [Group])
+	public async getJoinedGroups(@AuthMember('_id') memberId: ObjectId): Promise<Group[]> {
+		console.log('Query: getJoinedGroups');
+		return await this.groupService.getJoinedGroups(memberId);
+	}
+
 	@Roles(MemberType.ORGANIZER)
 	@UseGuards(RolesGuard)
 	@Mutation(() => Group)

@@ -53,7 +53,7 @@ export class TicketService {
 			ticketStatus: TicketStatus.PURCHASED,
 		});
 
-		await this.memberModel.findByIdAndUpdate(memberId, { $inc: { memberPoints: -totalPrice } }).exec();
+		await this.memberModel.findByIdAndUpdate(memberId, { $inc: { memberPoints: -totalPrice, memberEvents: 1 } }).exec();
 
 		newTicket.event = await this.eventModel
 			.findByIdAndUpdate(eventId, { $inc: { attendeeCount: ticketQuantity } }, { new: true })
@@ -72,7 +72,9 @@ export class TicketService {
 		if (!ticket) throw new Error(Message.TICKET_NOT_FOUND);
 
 		// change members's points
-		await this.memberModel.findByIdAndUpdate(memberId, { $inc: { memberPoints: ticket.totalPrice } }).exec();
+		await this.memberModel
+			.findByIdAndUpdate(memberId, { $inc: { memberPoints: ticket.totalPrice, memberEvents: -1 } })
+			.exec();
 
 		// change event's attendee Count
 		ticket.event = await this.eventModel
@@ -83,34 +85,11 @@ export class TicketService {
 		return ticket;
 	}
 
-	public async getTickets(memberId: ObjectId, input: TicketInquiry): Promise<Tickets> {
+	public async getTickets(memberId: ObjectId): Promise<Ticket[]> {
 		const match: T = { memberId: memberId };
-		if (input.search?.ticketStatus) {
-			match.ticketStatus = input.search.ticketStatus;
-		}
-		if (input.search?.eventId) {
-			match.eventId = shapeIntoMongoObjectId(input.search.eventId);
-		}
 
-		const sort: T = { [input?.sort ?? 'createdAt']: input?.direction ?? Direction.DESC };
-
-		const result = await this.ticketModel.aggregate([
-			{ $match: match },
-			{ $sort: sort },
-			{
-				$facet: {
-					list: [
-						{ $skip: (input.page - 1) * input.limit },
-						{ $limit: input.limit },
-						{ $lookup: { from: 'events', localField: 'eventId', foreignField: '_id', as: 'event' } },
-						{ $unwind: '$event' },
-					],
-					metaCounter: [{ $count: 'total' }],
-				},
-			},
-		]);
-
-		return result[0];
+		const result = await this.ticketModel.find(match).sort({ createdAt: Direction.DESC }).exec();
+		return result;
 	}
 
 	// ============== Ticket Query Methods ==============

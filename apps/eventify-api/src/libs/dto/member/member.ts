@@ -67,6 +67,9 @@ export class Member {
 	@Field(() => Number)
 	memberEvents: number;
 
+	@Field(() => Number)
+	eventsOrganizedCount: number;
+
 	// ===== Timestamps =====
 	@Field(() => Date)
 	createdAt: Date;
@@ -81,12 +84,14 @@ export class Member {
 	@Field(() => String, { nullable: true })
 	accessToken?: string;
 
+	// GET ME
 	@Field(() => [MeLiked], { nullable: true })
 	meLiked?: MeLiked[];
 
 	@Field(() => [MeFollowed], { nullable: true })
 	meFollowed?: MeFollowed[];
 
+	// GET ORGANIZER
 	@Field(() => [Event], { nullable: true })
 	organizedEvents?: Event[];
 

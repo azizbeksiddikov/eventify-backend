@@ -96,6 +96,11 @@ const MemberSchema = new Schema(
 			default: 0,
 			min: 0,
 		},
+		eventsOrganizedCount: {
+			type: Number,
+			default: 0,
+			min: 0,
+		},
 	},
 
 	{

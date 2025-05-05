@@ -299,9 +299,17 @@ export class EventService {
 		return result[0];
 	}
 
-	public async deleteEventByAdmin(eventId: ObjectId): Promise<Event | null> {
+	public async updateEventByAdmin(input: EventUpdateInput): Promise<Event> {
+		const result: Event | null = await this.eventModel.findByIdAndUpdate(input._id, input, { new: true }).exec();
+		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
+
+		return result;
+	}
+
+	public async removeEventByAdmin(eventId: ObjectId): Promise<Event | null> {
 		const event = await this.eventModel.findById(eventId).exec();
 		if (!event) throw new Error(Message.EVENT_NOT_FOUND);
+
 		if (event.eventStatus === EventStatus.DELETED) {
 			return await this.eventModel.findByIdAndDelete(eventId).exec();
 		}

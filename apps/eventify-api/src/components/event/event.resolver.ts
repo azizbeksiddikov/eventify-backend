@@ -123,18 +123,26 @@ export class EventResolver {
 	// ============== Admin Methods ==============
 	@Roles(MemberType.ADMIN)
 	@UseGuards(RolesGuard)
-	@Mutation(() => Event)
-	public async deleteEventByAdmin(@Args('eventId') eventId: string): Promise<Event> {
-		console.log('Mutation: deleteEventByAdmin');
-		const targetId = shapeIntoMongoObjectId(eventId);
-		return await this.eventService.deleteEventByAdmin(targetId);
-	}
-
-	@Roles(MemberType.ADMIN)
-	@UseGuards(RolesGuard)
 	@Query(() => Events)
 	public async getAllEventsByAdmin(@Args('input') input: EventsInquiry): Promise<Events> {
 		console.log('Query: getAllEventsByAdmin');
 		return await this.eventService.getAllEventsByAdmin(input);
+	}
+
+	@Roles(MemberType.ADMIN)
+	@UseGuards(RolesGuard)
+	@Mutation(() => Event)
+	public async updateEventByAdmin(@Args('input') input: EventUpdateInput): Promise<Event> {
+		console.log('Mutation: updateEventByAdmin');
+		return await this.eventService.updateEventByAdmin(input);
+	}
+
+	@Roles(MemberType.ADMIN)
+	@UseGuards(RolesGuard)
+	@Mutation(() => Event)
+	public async removeEventByAdmin(@Args('eventId') eventId: string): Promise<Event> {
+		console.log('Mutation: removeEventByAdmin');
+		const targetId = shapeIntoMongoObjectId(eventId);
+		return await this.eventService.removeEventByAdmin(targetId);
 	}
 }

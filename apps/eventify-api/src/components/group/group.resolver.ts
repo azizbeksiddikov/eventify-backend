@@ -157,6 +157,7 @@ export class GroupResolver {
 	@Mutation(() => Group)
 	public async removeGroupByAdmin(@Args('groupId') groupId: string): Promise<Group> {
 		console.log('Mutation: removeGroupByAdmin');
-		return await this.groupService.removeGroupByAdmin(groupId);
+		const targetId = shapeIntoMongoObjectId(groupId);
+		return await this.groupService.removeGroupByAdmin(targetId);
 	}
 }

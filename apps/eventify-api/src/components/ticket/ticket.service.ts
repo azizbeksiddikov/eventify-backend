@@ -32,7 +32,7 @@ export class TicketService {
 			throw new BadRequestException(Message.TICKET_QUANTITY_INVALID);
 		}
 
-		// Check if the event is in the group
+		// Check for event: exists, not full
 		const event = await this.eventModel.findById(eventId).exec();
 		if (!event) {
 			throw new BadRequestException(Message.EVENT_NOT_FOUND);
@@ -52,6 +52,7 @@ export class TicketService {
 			memberId: memberId,
 			ticketStatus: TicketStatus.PURCHASED,
 		});
+		console.log('newTicket', newTicket);
 
 		await this.memberModel.findByIdAndUpdate(memberId, { $inc: { memberPoints: -totalPrice, memberEvents: 1 } }).exec();
 
@@ -85,7 +86,7 @@ export class TicketService {
 		return ticket;
 	}
 
-	public async getTickets(memberId: ObjectId): Promise<Ticket[]> {
+	public async getAllTicketsList(memberId: ObjectId): Promise<Ticket[]> {
 		const match: T = { memberId: memberId };
 
 		const result = await this.ticketModel
@@ -98,6 +99,32 @@ export class TicketService {
 			.exec();
 
 		return result;
+	}
+
+	public async getMyTickets(memberId: ObjectId, input: TicketInquiry): Promise<Tickets> {
+		const match: T = { memberId: memberId };
+		if (input.search.eventId) {
+			match.eventId = shapeIntoMongoObjectId(input.search.eventId);
+		}
+		if (input.search.ticketStatus) {
+			match.ticketStatus = input.search.ticketStatus;
+		}
+
+		const sort = { [input?.sort || 'createdAt']: input?.direction || Direction.DESC };
+
+		const result = await this.ticketModel.aggregate([
+			{ $match: match },
+			{ $sort: sort },
+			{ $lookup: { from: 'events', localField: 'eventId', foreignField: '_id', as: 'event' } },
+			{ $unwind: '$event' },
+			{
+				$facet: {
+					list: [{ $skip: (input.page - 1) * input.limit }, { $limit: input.limit }],
+					metaCounter: [{ $count: 'total' }],
+				},
+			},
+		]);
+		return result[0];
 	}
 
 	// ============== Ticket Query Methods ==============

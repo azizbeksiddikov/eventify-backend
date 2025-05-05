@@ -35,9 +35,16 @@ export class TicketResolver {
 	}
 
 	@UseGuards(AuthGuard)
-	@Query(() => [Ticket])
-	async getTickets(@AuthMember('_id') memberId: ObjectId): Promise<Ticket[]> {
+	@Query(() => Tickets)
+	async getTickets(@AuthMember('_id') memberId: ObjectId, @Args('input') input: TicketInquiry): Promise<Tickets> {
 		console.log('Query: getTickets');
-		return this.ticketService.getTickets(memberId);
+		return this.ticketService.getMyTickets(memberId, input);
+	}
+
+	@UseGuards(AuthGuard)
+	@Query(() => [Ticket])
+	async getAllTicketsList(@AuthMember('_id') memberId: ObjectId): Promise<Ticket[]> {
+		console.log('Query: getAllTicketsList');
+		return this.ticketService.getAllTicketsList(memberId);
 	}
 }

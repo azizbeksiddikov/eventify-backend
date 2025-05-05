@@ -419,6 +419,21 @@ export class GroupService {
 		return result[0];
 	}
 
+	public async updateGroupByAdmin(input: GroupUpdateInput): Promise<Group> {
+		const { _id, ...otherInput } = input;
+		if (!_id) throw new BadRequestException(Message.NO_DATA_FOUND);
+
+		const result: Group | null = await this.groupModel.findByIdAndUpdate(input._id, input, { new: true }).exec();
+		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
+		return result;
+	}
+
+	public async removeGroupByAdmin(groupId: ObjectId): Promise<Group> {
+		const result: Group | null = await this.groupModel.findByIdAndDelete(groupId).exec();
+		if (!result) throw new BadRequestException(Message.NO_DATA_FOUND);
+		return result;
+	}
+
 	// ============== Helper Methods ==============
 	public async groupStatsEditor(input: StatisticModifier): Promise<Group> {
 		const { _id, targetKey, modifier } = input;

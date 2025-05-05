@@ -143,4 +143,20 @@ export class GroupResolver {
 		console.log('Query: getAllGroupsByAdmin');
 		return await this.groupService.getAllGroupsByAdmin(input);
 	}
+
+	@Roles(MemberType.ADMIN)
+	@UseGuards(RolesGuard)
+	@Mutation(() => Group)
+	public async updateGroupByAdmin(@Args('input') input: GroupUpdateInput): Promise<Group> {
+		console.log('Mutation: updateGroupByAdmin');
+		return await this.groupService.updateGroupByAdmin(input);
+	}
+
+	@Roles(MemberType.ADMIN)
+	@UseGuards(RolesGuard)
+	@Mutation(() => Group)
+	public async removeGroupByAdmin(@Args('groupId') groupId: string): Promise<Group> {
+		console.log('Mutation: removeGroupByAdmin');
+		return await this.groupService.removeGroupByAdmin(groupId);
+	}
 }

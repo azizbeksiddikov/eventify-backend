@@ -145,10 +145,10 @@ export class MemberResolver {
 	@Roles(MemberType.ADMIN)
 	@UseGuards(RolesGuard)
 	@Mutation(() => Member)
-	public async deleteMemberByAdmin(@Args('input') input: string): Promise<Member> {
-		console.log('Mutation: deleteMemberByAdmin');
+	public async removeMemberByAdmin(@Args('input') input: string): Promise<Member> {
+		console.log('Mutation: removeMemberByAdmin');
 		const memberId = shapeIntoMongoObjectId(input);
-		return await this.memberService.deleteMemberByAdmin(memberId);
+		return await this.memberService.removeMemberByAdmin(memberId);
 	}
 
 	// ============== File Upload Methods ==============

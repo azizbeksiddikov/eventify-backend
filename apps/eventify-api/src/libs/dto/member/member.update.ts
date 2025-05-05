@@ -1,52 +1,39 @@
 import { Field, InputType } from '@nestjs/graphql';
-import { IsOptional, IsString, IsEmail, IsNotEmpty, IsBoolean, IsEnum } from 'class-validator';
+import { IsOptional, IsNotEmpty, IsBoolean, IsEnum } from 'class-validator';
 import { MemberType, MemberStatus } from '../../enums/member.enum';
 import { ObjectId } from 'mongoose';
 
 // ============== Member Update Input ==============
 @InputType()
 export class MemberUpdateInput {
-	// ===== Identification =====
-	@Field(() => String, { nullable: true })
-	@IsOptional()
-	@IsString()
-	_id?: ObjectId;
-
 	// ===== Authentication Fields =====
 	@Field(() => String, { nullable: true })
 	@IsOptional()
-	@IsString()
 	username?: string;
 
 	@Field(() => String, { nullable: true })
 	@IsOptional()
-	@IsEmail()
 	memberEmail?: string;
 
 	@Field(() => String, { nullable: true })
 	@IsOptional()
-	@IsString()
 	memberPassword?: string;
 
 	// ===== Profile Information =====
 	@Field(() => String, { nullable: true })
 	@IsOptional()
-	@IsString()
 	memberPhone?: string;
 
 	@Field(() => String, { nullable: true })
 	@IsOptional()
-	@IsString()
 	memberFullName?: string;
 
 	@Field(() => String, { nullable: true })
 	@IsOptional()
-	@IsString()
 	memberDesc?: string;
 
 	@Field(() => String, { nullable: true })
 	@IsOptional()
-	@IsString()
 	memberImage?: string;
 
 	// ===== Status Fields =====
@@ -59,6 +46,19 @@ export class MemberUpdateInput {
 	@IsOptional()
 	@IsBoolean()
 	emailVerified?: boolean;
+
+	// ===== Admin Fields =====
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	_id?: ObjectId;
+
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	memberType?: MemberType;
+
+	@Field(() => Number, { nullable: true })
+	@IsOptional()
+	memberPoints?: number;
 }
 
 // ============== Password Update Input ==============
@@ -66,11 +66,9 @@ export class MemberUpdateInput {
 export class PasswordUpdateInput {
 	@Field(() => String)
 	@IsNotEmpty()
-	@IsString()
 	currentPassword: string;
 
 	@Field(() => String)
 	@IsNotEmpty()
-	@IsString()
 	newPassword: string;
 }

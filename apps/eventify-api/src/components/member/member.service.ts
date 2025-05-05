@@ -329,7 +329,7 @@ export class MemberService {
 		return result;
 	}
 
-	public async deleteMemberByAdmin(memberId: ObjectId): Promise<Member> {
+	public async removeMemberByAdmin(memberId: ObjectId): Promise<Member> {
 		const result: Member | null = await this.memberModel.findByIdAndDelete(memberId).exec();
 		if (!result) throw new BadRequestException(Message.NO_DATA_FOUND);
 		return result;

@@ -120,7 +120,7 @@ export class EventResolver {
 		return await this.eventService.likeTargetEvent(memberId, likeRefId);
 	}
 
-	// ADMIN ONLY
+	// ============== Admin Methods ==============
 	@Roles(MemberType.ADMIN)
 	@UseGuards(RolesGuard)
 	@Mutation(() => Event)
@@ -128,5 +128,13 @@ export class EventResolver {
 		console.log('Mutation: deleteEventByAdmin');
 		const targetId = shapeIntoMongoObjectId(eventId);
 		return await this.eventService.deleteEventByAdmin(targetId);
+	}
+
+	@Roles(MemberType.ADMIN)
+	@UseGuards(RolesGuard)
+	@Query(() => Events)
+	public async getAllEventsByAdmin(@Args('input') input: EventsInquiry): Promise<Events> {
+		console.log('Query: getAllEventsByAdmin');
+		return await this.eventService.getAllEventsByAdmin(input);
 	}
 }

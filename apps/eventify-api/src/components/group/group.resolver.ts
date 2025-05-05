@@ -134,4 +134,13 @@ export class GroupResolver {
 		const targetId = shapeIntoMongoObjectId(groupId);
 		return await this.groupService.leaveGroup(memberId, targetId);
 	}
+
+	// ============== Admin Methods ==============
+	@Roles(MemberType.ADMIN)
+	@UseGuards(RolesGuard)
+	@Query(() => Groups)
+	public async getAllGroupsByAdmin(@Args('input') input: GroupsInquiry): Promise<Groups> {
+		console.log('Query: getAllGroupsByAdmin');
+		return await this.groupService.getAllGroupsByAdmin(input);
+	}
 }

@@ -263,31 +263,38 @@ export class EventService {
 
 	// ============== Admin Methods ==============
 	public async getAllEventsByAdmin(input: EventsInquiry): Promise<Events> {
-		const { page, limit, sort, direction, search } = input;
-		const { text, eventCategories, eventStatus } = search;
+		const { text, eventCategories, eventStatus, eventStartDay, eventEndDay } = input.search;
+		const sort = { [input?.sort ?? 'createdAt']: input?.direction ?? Direction.DESC };
 
+		// ===== Match =====
 		const match: T = {};
-		const sortFinal = { [sort ?? 'createdAt']: direction ?? Direction.DESC };
-		if (status) match.eventStatus = status;
+		if (eventStatus) match.eventStatus = eventStatus;
 
 		if (text) {
 			match.$or = [{ eventName: { $regex: new RegExp(text, 'i') } }, { eventDesc: { $regex: new RegExp(text, 'i') } }];
 		}
 		if (eventCategories && eventCategories.length > 0) match.eventCategories = { $in: eventCategories };
 
+		if (eventStartDay && eventEndDay) {
+			match.eventDate = { $gte: new Date(eventStartDay), $lte: new Date(eventEndDay) };
+		} else if (eventStartDay) {
+			match.eventDate = { $gte: new Date(eventStartDay) };
+		} else if (eventEndDay) {
+			match.eventDate = { $lte: new Date(eventEndDay) };
+		}
+
 		const result = await this.eventModel
 			.aggregate([
 				{ $match: match },
-				{ $sort: sortFinal },
+				{ $sort: sort },
 				{
 					$facet: {
-						list: [{ $skip: page - 1 }, { $limit: limit }, lookupMember, { $unwind: '$memberData' }],
+						list: [{ $skip: input.page - 1 }, { $limit: input.limit }],
 						metaCounter: [{ $count: 'total' }],
 					},
 				},
 			])
 			.exec();
-		if (!result) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
 
 		return result[0];
 	}

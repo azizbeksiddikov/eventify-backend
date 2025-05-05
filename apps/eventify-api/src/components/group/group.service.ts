@@ -388,6 +388,37 @@ export class GroupService {
 		return [meJoinedData];
 	}
 
+	// ============== Admin Methods ==============
+	public async getAllGroupsByAdmin(input: GroupsInquiry): Promise<Groups> {
+		const { page, limit, search } = input;
+		const skip = (page - 1) * limit;
+		const sort: T = { [input?.sort ?? 'createdAt']: input?.direction ?? Direction.DESC };
+
+		const match: T = {};
+		if (search?.text) {
+			match.$or = [
+				{ groupName: { $regex: search.text, $options: 'i' } },
+				{ groupDesc: { $regex: search.text, $options: 'i' } },
+			];
+		}
+		if (search?.groupCategories?.length) {
+			match.groupCategories = { $in: search.groupCategories };
+		}
+
+		const result = await this.groupModel.aggregate([
+			{ $match: match },
+			{ $sort: sort },
+			{
+				$facet: {
+					list: [{ $skip: skip }, { $limit: limit }],
+					metaCounter: [{ $count: 'total' }],
+				},
+			},
+		]);
+
+		return result[0];
+	}
+
 	// ============== Helper Methods ==============
 	public async groupStatsEditor(input: StatisticModifier): Promise<Group> {
 		const { _id, targetKey, modifier } = input;

@@ -79,9 +79,6 @@ export class Group {
 	@Field(() => [Event], { nullable: true })
 	groupUpcomingEvents?: Event[];
 
-	@Field(() => Boolean, { nullable: true })
-	meOwner?: boolean;
-
 	@Field(() => [GroupMember], { nullable: true })
 	groupModerators?: GroupMember[];
 }

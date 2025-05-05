@@ -58,7 +58,6 @@ export class GroupService {
 			const groupMember = await this.groupMemberModel.create(newGroupMember);
 			await this.memberModel.findByIdAndUpdate(memberId, { $inc: { memberGroups: 1 } });
 
-			newGroup.meOwner = true;
 			newGroup.meJoined = [{ ...newGroupMember, meJoined: true }];
 
 			return newGroup;
@@ -153,7 +152,7 @@ export class GroupService {
 								},
 							},
 							{ $sort: { groupViews: -1 } },
-							{ $limit: 5 },
+							{ $limit: 3 },
 						],
 						as: 'similarGroups',
 					},
@@ -178,8 +177,6 @@ export class GroupService {
 				group.groupViews += 1;
 				await this.groupStatsEditor({ _id: groupId, targetKey: 'groupViews', modifier: 1 });
 			}
-
-			group.meOwner = group.memberId.toString() === memberId.toString();
 		}
 		return group;
 	}

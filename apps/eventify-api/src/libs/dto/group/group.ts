@@ -56,6 +56,9 @@ export class Group {
 	@Field(() => Number)
 	memberCount: number;
 
+	@Field(() => Number)
+	eventsCount: number;
+
 	// ===== Timestamps =====
 	@Field(() => Date)
 	createdAt: Date;

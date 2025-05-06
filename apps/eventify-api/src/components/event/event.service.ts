@@ -78,6 +78,7 @@ export class EventService {
 				memberId: memberId,
 			});
 			await this.memberModel.findByIdAndUpdate(memberId, { $inc: { eventsOrganizedCount: 1 } });
+			await this.groupModel.findByIdAndUpdate(input.groupId, { $inc: { eventsCount: 1 } });
 			return event;
 		} catch (error) {
 			throw new BadRequestException(Message.EVENT_ALREADY_EXISTS);

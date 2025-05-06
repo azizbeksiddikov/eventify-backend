@@ -50,6 +50,11 @@ const GroupSchema = new Schema(
 			default: 1,
 			min: 1,
 		},
+
+		eventsCount: {
+			type: Number,
+			default: 0,
+		},
 	},
 	{
 		timestamps: true,

@@ -74,14 +74,7 @@ export class GroupService {
 				{ $match: { _id: groupId } },
 
 				// Lookup member data
-				{
-					$lookup: {
-						from: 'members',
-						localField: 'memberId',
-						foreignField: '_id',
-						as: 'memberData',
-					},
-				},
+				lookupMember,
 				{ $unwind: '$memberData' },
 
 				// Add moderators to the result

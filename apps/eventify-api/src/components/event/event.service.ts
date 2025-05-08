@@ -130,7 +130,7 @@ export class EventService {
 	}
 
 	private getPipeline(memberId: ObjectId | null, input: EventsInquiry): any[] {
-		const { text, eventCategories, eventStatus, eventStartDay, eventEndDay } = input.search;
+		const { text, eventCategories, eventStatus, eventStartDay, eventEndDay, eventCity } = input.search;
 		const match: T = {
 			eventStatus: { $ne: EventStatus.DELETED },
 		};
@@ -141,6 +141,7 @@ export class EventService {
 			match.$or = [{ eventName: { $regex: new RegExp(text, 'i') } }, { eventDesc: { $regex: new RegExp(text, 'i') } }];
 		}
 		if (eventCategories && eventCategories.length > 0) match.eventCategories = { $in: eventCategories };
+		if (eventCity) match.eventCity = { $regex: new RegExp(eventCity, 'i') };
 
 		const sort: T = { [input?.sort ?? 'createdAt']: input?.direction ?? Direction.DESC };
 		if (eventStartDay && eventEndDay) {

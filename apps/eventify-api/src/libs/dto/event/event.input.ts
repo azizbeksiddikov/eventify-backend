@@ -101,6 +101,14 @@ class EISearch {
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	eventEndDay?: Date;
+
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	eventCity?: string;
+
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	eventAddress?: string;
 }
 
 // ============== Inquiry Inputs ==============

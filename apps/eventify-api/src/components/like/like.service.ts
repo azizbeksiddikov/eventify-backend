@@ -9,12 +9,18 @@ import { LikeGroup } from '../../libs/enums/like.enum';
 import { OrdinaryEventInquiry } from '../../libs/dto/event/event.input';
 import { Events } from '../../libs/dto/event/event';
 import { lookupFavorite } from '../../libs/config';
+import { NotificationType } from '../../libs/enums/notification';
+import { NotificationInput } from '../../libs/dto/notification/notification.input';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class LikeService {
-	constructor(@InjectModel('Like') private readonly likeModel: Model<Like>) {}
+	constructor(
+		@InjectModel('Like') private readonly likeModel: Model<Like>,
+		private readonly notificationService: NotificationService,
+	) {}
 
-	public async toggleLike(input: LikeInput): Promise<number> {
+	public async toggleLike(input: LikeInput, receiverId: ObjectId): Promise<number> {
 		console.log('LikeService: toggleLike');
 		const search: T = { memberId: input.memberId, likeRefId: input.likeRefId, likeGroup: input.likeGroup };
 		const exist = await this.likeModel.findOne(search).exec();
@@ -26,6 +32,14 @@ export class LikeService {
 		} else {
 			try {
 				await this.likeModel.create(input);
+
+				const newNotification: NotificationInput = {
+					senderId: input.memberId,
+					receiverId: receiverId,
+					notificationType: NotificationType.LIKE,
+					notificationRefId: input.likeRefId,
+				};
+				const createdNotification = await this.notificationService.createNotification(newNotification);
 			} catch (err) {
 				console.log('ERROR: Service.model:', err.message);
 				throw new BadRequestException(Message.CREATE_FAILED);

@@ -8,16 +8,19 @@ import TicketSchema from '../../schemas/Ticket.schema';
 
 // ===== Components =====
 import { AuthModule } from '../auth/auth.module';
+import { NotificationModule } from '../notification/notification.module';
 
 // ===== Ticket Components =====
 import { TicketService } from './ticket.service';
 import { TicketResolver } from './ticket.resolver';
+
 @Module({
 	imports: [
 		MongooseModule.forFeature([{ name: 'Ticket', schema: TicketSchema }]),
 		MongooseModule.forFeature([{ name: 'Member', schema: MemberSchema }]),
 		MongooseModule.forFeature([{ name: 'Event', schema: EventSchema }]),
 		AuthModule,
+		NotificationModule,
 	],
 	providers: [TicketService, TicketResolver],
 	exports: [TicketService],

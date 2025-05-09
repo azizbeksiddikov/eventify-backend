@@ -278,7 +278,7 @@ export class MemberService {
 
 		const input: LikeInput = { memberId: memberId, likeRefId: likeRefId, likeGroup: LikeGroup.MEMBER };
 
-		const modifier = await this.likeService.toggleLike(input);
+		const modifier = await this.likeService.toggleLike(input, member._id);
 		await this.memberStatsEditor({ _id: likeRefId, targetKey: 'memberLikes', modifier: modifier });
 		member.memberLikes += modifier;
 

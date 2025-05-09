@@ -21,6 +21,9 @@ import { lookupMember } from '../../libs/config';
 import { MemberService } from '../member/member.service';
 import { EventService } from '../event/event.service';
 import { GroupService } from '../group/group.service';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../../libs/enums/notification';
+import { NotificationInput } from '../../libs/dto/notification/notification.input';
 
 @Injectable()
 export class CommentService {
@@ -29,6 +32,7 @@ export class CommentService {
 		private readonly memberService: MemberService,
 		private readonly eventService: EventService,
 		private readonly groupService: GroupService,
+		private readonly notificationService: NotificationService,
 	) {}
 
 	// ============== Comment Management Methods ==============
@@ -43,13 +47,21 @@ export class CommentService {
 			throw new BadRequestException(Message.CREATE_FAILED);
 		}
 
+		const newNotification: NotificationInput = {
+			senderId: memberId,
+			receiverId: input.commentRefId,
+			notificationType: NotificationType.COMMENT,
+			notificationRefId: input.commentRefId,
+		};
+
 		switch (input.commentGroup) {
 			case CommentGroup.EVENT:
-				await this.eventService.eventStatsEditor({
+				const event = await this.eventService.eventStatsEditor({
 					_id: input.commentRefId,
 					targetKey: 'eventComments',
 					modifier: 1,
 				});
+				await this.notificationService.createNotification({ ...newNotification, receiverId: event.memberId });
 				break;
 
 			case CommentGroup.MEMBER:
@@ -58,14 +70,16 @@ export class CommentService {
 					targetKey: 'memberComments',
 					modifier: 1,
 				});
+				await this.notificationService.createNotification({ ...newNotification });
 				break;
 
 			case CommentGroup.GROUP:
-				await this.groupService.groupStatsEditor({
+				const group = await this.groupService.groupStatsEditor({
 					_id: input.commentRefId,
 					targetKey: 'groupComments',
 					modifier: 1,
 				});
+				await this.notificationService.createNotification({ ...newNotification, receiverId: group.memberId });
 				break;
 		}
 

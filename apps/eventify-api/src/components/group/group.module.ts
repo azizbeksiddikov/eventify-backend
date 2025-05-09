@@ -10,11 +10,13 @@ import MemberSchema from '../../schemas/Member.schema';
 import { AuthModule } from '../auth/auth.module';
 import { LikeModule } from '../like/like.module';
 import { ViewModule } from '../view/view.module';
+import { NotificationModule } from '../notification/notification.module';
 
 // ===== Group Components =====
 import { GroupResolver } from './group.resolver';
 import { GroupService } from './group.service';
 import EventSchema from '../../schemas/Event.schema';
+
 @Module({
 	imports: [
 		MongooseModule.forFeature([{ name: 'Group', schema: GroupSchema }]),
@@ -24,6 +26,7 @@ import EventSchema from '../../schemas/Event.schema';
 		AuthModule,
 		LikeModule,
 		ViewModule,
+		NotificationModule,
 	],
 	providers: [GroupResolver, GroupService],
 	exports: [GroupService],

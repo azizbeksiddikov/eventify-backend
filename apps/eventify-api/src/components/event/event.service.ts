@@ -38,6 +38,9 @@ import { TicketService } from '../ticket/ticket.service';
 import { LikeService } from '../like/like.service';
 import { ViewService } from '../view/view.service';
 import { MemberService } from '../member/member.service';
+import { NotificationType } from '../../libs/enums/notification';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationInput } from '../../libs/dto/notification/notification.input';
 
 @Injectable()
 export class EventService {
@@ -51,6 +54,7 @@ export class EventService {
 		private readonly likeService: LikeService,
 		private readonly viewService: ViewService,
 		private readonly memberService: MemberService,
+		private readonly notificationService: NotificationService,
 	) {}
 
 	// ============== Event Management Methods ==============
@@ -59,18 +63,14 @@ export class EventService {
 		if (!input?.eventStatus) input.eventStatus = EventStatus.UPCOMING;
 
 		const group = await this.groupModel.findById(input.groupId);
-		if (!group) {
-			throw new BadRequestException(Message.EVENT_GROUP_REQUIRED);
-		}
+		if (!group) throw new BadRequestException(Message.EVENT_GROUP_REQUIRED);
 
 		const groupMember = await this.groupMemberModel.findOne({
 			memberId,
 			groupId: input.groupId,
 			groupMemberRole: { $in: [GroupMemberRole.OWNER, GroupMemberRole.MODERATOR] },
 		});
-		if (!groupMember) {
-			throw new BadRequestException(Message.NOT_GROUP_ADMIN);
-		}
+		if (!groupMember) throw new BadRequestException(Message.NOT_GROUP_ADMIN);
 
 		try {
 			const event = await this.eventModel.create({
@@ -79,6 +79,23 @@ export class EventService {
 			});
 			await this.memberModel.findByIdAndUpdate(memberId, { $inc: { eventsOrganizedCount: 1 } });
 			await this.groupModel.findByIdAndUpdate(input.groupId, { $inc: { eventsCount: 1 } });
+
+			const groupMembers: GroupMember[] = await this.groupMemberModel.find({
+				_id: { $ne: groupMember._id },
+				groupId: input.groupId,
+				groupMemberRole: { $in: [GroupMemberRole.OWNER, GroupMemberRole.MODERATOR, GroupMemberRole.MEMBER] },
+			});
+
+			groupMembers.forEach(async (groupMember) => {
+				const newNotification: NotificationInput = {
+					senderId: memberId,
+					receiverId: groupMember.memberId,
+					notificationType: NotificationType.EVENT,
+					notificationRefId: event._id,
+				};
+				await this.notificationService.createNotification(newNotification);
+			});
+
 			return event;
 		} catch (error) {
 			throw new BadRequestException(Message.EVENT_ALREADY_EXISTS);
@@ -237,15 +254,19 @@ export class EventService {
 		const event: Event | null = await this.eventModel.findById(likeRefId).lean().exec();
 		if (!event) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
 
+		// like => unlike, unlike => like
 		const input: LikeInput = { memberId: memberId, likeRefId: likeRefId, likeGroup: LikeGroup.EVENT };
-		const modifier = await this.likeService.toggleLike(input);
+		const modifier = await this.likeService.toggleLike(input, event.memberId);
 
+		// update event stats
 		await this.eventStatsEditor({ _id: likeRefId, targetKey: 'eventLikes', modifier: modifier });
 		event.eventLikes += modifier;
 
-		// find organizer
+		// AGGREGATED FIELDS
+		// find eventorganizer
 		event.memberData = await this.memberModel.findById(event.memberId).lean().exec();
 
+		// get meLiked
 		if (modifier > 0) {
 			event.meLiked = [{ memberId: memberId, likeRefId: likeRefId, myFavorite: true }];
 		} else {

@@ -24,7 +24,11 @@ import { lookupMember } from '../../libs/config';
 import { ViewGroup } from '../../libs/enums/view.enum';
 import { ViewService } from '../view/view.service';
 import { Event } from '../../libs/dto/event/event';
-import { EventStatus } from '../../libs/enums/event.enum';
+
+// ===== Services =====
+import { NotificationService } from '../notification/notification.service';
+import { NotificationInput } from '../../libs/dto/notification/notification.input';
+import { NotificationType } from '../../libs/enums/notification';
 
 @Injectable()
 export class GroupService {
@@ -35,6 +39,7 @@ export class GroupService {
 		@InjectModel('Event') private readonly eventModel: Model<Event>,
 		private readonly likeService: LikeService,
 		private readonly viewService: ViewService,
+		private readonly notificationService: NotificationService,
 	) {}
 
 	// ============== Group Management Methods ==============
@@ -283,7 +288,7 @@ export class GroupService {
 
 		const input: LikeInput = { memberId: memberId, likeRefId: groupId, likeGroup: LikeGroup.GROUP };
 
-		const modifier = await this.likeService.toggleLike(input);
+		const modifier = await this.likeService.toggleLike(input, target.memberId);
 		this.groupStatsEditor({ _id: groupId, targetKey: 'groupLikes', modifier: modifier });
 
 		target.groupLikes += modifier;
@@ -306,14 +311,27 @@ export class GroupService {
 			joinDate: new Date(),
 		};
 
-		const groupMember = await this.groupMemberModel.create(newGroupMemberInput);
-		if (!groupMember) throw new BadRequestException(Message.CREATE_FAILED);
+		try {
+			const groupMember = await this.groupMemberModel.create(newGroupMemberInput);
+			if (!groupMember) throw new BadRequestException(Message.CREATE_FAILED);
 
-		await this.groupStatsEditor({ _id: groupId, targetKey: 'memberCount', modifier: 1 });
+			const newNotification: NotificationInput = {
+				senderId: memberId,
+				receiverId: group.memberId,
+				notificationType: NotificationType.GROUP_JOIN,
+				notificationRefId: groupId,
+			};
+			await this.notificationService.createNotification(newNotification);
 
-		group.memberCount += 1;
-		group.meJoined = [{ ...newGroupMemberInput, meJoined: true }];
-		return group;
+			await this.groupStatsEditor({ _id: groupId, targetKey: 'memberCount', modifier: 1 });
+
+			group.memberCount += 1;
+			group.meJoined = [{ ...newGroupMemberInput, meJoined: true }];
+			return group;
+		} catch (err) {
+			console.error('Error in joinGroup:', err);
+			throw new BadRequestException(Message.CREATE_FAILED);
+		}
 	}
 
 	public async leaveGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {

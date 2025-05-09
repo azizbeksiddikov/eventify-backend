@@ -12,5 +12,5 @@ export class NotificationUpdate {
 	// ===== Type and Status =====
 	@IsOptional()
 	@Field(() => Boolean, { nullable: true })
-	isRead?: boolean;
+	isRead: boolean;
 }

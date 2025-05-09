@@ -10,6 +10,7 @@ import GroupMemberSchema from '../../schemas/GroupMember.schema';
 
 // ===== Components =====
 import { AuthModule } from '../auth/auth.module';
+import { NotificationModule } from '../notification/notification.module';
 import { MemberModule } from '../member/member.module';
 import { TicketModule } from '../ticket/ticket.module';
 import { LikeModule } from '../like/like.module';
@@ -31,6 +32,7 @@ import { EventService } from './event.service';
 		LikeModule,
 		ViewModule,
 		AuthModule,
+		NotificationModule,
 	],
 	providers: [EventResolver, EventService],
 	exports: [EventService],

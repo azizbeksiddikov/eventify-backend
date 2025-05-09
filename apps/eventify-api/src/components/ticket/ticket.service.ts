@@ -16,6 +16,11 @@ import { Member } from '../../libs/dto/member/member';
 import { Direction, Message } from '../../libs/enums/common.enum';
 import { T } from '../../libs/types/common';
 import { shapeIntoMongoObjectId } from '../../libs/config';
+import { NotificationInput } from '../../libs/dto/notification/notification.input';
+import { NotificationType } from '../../libs/enums/notification';
+
+// ===== Services =====
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class TicketService {
@@ -23,6 +28,7 @@ export class TicketService {
 		@InjectModel('Ticket') private readonly ticketModel: Model<Ticket>,
 		@InjectModel('Member') private readonly memberModel: Model<Member>,
 		@InjectModel('Event') private readonly eventModel: Model<Event>,
+		private readonly notificationService: NotificationService,
 	) {}
 
 	public async createTicket(memberId: ObjectId, ticket: TicketInput): Promise<Ticket> {
@@ -33,10 +39,9 @@ export class TicketService {
 		}
 
 		// Check for event: exists, not full
-		const event = await this.eventModel.findById(eventId).exec();
-		if (!event) {
-			throw new BadRequestException(Message.EVENT_NOT_FOUND);
-		}
+		const event: Event = await this.eventModel.findById(eventId).exec();
+		if (!event) throw new BadRequestException(Message.EVENT_NOT_FOUND);
+
 		if (event.attendeeCount + ticketQuantity > event.eventCapacity) {
 			throw new BadRequestException(Message.EVENT_FULL);
 		}
@@ -47,12 +52,19 @@ export class TicketService {
 			throw new BadRequestException(Message.INSUFFICIENT_POINTS);
 		}
 
-		const newTicket = await this.ticketModel.create({
+		const newTicket: Ticket = await this.ticketModel.create({
 			...ticket,
 			memberId: memberId,
 			ticketStatus: TicketStatus.PURCHASED,
 		});
-		console.log('newTicket', newTicket);
+
+		const newNotification: NotificationInput = {
+			senderId: memberId,
+			receiverId: event.memberId,
+			notificationType: NotificationType.EVENT_JOIN,
+			notificationRefId: event._id,
+		};
+		await this.notificationService.createNotification(newNotification);
 
 		await this.memberModel.findByIdAndUpdate(memberId, { $inc: { memberPoints: -totalPrice, memberEvents: 1 } }).exec();
 

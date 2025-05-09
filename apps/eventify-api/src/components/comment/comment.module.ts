@@ -13,6 +13,7 @@ import { GroupModule } from '../group/group.module';
 // ===== Comment Components =====
 import { CommentService } from './comment.service';
 import { CommentResolver } from './comment.resolver';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
 	imports: [
@@ -21,6 +22,7 @@ import { CommentResolver } from './comment.resolver';
 		MemberModule,
 		EventModule,
 		GroupModule,
+		NotificationModule,
 	],
 	providers: [CommentService, CommentResolver],
 	exports: [CommentService],

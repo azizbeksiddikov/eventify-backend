@@ -16,14 +16,14 @@ import { NotificationModule } from './notification/notification.module';
 		AuthModule,
 		CommentModule,
 		EventModule,
+		FaqModule,
 		FollowModule,
 		GroupModule,
 		LikeModule,
 		MemberModule,
+		NotificationModule,
 		TicketModule,
 		ViewModule,
-		FaqModule,
-		NotificationModule,
 	],
 })
 export class ComponentsModule {}

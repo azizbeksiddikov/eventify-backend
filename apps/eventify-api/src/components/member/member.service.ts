@@ -31,6 +31,8 @@ import { AuthService } from '../auth/auth.service';
 import { LikeService } from '../like/like.service';
 import { ViewService } from '../view/view.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
+import { NotificationInput } from '../../libs/dto/notification/notification.input';
+import { NotificationType } from '../../libs/enums/notification';
 
 @Injectable()
 export class MemberService {
@@ -269,21 +271,34 @@ export class MemberService {
 		return member;
 	}
 
-	public async likeTargetMember(memberId: ObjectId, likeRefId: ObjectId): Promise<Member> {
+	public async likeTargetMember(authMember: Member, likeRefId: ObjectId): Promise<Member> {
+		// check if referenced member exists
 		const member: Member | null = await this.memberModel
 			.findOne({ _id: likeRefId, memberStatus: MemberStatus.ACTIVE })
 			.lean()
 			.exec();
 		if (!member) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
 
-		const input: LikeInput = { memberId: memberId, likeRefId: likeRefId, likeGroup: LikeGroup.MEMBER };
+		// create like input
+		const input: LikeInput = { memberId: authMember._id, likeRefId: likeRefId, likeGroup: LikeGroup.MEMBER };
+		const newNotification: NotificationInput = {
+			memberId: authMember._id,
+			receiverId: likeRefId,
+			notificationType: NotificationType.LIKE_MEMBER,
+		};
 
-		const modifier = await this.likeService.toggleLike(input, member._id);
+		if (authMember.memberType === MemberType.ORGANIZER) {
+			newNotification.notificationLink = `/organizer/detail?organizerId=${authMember._id}`;
+		}
+
+		const modifier = await this.likeService.toggleLike(input, newNotification);
+
+		// update member stats
 		await this.memberStatsEditor({ _id: likeRefId, targetKey: 'memberLikes', modifier: modifier });
 		member.memberLikes += modifier;
 
 		if (modifier > 0) {
-			member.meLiked = [{ memberId: memberId, likeRefId: likeRefId, myFavorite: true }];
+			member.meLiked = [{ memberId: authMember._id, likeRefId: likeRefId, myFavorite: true }];
 		} else {
 			member.meLiked = [];
 		}
@@ -349,6 +364,12 @@ export class MemberService {
 			.exec();
 
 		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
+		return result;
+	}
+
+	public async getSimpleMember(memberId: ObjectId): Promise<Member> {
+		const result = await this.memberModel.findById(memberId).exec();
+		if (!result) throw new BadRequestException(Message.NO_DATA_FOUND);
 		return result;
 	}
 }

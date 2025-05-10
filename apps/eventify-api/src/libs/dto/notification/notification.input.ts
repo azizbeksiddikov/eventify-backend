@@ -9,15 +9,15 @@ export class NotificationInput {
 	// ===== References =====
 	@IsNotEmpty()
 	@Field(() => String)
-	senderId: ObjectId;
+	memberId: ObjectId;
 
 	@IsNotEmpty()
 	@Field(() => String)
 	receiverId: ObjectId;
 
-	@IsNotEmpty()
-	@Field(() => String)
-	notificationRefId: ObjectId;
+	@IsOptional()
+	@Field(() => String, { nullable: true })
+	notificationLink?: string;
 
 	// ===== Type and Status =====
 	@IsNotEmpty()

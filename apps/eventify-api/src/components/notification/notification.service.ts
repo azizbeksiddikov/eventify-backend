@@ -11,7 +11,7 @@ import { NotificationUpdate } from '../../libs/dto/notification/notification.upd
 // ===== Services =====
 import { Direction, Message } from '../../libs/enums/common.enum';
 import { T } from '../../libs/types/common';
-import { shapeIntoMongoObjectId } from '../../libs/config';
+import { lookupMember, shapeIntoMongoObjectId } from '../../libs/config';
 
 @Injectable()
 export class NotificationService {
@@ -30,9 +30,10 @@ export class NotificationService {
 
 	public async getNotifications(memberId: ObjectId, input: NotificationsInquiry): Promise<Notifications> {
 		const match: T = { receiverId: memberId };
-		if (input.search?.notificationType) match.notificationType = input.search?.notificationType;
-		if (input.search?.isRead) match.isRead = input.search?.isRead;
-
+		if (input.search?.notificationType) match.notificationType = input.search.notificationType;
+		if (input.search?.isRead !== undefined) {
+			match.isRead = input.search.isRead;
+		}
 		const sort: T = { [input?.sort ?? 'createdAt']: input?.direction ?? Direction.DESC };
 
 		const result = await this.notificationModel.aggregate([
@@ -40,7 +41,12 @@ export class NotificationService {
 			{ $sort: sort },
 			{
 				$facet: {
-					list: [{ $skip: (input.page - 1) * input.limit }, { $limit: input.limit }],
+					list: [
+						{ $skip: (input.page - 1) * input.limit },
+						{ $limit: input.limit },
+						lookupMember,
+						{ $unwind: '$memberData' },
+					],
 					metaCounter: [{ $count: 'total' }],
 				},
 			},
@@ -61,5 +67,9 @@ export class NotificationService {
 		if (!notification) throw new NotFoundException(Message.NO_DATA_FOUND);
 
 		return notification;
+	}
+
+	public async readAllNotifications(memberId: ObjectId): Promise<void> {
+		await this.notificationModel.updateMany({ receiverId: memberId }, { isRead: true });
 	}
 }

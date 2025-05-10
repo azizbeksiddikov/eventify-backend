@@ -283,48 +283,59 @@ export class GroupService {
 	}
 
 	public async likeTargetGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {
-		const target: Group | null = await this.groupModel.findOne({ _id: groupId }).lean().exec();
-		if (!target) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
+		const targetGroup: Group | null = await this.groupModel.findOne({ _id: groupId }).lean().exec();
+		if (!targetGroup) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
 
 		const input: LikeInput = { memberId: memberId, likeRefId: groupId, likeGroup: LikeGroup.GROUP };
+		const newNotification: NotificationInput = {
+			memberId: memberId,
+			receiverId: targetGroup.memberId,
+			notificationType: NotificationType.LIKE_GROUP,
+			notificationLink: `/group/detail?groupId=${groupId}`,
+		};
 
-		const modifier = await this.likeService.toggleLike(input, target.memberId);
+		const modifier = await this.likeService.toggleLike(input, newNotification);
 		this.groupStatsEditor({ _id: groupId, targetKey: 'groupLikes', modifier: modifier });
 
-		target.groupLikes += modifier;
-		target.meLiked = await this.likeService.checkMeLiked(input);
-		return target;
+		targetGroup.groupLikes += modifier;
+		targetGroup.meLiked = await this.likeService.checkMeLiked(input);
+		return targetGroup;
 	}
 
 	// ============== Group Member Methods ==============
 	public async joinGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {
+		// check if group exists
 		const group: Group | null = await this.groupModel.findById(groupId).lean().exec();
 		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
 
+		// check if member is already joined
 		const groupMemberExists: GroupMember | null = await this.groupMemberModel.findOne({ groupId, memberId });
 		if (groupMemberExists) throw new BadRequestException(Message.ALREADY_JOINED);
 
-		const newGroupMemberInput: GroupMemberInput = {
-			groupId: groupId,
-			memberId: memberId,
-			groupMemberRole: GroupMemberRole.MEMBER,
-			joinDate: new Date(),
-		};
-
 		try {
+			// create new group member
+			const newGroupMemberInput: GroupMemberInput = {
+				groupId: groupId,
+				memberId: memberId,
+				groupMemberRole: GroupMemberRole.MEMBER,
+				joinDate: new Date(),
+			};
 			const groupMember = await this.groupMemberModel.create(newGroupMemberInput);
 			if (!groupMember) throw new BadRequestException(Message.CREATE_FAILED);
 
+			// create notification
 			const newNotification: NotificationInput = {
-				senderId: memberId,
+				memberId: memberId,
 				receiverId: group.memberId,
-				notificationType: NotificationType.GROUP_JOIN,
-				notificationRefId: groupId,
+				notificationType: NotificationType.JOIN_GROUP,
+				notificationLink: `/group/detail?groupId=${groupId}`,
 			};
 			await this.notificationService.createNotification(newNotification);
 
+			// update group stats
 			await this.groupStatsEditor({ _id: groupId, targetKey: 'memberCount', modifier: 1 });
 
+			// update group meJoined
 			group.memberCount += 1;
 			group.meJoined = [{ ...newGroupMemberInput, meJoined: true }];
 			return group;

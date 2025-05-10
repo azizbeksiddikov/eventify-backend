@@ -26,6 +26,7 @@ import { Member } from '../../libs/dto/member/member';
 import { NotificationType } from '../../libs/enums/notification';
 import { NotificationInput } from '../../libs/dto/notification/notification.input';
 import { NotificationService } from '../notification/notification.service';
+import { MemberType } from '../../libs/enums/member.enum';
 
 @Injectable()
 export class FollowService {
@@ -64,11 +65,14 @@ export class FollowService {
 				modifier: 1,
 			});
 			const newNotification: NotificationInput = {
-				senderId: followerId,
+				memberId: followerId,
 				receiverId: followingId,
-				notificationType: NotificationType.FOLLOW,
-				notificationRefId: followingId,
+				notificationType: NotificationType.FOLLOW_MEMBER,
 			};
+
+			if (targetMember.memberType === MemberType.ORGANIZER) {
+				newNotification.notificationLink = `/organizer/detail?organizerId=${followerId}`;
+			}
 			await this.notificationService.createNotification(newNotification);
 
 			targetMember.memberFollowers += 1;

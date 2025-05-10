@@ -12,7 +12,6 @@ import GroupMemberSchema from '../../schemas/GroupMember.schema';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationModule } from '../notification/notification.module';
 import { MemberModule } from '../member/member.module';
-import { TicketModule } from '../ticket/ticket.module';
 import { LikeModule } from '../like/like.module';
 import { ViewModule } from '../view/view.module';
 
@@ -27,12 +26,11 @@ import { EventService } from './event.service';
 		MongooseModule.forFeature([{ name: 'Group', schema: GroupSchema }]),
 		MongooseModule.forFeature([{ name: 'Ticket', schema: TicketSchema }]),
 		MongooseModule.forFeature([{ name: 'GroupMember', schema: GroupMemberSchema }]),
-		MemberModule,
-		TicketModule,
+		AuthModule,
 		LikeModule,
 		ViewModule,
-		AuthModule,
 		NotificationModule,
+		MemberModule,
 	],
 	providers: [EventResolver, EventService],
 	exports: [EventService],

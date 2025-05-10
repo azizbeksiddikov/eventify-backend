@@ -4,7 +4,7 @@ import { NotificationType } from '../libs/enums/notification';
 const NotificationSchema = new Schema(
 	{
 		// ===== References =====
-		senderId: {
+		memberId: {
 			type: Schema.Types.ObjectId,
 			required: true,
 		},
@@ -14,9 +14,9 @@ const NotificationSchema = new Schema(
 			required: true,
 		},
 
-		notificationRefId: {
-			type: Schema.Types.ObjectId,
-			required: true,
+		notificationLink: {
+			type: String,
+			required: false,
 		},
 
 		// ===== Type and Status =====

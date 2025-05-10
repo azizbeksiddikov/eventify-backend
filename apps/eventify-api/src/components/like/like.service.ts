@@ -20,26 +20,25 @@ export class LikeService {
 		private readonly notificationService: NotificationService,
 	) {}
 
-	public async toggleLike(input: LikeInput, receiverId: ObjectId): Promise<number> {
+	public async toggleLike(input: LikeInput, notificationInput: NotificationInput): Promise<number> {
 		console.log('LikeService: toggleLike');
+
+		// check for existence of like
 		const search: T = { memberId: input.memberId, likeRefId: input.likeRefId, likeGroup: input.likeGroup };
 		const exist = await this.likeModel.findOne(search).exec();
 		let modifier = 1;
 
 		if (exist) {
+			// delete like
 			await this.likeModel.findOneAndDelete(search).exec();
 			modifier = -1;
 		} else {
 			try {
+				// create like
 				await this.likeModel.create(input);
 
-				const newNotification: NotificationInput = {
-					senderId: input.memberId,
-					receiverId: receiverId,
-					notificationType: NotificationType.LIKE,
-					notificationRefId: input.likeRefId,
-				};
-				const createdNotification = await this.notificationService.createNotification(newNotification);
+				// create notification
+				const createdNotification = await this.notificationService.createNotification(notificationInput);
 			} catch (err) {
 				console.log('ERROR: Service.model:', err.message);
 				throw new BadRequestException(Message.CREATE_FAILED);

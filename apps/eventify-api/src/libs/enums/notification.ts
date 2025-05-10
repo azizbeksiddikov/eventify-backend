@@ -1,12 +1,19 @@
 import { registerEnumType } from '@nestjs/graphql';
 
 export enum NotificationType {
-	EVENT = 'EVENT', // event created
-	EVENT_JOIN = 'EVENT_JOIN', // event joined
-	GROUP_JOIN = 'GROUP_JOIN', // group joined
-	COMMENT = 'COMMENT',
-	LIKE = 'LIKE',
-	FOLLOW = 'FOLLOW',
+	// event
+	CREATE_EVENT = 'CREATE_EVENT',
+	JOIN_EVENT = 'JOIN_EVENT',
+	LIKE_EVENT = 'LIKE_EVENT',
+	COMMENT_EVENT = 'COMMENT_EVENT',
+	// group
+	JOIN_GROUP = 'JOIN_GROUP',
+	LIKE_GROUP = 'LIKE_GROUP',
+	COMMENT_GROUP = 'COMMENT_GROUP',
+	// member
+	LIKE_MEMBER = 'LIKE_MEMBER',
+	COMMENT_MEMBER = 'COMMENT_MEMBER',
+	FOLLOW_MEMBER = 'FOLLOW_MEMBER',
 }
 
 // Register Notification enums

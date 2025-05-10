@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
 
@@ -6,7 +6,6 @@ import { Model, ObjectId } from 'mongoose';
 import { Direction, Message } from '../../libs/enums/common.enum';
 import { EventStatus } from '../../libs/enums/event.enum';
 import { MemberType } from '../../libs/enums/member.enum';
-import { TicketStatus } from '../../libs/enums/ticket.enum';
 import { LikeGroup } from '../../libs/enums/like.enum';
 import { ViewGroup } from '../../libs/enums/view.enum';
 import { GroupMemberRole } from '../../libs/enums/group.enum';
@@ -22,8 +21,6 @@ import {
 } from '../../libs/dto/event/event.input';
 import { EventUpdateInput } from '../../libs/dto/event/event.update';
 import { Member } from '../../libs/dto/member/member';
-import { Ticket } from '../../libs/dto/ticket/ticket';
-import { TicketInput } from '../../libs/dto/ticket/ticket.input';
 import { View } from '../../libs/dto/view/view';
 import { ViewInput } from '../../libs/dto/view/view.input';
 import { LikeInput } from '../../libs/dto/like/like.input';
@@ -34,7 +31,6 @@ import { GroupMember } from '../../libs/dto/groupMembers/groupMember';
 import { lookupAuthMemberLiked, lookupMember } from '../../libs/config';
 
 // ===== Services =====
-import { TicketService } from '../ticket/ticket.service';
 import { LikeService } from '../like/like.service';
 import { ViewService } from '../view/view.service';
 import { MemberService } from '../member/member.service';
@@ -46,11 +42,9 @@ import { NotificationInput } from '../../libs/dto/notification/notification.inpu
 export class EventService {
 	constructor(
 		@InjectModel('Event') private readonly eventModel: Model<Event>,
-		@InjectModel('Ticket') private readonly ticketModel: Model<Ticket>,
 		@InjectModel('Member') private readonly memberModel: Model<Member>,
 		@InjectModel('GroupMember') private readonly groupMemberModel: Model<GroupMember>,
 		@InjectModel('Group') private readonly groupModel: Model<Group>,
-		private readonly ticketService: TicketService,
 		private readonly likeService: LikeService,
 		private readonly viewService: ViewService,
 		private readonly memberService: MemberService,
@@ -62,9 +56,11 @@ export class EventService {
 		if (input.eventPrice <= 0) input.eventPrice = 0;
 		if (!input?.eventStatus) input.eventStatus = EventStatus.UPCOMING;
 
+		// check for group existence
 		const group = await this.groupModel.findById(input.groupId);
 		if (!group) throw new BadRequestException(Message.EVENT_GROUP_REQUIRED);
 
+		// check for authorization
 		const groupMember = await this.groupMemberModel.findOne({
 			memberId,
 			groupId: input.groupId,
@@ -73,13 +69,17 @@ export class EventService {
 		if (!groupMember) throw new BadRequestException(Message.NOT_GROUP_ADMIN);
 
 		try {
+			// create event
 			const event = await this.eventModel.create({
 				...input,
 				memberId: memberId,
 			});
+
+			// update member stats
 			await this.memberModel.findByIdAndUpdate(memberId, { $inc: { eventsOrganizedCount: 1 } });
 			await this.groupModel.findByIdAndUpdate(input.groupId, { $inc: { eventsCount: 1 } });
 
+			// create notifications
 			const groupMembers: GroupMember[] = await this.groupMemberModel.find({
 				_id: { $ne: groupMember._id },
 				groupId: input.groupId,
@@ -88,10 +88,10 @@ export class EventService {
 
 			groupMembers.forEach(async (groupMember) => {
 				const newNotification: NotificationInput = {
-					senderId: memberId,
+					memberId: memberId,
 					receiverId: groupMember.memberId,
-					notificationType: NotificationType.EVENT,
-					notificationRefId: event._id,
+					notificationType: NotificationType.CREATE_EVENT,
+					notificationLink: `/event/detail?eventId=${event._id}`,
 				};
 				await this.notificationService.createNotification(newNotification);
 			});
@@ -233,21 +233,6 @@ export class EventService {
 		return updatedEvent;
 	}
 
-	public async getMyEvents(member: Member): Promise<Event[]> {
-		const result = await this.ticketService.getEventsByTickets(member._id, [
-			EventStatus.UPCOMING,
-			EventStatus.ONGOING,
-			EventStatus.COMPLETED,
-			EventStatus.CANCELLED,
-		]);
-
-		if (member.memberType === MemberType.ORGANIZER) {
-			const events = await this.eventModel.find({ memberId: member._id }).lean().exec();
-			return [...events, ...result].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-		}
-		return result;
-	}
-
 	// ============== Event Interaction Methods ==============
 	public async likeTargetEvent(memberId: ObjectId, likeRefId: ObjectId): Promise<Event> {
 		// find event
@@ -256,7 +241,13 @@ export class EventService {
 
 		// like => unlike, unlike => like
 		const input: LikeInput = { memberId: memberId, likeRefId: likeRefId, likeGroup: LikeGroup.EVENT };
-		const modifier = await this.likeService.toggleLike(input, event.memberId);
+		const newNotification: NotificationInput = {
+			memberId: memberId,
+			receiverId: event.memberId,
+			notificationType: NotificationType.LIKE_EVENT,
+			notificationLink: `/event/detail?eventId=${likeRefId}`,
+		};
+		const modifier = await this.likeService.toggleLike(input, newNotification);
 
 		// update event stats
 		await this.eventStatsEditor({ _id: likeRefId, targetKey: 'eventLikes', modifier: modifier });

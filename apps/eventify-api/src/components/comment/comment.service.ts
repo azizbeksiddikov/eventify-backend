@@ -3,12 +3,12 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
 
 // ===== Enums =====
-import { Direction, Message } from '../../libs/enums/common.enum';
 import { CommentGroup, CommentStatus } from '../../libs/enums/comment.enum';
+import { Direction, Message } from '../../libs/enums/common.enum';
 
 // ===== DTOs =====
-import { CommentInput, CommentsInquiry } from '../../libs/dto/comment/comment.input';
 import { Comment, Comments } from '../../libs/dto/comment/comment';
+import { CommentInput, CommentsInquiry } from '../../libs/dto/comment/comment.input';
 import { CommentUpdate } from '../../libs/dto/comment/comment.update';
 
 // ===== Types =====
@@ -18,12 +18,12 @@ import { T } from '../../libs/types/common';
 import { lookupMember } from '../../libs/config';
 
 // ===== Services =====
-import { MemberService } from '../member/member.service';
+import { NotificationInput } from '../../libs/dto/notification/notification.input';
+import { NotificationType } from '../../libs/enums/notification';
 import { EventService } from '../event/event.service';
 import { GroupService } from '../group/group.service';
+import { MemberService } from '../member/member.service';
 import { NotificationService } from '../notification/notification.service';
-import { NotificationType } from '../../libs/enums/notification';
-import { NotificationInput } from '../../libs/dto/notification/notification.input';
 
 @Injectable()
 export class CommentService {
@@ -48,29 +48,34 @@ export class CommentService {
 		}
 
 		const newNotification: NotificationInput = {
-			senderId: memberId,
+			memberId: memberId,
+			notificationType: NotificationType.COMMENT_MEMBER,
 			receiverId: input.commentRefId,
-			notificationType: NotificationType.COMMENT,
-			notificationRefId: input.commentRefId,
+			notificationLink: `/organizer/detail?organizerId=${input.commentRefId}`,
 		};
 
 		switch (input.commentGroup) {
-			case CommentGroup.EVENT:
-				const event = await this.eventService.eventStatsEditor({
-					_id: input.commentRefId,
-					targetKey: 'eventComments',
-					modifier: 1,
-				});
-				await this.notificationService.createNotification({ ...newNotification, receiverId: event.memberId });
-				break;
-
 			case CommentGroup.MEMBER:
 				await this.memberService.memberStatsEditor({
 					_id: input.commentRefId,
 					targetKey: 'memberComments',
 					modifier: 1,
 				});
-				await this.notificationService.createNotification({ ...newNotification });
+				await this.notificationService.createNotification(newNotification);
+				break;
+
+			case CommentGroup.EVENT:
+				const event = await this.eventService.eventStatsEditor({
+					_id: input.commentRefId,
+					targetKey: 'eventComments',
+					modifier: 1,
+				});
+				await this.notificationService.createNotification({
+					...newNotification,
+					receiverId: event.memberId,
+					notificationLink: `/event/detail?eventId=${input.commentRefId}`,
+					notificationType: NotificationType.COMMENT_EVENT,
+				});
 				break;
 
 			case CommentGroup.GROUP:
@@ -79,7 +84,12 @@ export class CommentService {
 					targetKey: 'groupComments',
 					modifier: 1,
 				});
-				await this.notificationService.createNotification({ ...newNotification, receiverId: group.memberId });
+				await this.notificationService.createNotification({
+					...newNotification,
+					receiverId: group.memberId,
+					notificationLink: `/group/detail?groupId=${input.commentRefId}`,
+					notificationType: NotificationType.COMMENT_GROUP,
+				});
 				break;
 		}
 

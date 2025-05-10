@@ -106,13 +106,6 @@ export class EventResolver {
 	}
 
 	@UseGuards(AuthGuard)
-	@Query(() => [Event])
-	public async getMyEvents(@AuthMember() member: Member): Promise<Event[]> {
-		console.log('Query: getMyEvents');
-		return await this.eventService.getMyEvents(member);
-	}
-
-	@UseGuards(AuthGuard)
 	@Mutation(() => Event)
 	public async likeTargetEvent(@Args('eventId') input: string, @AuthMember('_id') memberId: ObjectId): Promise<Event> {
 		console.log('Mutation: likeTargetEvent');

@@ -1,7 +1,7 @@
 import { Field, Int, ObjectType } from '@nestjs/graphql';
 import { ObjectId } from 'mongoose';
 import { NotificationType } from '../../enums/notification';
-import { TotalCounter } from '../member/member';
+import { Member, TotalCounter } from '../member/member';
 
 @ObjectType()
 export class Notification {
@@ -11,13 +11,13 @@ export class Notification {
 
 	// ===== References =====
 	@Field(() => String)
-	senderId: ObjectId;
+	memberId: ObjectId;
 
 	@Field(() => String)
 	receiverId: ObjectId;
 
-	@Field(() => String)
-	notificationRefId: ObjectId;
+	@Field(() => String, { nullable: true })
+	notificationLink?: string;
 
 	// ===== Type and Status =====
 	@Field(() => NotificationType)
@@ -32,6 +32,10 @@ export class Notification {
 
 	@Field(() => Date)
 	updatedAt: Date;
+
+	// ===== Aggregated Information =====
+	@Field(() => Member, { nullable: true })
+	memberData?: Member;
 }
 
 @ObjectType()

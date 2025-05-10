@@ -13,6 +13,7 @@ import { ViewModule } from '../view/view.module';
 // ===== Member Components =====
 import { MemberResolver } from './member.resolver';
 import { MemberService } from './member.service';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
 	imports: [
@@ -21,6 +22,7 @@ import { MemberService } from './member.service';
 		AuthModule,
 		LikeModule,
 		ViewModule,
+		NotificationModule,
 	],
 	providers: [MemberResolver, MemberService],
 	exports: [MemberService],

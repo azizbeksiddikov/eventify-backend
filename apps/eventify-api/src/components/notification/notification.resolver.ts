@@ -47,4 +47,12 @@ export class NotificationResolver {
 
 		return await this.notificationService.updateNotification(memberId, input);
 	}
+
+	@UseGuards(AuthGuard)
+	@Mutation(() => Boolean)
+	async readAllNotifications(@AuthMember('_id') memberId: ObjectId): Promise<boolean> {
+		console.log('Mutation: readAllNotifications');
+		await this.notificationService.readAllNotifications(memberId);
+		return true;
+	}
 }

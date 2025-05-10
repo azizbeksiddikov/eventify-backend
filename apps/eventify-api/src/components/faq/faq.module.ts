@@ -12,7 +12,10 @@ import { FaqService } from './faq.service';
 import { FaqResolver } from './faq.resolver';
 
 @Module({
-	imports: [MongooseModule.forFeature([{ name: 'Faq', schema: FaqSchema }]), AuthModule],
+	imports: [
+		MongooseModule.forFeature([{ name: 'Faq', schema: FaqSchema }]), //
+		AuthModule,
+	],
 	providers: [FaqService, FaqResolver],
 	exports: [FaqService],
 })

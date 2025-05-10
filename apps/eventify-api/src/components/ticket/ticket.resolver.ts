@@ -11,6 +11,8 @@ import { TicketInput, TicketInquiry } from '../../libs/dto/ticket/ticket.input';
 
 // ===== Services =====
 import { TicketService } from './ticket.service';
+
+// ===== Guards & Decorators =====
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { AuthMember } from '../auth/decorators/authMember.decorator';
 

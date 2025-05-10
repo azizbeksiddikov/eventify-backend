@@ -8,15 +8,15 @@ import { WithoutGuard } from '../auth/guards/without.guard';
 import { AuthMember } from '../auth/decorators/authMember.decorator';
 
 // ===== DTOs =====
-import { Follower, Followers, Followings } from '../../libs/dto/follow/follow';
+import { Followers, Followings } from '../../libs/dto/follow/follow';
 import { FollowInquiry } from '../../libs/dto/follow/follow.input';
+import { Member } from '../../libs/dto/member/member';
 
 // ===== Services =====
 import { FollowService } from './follow.service';
 
 // ===== Config =====
 import { shapeIntoMongoObjectId } from '../../libs/config';
-import { Member } from '../../libs/dto/member/member';
 
 @Resolver()
 export class FollowResolver {

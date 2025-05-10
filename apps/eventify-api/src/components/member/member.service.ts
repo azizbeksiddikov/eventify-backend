@@ -1,12 +1,6 @@
-import {
-	BadRequestException,
-	Injectable,
-	InternalServerErrorException,
-	NotFoundException,
-	UseGuards,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, ObjectId, Query } from 'mongoose';
+import { Model, ObjectId } from 'mongoose';
 
 // ===== Enums =====
 import { MemberStatus, MemberType } from '../../libs/enums/member.enum';
@@ -22,6 +16,8 @@ import { MemberUpdateInput, PasswordUpdateInput } from '../../libs/dto/member/me
 import { Follower, Following, MeFollowed } from '../../libs/dto/follow/follow';
 import { LikeInput } from '../../libs/dto/like/like.input';
 import { ViewInput } from '../../libs/dto/view/view.input';
+import { NotificationInput } from '../../libs/dto/notification/notification.input';
+import { NotificationType } from '../../libs/enums/notification.enum';
 
 // ===== Config =====
 import { lookupAuthMemberFollowed, lookupAuthMemberLiked } from '../../libs/config';
@@ -30,9 +26,6 @@ import { lookupAuthMemberFollowed, lookupAuthMemberLiked } from '../../libs/conf
 import { AuthService } from '../auth/auth.service';
 import { LikeService } from '../like/like.service';
 import { ViewService } from '../view/view.service';
-import { AuthGuard } from '../auth/guards/auth.guard';
-import { NotificationInput } from '../../libs/dto/notification/notification.input';
-import { NotificationType } from '../../libs/enums/notification';
 
 @Injectable()
 export class MemberService {

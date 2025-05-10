@@ -13,17 +13,17 @@ import { CommentUpdate } from '../../libs/dto/comment/comment.update';
 
 // ===== Types =====
 import { T } from '../../libs/types/common';
+import { NotificationInput } from '../../libs/dto/notification/notification.input';
+import { NotificationType } from '../../libs/enums/notification.enum';
 
 // ===== Config =====
 import { lookupMember } from '../../libs/config';
 
 // ===== Services =====
-import { NotificationInput } from '../../libs/dto/notification/notification.input';
-import { NotificationType } from '../../libs/enums/notification';
+import { NotificationService } from '../notification/notification.service';
 import { EventService } from '../event/event.service';
 import { GroupService } from '../group/group.service';
 import { MemberService } from '../member/member.service';
-import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class CommentService {

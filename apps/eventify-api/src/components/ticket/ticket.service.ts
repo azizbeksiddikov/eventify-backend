@@ -16,7 +16,7 @@ import { Direction, Message } from '../../libs/enums/common.enum';
 import { T } from '../../libs/types/common';
 import { shapeIntoMongoObjectId } from '../../libs/config';
 import { NotificationInput } from '../../libs/dto/notification/notification.input';
-import { NotificationType } from '../../libs/enums/notification';
+import { NotificationType } from '../../libs/enums/notification.enum';
 
 // ===== Services =====
 import { NotificationService } from '../notification/notification.service';
@@ -27,7 +27,6 @@ import { EventService } from '../event/event.service';
 export class TicketService {
 	constructor(
 		@InjectModel('Ticket') private readonly ticketModel: Model<Ticket>,
-		@InjectModel('Event') private readonly eventModel: Model<Event>,
 		private readonly notificationService: NotificationService,
 		private readonly memberService: MemberService,
 		private readonly eventService: EventService,
@@ -40,7 +39,7 @@ export class TicketService {
 		if (ticket.ticketQuantity < 1) throw new BadRequestException(Message.TICKET_QUANTITY_INVALID);
 
 		// Check for event existence
-		const event: Event = await this.eventModel.findById(eventId).exec();
+		const event: Event = await this.eventService.getSimpleEvent(eventId);
 		if (!event) throw new BadRequestException(Message.EVENT_NOT_FOUND);
 
 		// Check if the event is full
@@ -100,10 +99,11 @@ export class TicketService {
 		});
 
 		// change event's attendee Count
-		ticket.event = await this.eventModel
-			.findByIdAndUpdate(ticket.eventId, { $inc: { attendeeCount: -ticket.ticketQuantity } }, { new: true })
-			.lean()
-			.exec();
+		ticket.event = await this.eventService.eventStatsEditor({
+			_id: ticket.eventId,
+			targetKey: 'attendeeCount',
+			modifier: -ticket.ticketQuantity,
+		});
 
 		return ticket;
 	}

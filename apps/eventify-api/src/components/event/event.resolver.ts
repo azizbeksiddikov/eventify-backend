@@ -7,14 +7,6 @@ import { MemberType } from '../../libs/enums/member.enum';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { shapeIntoMongoObjectId } from '../../libs/config';
-import { Group, Groups } from '../../libs/dto/group/group';
-import { GroupInput, GroupsInquiry } from '../../libs/dto/group/group.input';
-import { GroupUpdateInput } from '../../libs/dto/group/group.update';
-import { GroupMember } from '../../libs/dto/groupMembers/groupMember';
-import { GroupMemberRole } from '../../libs/enums/group.enum';
-import { Member } from '../../libs/dto/member/member';
-import { GroupMemberUpdateInput } from '../../libs/dto/groupMembers/groupMember.update';
-import { Message } from '../../libs/enums/common.enum';
 import { WithoutGuard } from '../auth/guards/without.guard';
 import { Event, Events, EventsByCategory } from '../../libs/dto/event/event';
 import {
@@ -25,7 +17,6 @@ import {
 } from '../../libs/dto/event/event.input';
 import { EventUpdateInput } from '../../libs/dto/event/event.update';
 import { EventService } from './event.service';
-import { TicketInput } from '../../libs/dto/ticket/ticket.input';
 
 @Resolver(() => Event)
 export class EventResolver {

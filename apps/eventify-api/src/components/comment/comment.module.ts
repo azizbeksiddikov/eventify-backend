@@ -6,6 +6,7 @@ import CommentSchema from '../../schemas/Comment.schema';
 
 // ===== Components =====
 import { AuthModule } from '../auth/auth.module';
+import { NotificationModule } from '../notification/notification.module';
 import { MemberModule } from '../member/member.module';
 import { EventModule } from '../event/event.module';
 import { GroupModule } from '../group/group.module';
@@ -13,16 +14,15 @@ import { GroupModule } from '../group/group.module';
 // ===== Comment Components =====
 import { CommentService } from './comment.service';
 import { CommentResolver } from './comment.resolver';
-import { NotificationModule } from '../notification/notification.module';
 
 @Module({
 	imports: [
 		MongooseModule.forFeature([{ name: 'Comment', schema: CommentSchema }]),
 		AuthModule,
+		NotificationModule,
 		MemberModule,
 		EventModule,
 		GroupModule,
-		NotificationModule,
 	],
 	providers: [CommentService, CommentResolver],
 	exports: [CommentService],

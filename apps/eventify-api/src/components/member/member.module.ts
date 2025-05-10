@@ -9,11 +9,11 @@ import FollowSchema from '../../schemas/Follow.schema';
 import { AuthModule } from '../auth/auth.module';
 import { LikeModule } from '../like/like.module';
 import { ViewModule } from '../view/view.module';
+import { NotificationModule } from '../notification/notification.module';
 
 // ===== Member Components =====
 import { MemberResolver } from './member.resolver';
 import { MemberService } from './member.service';
-import { NotificationModule } from '../notification/notification.module';
 
 @Module({
 	imports: [

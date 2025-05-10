@@ -2,7 +2,7 @@ import { ObjectId } from 'mongoose';
 import { Field, InputType, Int } from '@nestjs/graphql';
 import { IsNotEmpty, IsOptional, Min } from 'class-validator';
 import { Direction } from '../../enums/common.enum';
-import { NotificationType } from '../../enums/notification';
+import { NotificationType } from '../../enums/notification.enum';
 
 @InputType()
 export class NotificationInput {

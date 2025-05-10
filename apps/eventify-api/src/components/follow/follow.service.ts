@@ -11,6 +11,10 @@ import { FollowInquiry } from '../../libs/dto/follow/follow.input';
 
 // ===== Types =====
 import { T } from '../../libs/types/common';
+import { MemberType } from '../../libs/enums/member.enum';
+import { Member } from '../../libs/dto/member/member';
+import { NotificationType } from '../../libs/enums/notification.enum';
+import { NotificationInput } from '../../libs/dto/notification/notification.input';
 
 // ===== Config =====
 import {
@@ -22,11 +26,7 @@ import {
 
 // ===== Services =====
 import { MemberService } from '../member/member.service';
-import { Member } from '../../libs/dto/member/member';
-import { NotificationType } from '../../libs/enums/notification';
-import { NotificationInput } from '../../libs/dto/notification/notification.input';
 import { NotificationService } from '../notification/notification.service';
-import { MemberType } from '../../libs/enums/member.enum';
 
 @Injectable()
 export class FollowService {
@@ -44,7 +44,7 @@ export class FollowService {
 		}
 
 		// get target member
-		const targetMember = await this.memberService.getMember(null, followingId);
+		const targetMember = await this.memberService.getSimpleMember(followingId);
 		if (!targetMember) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
 
 		// check if already subscribed
@@ -86,7 +86,7 @@ export class FollowService {
 	}
 
 	public async unsubscribe(followerId: ObjectId, followingId: ObjectId): Promise<Member> {
-		const targetMember = await this.memberService.getMember(null, followingId);
+		const targetMember = await this.memberService.getSimpleMember(followingId);
 		if (!targetMember) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
 
 		const result = await this.followModel.findOneAndDelete({ followingId: followingId, followerId: followerId }).exec();

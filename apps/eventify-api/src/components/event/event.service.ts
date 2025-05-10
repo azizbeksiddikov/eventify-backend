@@ -5,10 +5,9 @@ import { Model, ObjectId } from 'mongoose';
 // ===== Enums =====
 import { Direction, Message } from '../../libs/enums/common.enum';
 import { EventStatus } from '../../libs/enums/event.enum';
-import { MemberType } from '../../libs/enums/member.enum';
 import { LikeGroup } from '../../libs/enums/like.enum';
 import { ViewGroup } from '../../libs/enums/view.enum';
-import { GroupMemberRole } from '../../libs/enums/group.enum';
+import { NotificationType } from '../../libs/enums/notification.enum';
 
 // ===== Types & DTOs =====
 import { StatisticModifier, T } from '../../libs/types/common';
@@ -20,12 +19,11 @@ import {
 	OrdinaryEventInquiry,
 } from '../../libs/dto/event/event.input';
 import { EventUpdateInput } from '../../libs/dto/event/event.update';
-import { Member } from '../../libs/dto/member/member';
 import { View } from '../../libs/dto/view/view';
 import { ViewInput } from '../../libs/dto/view/view.input';
 import { LikeInput } from '../../libs/dto/like/like.input';
-import { Group } from '../../libs/dto/group/group';
 import { GroupMember } from '../../libs/dto/groupMembers/groupMember';
+import { NotificationInput } from '../../libs/dto/notification/notification.input';
 
 // ===== Config =====
 import { lookupAuthMemberLiked, lookupMember } from '../../libs/config';
@@ -34,21 +32,18 @@ import { lookupAuthMemberLiked, lookupMember } from '../../libs/config';
 import { LikeService } from '../like/like.service';
 import { ViewService } from '../view/view.service';
 import { MemberService } from '../member/member.service';
-import { NotificationType } from '../../libs/enums/notification';
 import { NotificationService } from '../notification/notification.service';
-import { NotificationInput } from '../../libs/dto/notification/notification.input';
+import { GroupService } from '../group/group.service';
 
 @Injectable()
 export class EventService {
 	constructor(
 		@InjectModel('Event') private readonly eventModel: Model<Event>,
-		@InjectModel('Member') private readonly memberModel: Model<Member>,
-		@InjectModel('GroupMember') private readonly groupMemberModel: Model<GroupMember>,
-		@InjectModel('Group') private readonly groupModel: Model<Group>,
 		private readonly likeService: LikeService,
 		private readonly viewService: ViewService,
-		private readonly memberService: MemberService,
 		private readonly notificationService: NotificationService,
+		private readonly memberService: MemberService,
+		private readonly groupService: GroupService,
 	) {}
 
 	// ============== Event Management Methods ==============
@@ -57,16 +52,11 @@ export class EventService {
 		if (!input?.eventStatus) input.eventStatus = EventStatus.UPCOMING;
 
 		// check for group existence
-		const group = await this.groupModel.findById(input.groupId);
-		if (!group) throw new BadRequestException(Message.EVENT_GROUP_REQUIRED);
+		const group = await this.groupService.getSimpleGroup(input.groupId);
 
 		// check for authorization
-		const groupMember = await this.groupMemberModel.findOne({
-			memberId,
-			groupId: input.groupId,
-			groupMemberRole: { $in: [GroupMemberRole.OWNER, GroupMemberRole.MODERATOR] },
-		});
-		if (!groupMember) throw new BadRequestException(Message.NOT_GROUP_ADMIN);
+		const groupAdmin = await this.groupService.isAuthorized(memberId, input.groupId);
+		if (!groupAdmin) throw new BadRequestException(Message.NOT_GROUP_ADMIN);
 
 		try {
 			// create event
@@ -76,15 +66,19 @@ export class EventService {
 			});
 
 			// update member stats
-			await this.memberModel.findByIdAndUpdate(memberId, { $inc: { eventsOrganizedCount: 1 } });
-			await this.groupModel.findByIdAndUpdate(input.groupId, { $inc: { eventsCount: 1 } });
+			await this.memberService.memberStatsEditor({
+				_id: memberId,
+				targetKey: 'eventsOrganizedCount',
+				modifier: 1,
+			});
+			await this.groupService.groupStatsEditor({
+				_id: input.groupId,
+				targetKey: 'eventsCount',
+				modifier: 1,
+			});
 
 			// create notifications
-			const groupMembers: GroupMember[] = await this.groupMemberModel.find({
-				_id: { $ne: groupMember._id },
-				groupId: input.groupId,
-				groupMemberRole: { $in: [GroupMemberRole.OWNER, GroupMemberRole.MODERATOR, GroupMemberRole.MEMBER] },
-			});
+			const groupMembers: GroupMember[] = await this.groupService.getOtherGroupMembers(memberId, input.groupId);
 
 			groupMembers.forEach(async (groupMember) => {
 				const newNotification: NotificationInput = {
@@ -125,7 +119,7 @@ export class EventService {
 		}
 
 		event.memberData = await this.memberService.getMember(null, event.memberId);
-		event.hostingGroup = await this.groupModel.findById(event.groupId).exec();
+		event.hostingGroup = await this.groupService.getSimpleGroup(event.groupId);
 
 		event.similarEvents = await this.eventModel
 			.aggregate([
@@ -228,7 +222,11 @@ export class EventService {
 
 		const updatedEvent = await this.eventModel.findByIdAndUpdate(input._id, input, { new: true }).exec();
 		if (input.eventStatus === EventStatus.DELETED) {
-			await this.memberModel.findByIdAndUpdate(memberId, { $inc: { eventsOrganizedCount: -1 } });
+			await this.memberService.memberStatsEditor({
+				_id: memberId,
+				targetKey: 'eventsOrganizedCount',
+				modifier: -1,
+			});
 		}
 		return updatedEvent;
 	}
@@ -255,7 +253,7 @@ export class EventService {
 
 		// AGGREGATED FIELDS
 		// find eventorganizer
-		event.memberData = await this.memberModel.findById(event.memberId).lean().exec();
+		event.memberData = await this.memberService.getSimpleMember(event.memberId);
 
 		// get meLiked
 		if (modifier > 0) {
@@ -336,6 +334,12 @@ export class EventService {
 		const event = await this.eventModel
 			.findByIdAndUpdate(_id, { $inc: { [targetKey]: modifier } }, { new: true })
 			.exec();
+		return event;
+	}
+
+	public async getSimpleEvent(eventId: ObjectId): Promise<Event> {
+		const event = await this.eventModel.findById(eventId).lean().exec();
+		if (!event) throw new Error(Message.EVENT_NOT_FOUND);
 		return event;
 	}
 }

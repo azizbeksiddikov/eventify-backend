@@ -2,7 +2,6 @@ import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 
 // ===== Guards & Decorators =====
-import { AuthMember } from '../auth/decorators/authMember.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
@@ -17,7 +16,6 @@ import { FaqService } from './faq.service';
 
 // ===== Config =====
 import { shapeIntoMongoObjectId } from '../../libs/config';
-import { ObjectId } from 'mongoose';
 
 @Resolver()
 export class FaqResolver {

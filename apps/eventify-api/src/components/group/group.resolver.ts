@@ -24,7 +24,6 @@ import { shapeIntoMongoObjectId } from '../../libs/config';
 
 // ===== Services =====
 import { GroupService } from './group.service';
-import { Member } from '../../libs/dto/member/member';
 
 @Resolver(() => Group)
 export class GroupResolver {

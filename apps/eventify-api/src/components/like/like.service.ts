@@ -1,16 +1,15 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
+import { lookupFavorite } from '../../libs/config';
+import { LikeGroup } from '../../libs/enums/like.enum';
+import { Message } from '../../libs/enums/common.enum';
+import { Events } from '../../libs/dto/event/event';
+import { OrdinaryEventInquiry } from '../../libs/dto/event/event.input';
 import { Like, MeLiked } from '../../libs/dto/like/like';
 import { LikeInput } from '../../libs/dto/like/like.input';
-import { T } from '../../libs/types/common';
-import { Message } from '../../libs/enums/common.enum';
-import { LikeGroup } from '../../libs/enums/like.enum';
-import { OrdinaryEventInquiry } from '../../libs/dto/event/event.input';
-import { Events } from '../../libs/dto/event/event';
-import { lookupFavorite } from '../../libs/config';
-import { NotificationType } from '../../libs/enums/notification';
 import { NotificationInput } from '../../libs/dto/notification/notification.input';
+import { T } from '../../libs/types/common';
 import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
@@ -38,7 +37,7 @@ export class LikeService {
 				await this.likeModel.create(input);
 
 				// create notification
-				const createdNotification = await this.notificationService.createNotification(notificationInput);
+				await this.notificationService.createNotification(notificationInput);
 			} catch (err) {
 				console.log('ERROR: Service.model:', err.message);
 				throw new BadRequestException(Message.CREATE_FAILED);

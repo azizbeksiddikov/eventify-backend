@@ -14,37 +14,33 @@ import { GroupUpdateInput } from '../../libs/dto/group/group.update';
 import { GroupMember } from '../../libs/dto/groupMembers/groupMember';
 import { GroupMemberInput } from '../../libs/dto/groupMembers/groupMember.input';
 import { GroupMemberUpdateInput } from '../../libs/dto/groupMembers/groupMember.update';
-import { Member } from '../../libs/dto/member/member';
-import { MemberStatus } from '../../libs/enums/member.enum';
 import { LikeGroup } from '../../libs/enums/like.enum';
 import { LikeInput } from '../../libs/dto/like/like.input';
-import { LikeService } from '../like/like.service';
-import { lookupAuthMemberJoined, lookupAuthMemberLiked } from '../../libs/config';
-import { lookupMember } from '../../libs/config';
+import { lookupAuthMemberJoined, lookupAuthMemberLiked, lookupMember } from '../../libs/config';
+import { NotificationInput } from '../../libs/dto/notification/notification.input';
 import { ViewGroup } from '../../libs/enums/view.enum';
-import { ViewService } from '../view/view.service';
-import { Event } from '../../libs/dto/event/event';
+import { NotificationType } from '../../libs/enums/notification.enum';
 
 // ===== Services =====
+import { LikeService } from '../like/like.service';
 import { NotificationService } from '../notification/notification.service';
-import { NotificationInput } from '../../libs/dto/notification/notification.input';
-import { NotificationType } from '../../libs/enums/notification';
+import { ViewService } from '../view/view.service';
+import { MemberService } from '../member/member.service';
 
 @Injectable()
 export class GroupService {
 	constructor(
 		@InjectModel(Group.name) private readonly groupModel: Model<Group>,
 		@InjectModel('GroupMember') private readonly groupMemberModel: Model<GroupMember>,
-		@InjectModel('Member') private readonly memberModel: Model<Member>,
-		@InjectModel('Event') private readonly eventModel: Model<Event>,
 		private readonly likeService: LikeService,
 		private readonly viewService: ViewService,
 		private readonly notificationService: NotificationService,
+		private readonly memberService: MemberService,
 	) {}
 
 	// ============== Group Management Methods ==============
 	public async createGroup(memberId: ObjectId, input: GroupInput): Promise<Group> {
-		const member = await this.memberModel.findById(memberId);
+		const member = await this.memberService.getSimpleMember(memberId);
 		if (!member) throw new NotFoundException(Message.MEMBER_NOT_FOUND);
 
 		try {
@@ -61,7 +57,11 @@ export class GroupService {
 				joinDate: new Date(),
 			};
 			const groupMember = await this.groupMemberModel.create(newGroupMember);
-			await this.memberModel.findByIdAndUpdate(memberId, { $inc: { memberGroups: 1 } });
+			await this.memberService.memberStatsEditor({
+				_id: memberId,
+				targetKey: 'memberGroups',
+				modifier: 1,
+			});
 
 			newGroup.meJoined = [{ ...newGroupMember, meJoined: true }];
 
@@ -277,7 +277,11 @@ export class GroupService {
 			throw new BadRequestException(Message.NOT_GROUP_ADMIN);
 		}
 
-		await this.memberModel.findByIdAndUpdate(memberId, { $inc: { memberGroups: -1 } });
+		await this.memberService.memberStatsEditor({
+			_id: memberId,
+			targetKey: 'memberGroups',
+			modifier: -1,
+		});
 
 		return await this.groupModel.findByIdAndDelete(groupId);
 	}
@@ -378,7 +382,7 @@ export class GroupService {
 		}
 
 		// Check if target member exists
-		const targetMember = await this.memberModel.findById(targetMemberId);
+		const targetMember = await this.memberService.getSimpleMember(targetMemberId);
 		if (!targetMember) throw new NotFoundException(Message.MEMBER_NOT_FOUND);
 
 		// Update member role
@@ -466,5 +470,27 @@ export class GroupService {
 
 		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
 		return result;
+	}
+
+	public async getSimpleGroup(groupId: ObjectId): Promise<Group> {
+		const group = await this.groupModel.findById(groupId).lean().exec();
+		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
+		return group;
+	}
+
+	public async isAuthorized(memberId: ObjectId, groupId: ObjectId): Promise<GroupMember> {
+		return await this.groupMemberModel.findOne({
+			memberId,
+			groupId: groupId,
+			groupMemberRole: { $in: [GroupMemberRole.OWNER, GroupMemberRole.MODERATOR] },
+		});
+	}
+
+	public async getOtherGroupMembers(memberId: ObjectId, groupId: ObjectId): Promise<GroupMember[]> {
+		return await this.groupMemberModel.find({
+			_id: { $ne: memberId },
+			groupId: groupId,
+			groupMemberRole: { $in: [GroupMemberRole.OWNER, GroupMemberRole.MODERATOR, GroupMemberRole.MEMBER] },
+		});
 	}
 }

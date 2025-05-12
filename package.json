@@ -1,25 +1,25 @@
 {
-	"name": "nestars",
+	"name": "eventify",
 	"version": "0.0.1",
 	"description": "",
 	"author": "",
 	"private": true,
-	"license": "ITC",
+	"license": "MIT",
 	"scripts": {
-		"build": "nest build",
+		"build": "nest build eventify-api && nest build eventify-batch",
 		"format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\"",
 		"start": "nest start",
 		"start:dev": "nest start --watch",
-		"start:dev:batch": "nest start nestars-batch --watch",
+		"start:dev:batch": "nest start eventify-batch --watch",
 		"start:debug": "nest start --debug --watch",
-		"start:prod": "NODE_ENV=production node dist/apps/nestars-api/main",
-		"start:prod:batch": "node dist/apps/nestars-batch/main",
+		"start:prod": "NODE_ENV=production node dist/apps/eventify-api/main",
+		"start:prod:batch": "NODE_ENV=production node dist/apps/eventify-batch/main",
 		"lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
 		"test": "jest",
 		"test:watch": "jest --watch",
 		"test:cov": "jest --coverage",
 		"test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-		"test:e2e": "jest --config ./apps/nestars-api/test/jest-e2e.json"
+		"test:e2e": "jest --config ./apps/eventify-api/test/jest-e2e.json"
 	},
 	"dependencies": {
 		"@apollo/server": "^4.9.5",
@@ -45,8 +45,7 @@
 		"mongoose": "^8.0.0",
 		"reflect-metadata": "^0.1.13",
 		"rxjs": "^7.8.1",
-		"uuid": "^11.1.0",
-		"ws": "^8.14.2"
+		"uuid": "^11.1.0"
 	},
 	"devDependencies": {
 		"@nestjs/cli": "^10.0.0",

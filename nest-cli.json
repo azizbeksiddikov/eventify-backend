@@ -2,12 +2,13 @@
 	"$schema": "https://json.schemastore.org/nest-cli",
 	"collection": "@nestjs/schematics",
 	"sourceRoot": "apps/eventify-api/src",
-	"monorepo": true,
-	"root": "apps/eventify-api",
 	"compilerOptions": {
+		"deleteOutDir": true,
 		"webpack": true,
 		"tsConfigPath": "apps/eventify-api/tsconfig.app.json"
 	},
+	"monorepo": true,
+	"root": "apps/eventify-api",
 	"projects": {
 		"eventify-api": {
 			"type": "application",
@@ -16,6 +17,15 @@
 			"sourceRoot": "apps/eventify-api/src",
 			"compilerOptions": {
 				"tsConfigPath": "apps/eventify-api/tsconfig.app.json"
+			}
+		},
+		"eventify-batch": {
+			"type": "application",
+			"root": "apps/eventify-batch",
+			"entryFile": "main",
+			"sourceRoot": "apps/eventify-batch/src",
+			"compilerOptions": {
+				"tsConfigPath": "apps/eventify-batch/tsconfig.app.json"
 			}
 		}
 	}

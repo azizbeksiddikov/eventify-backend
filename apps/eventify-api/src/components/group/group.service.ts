@@ -307,7 +307,7 @@ export class GroupService {
 	}
 
 	// ============== Group Member Methods ==============
-	public async joinGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {
+	public async joinTargetGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {
 		// check if group exists
 		const group: Group | null = await this.groupModel.findById(groupId).lean().exec();
 		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
@@ -344,12 +344,12 @@ export class GroupService {
 			group.meJoined = [{ ...newGroupMemberInput, meJoined: true }];
 			return group;
 		} catch (err) {
-			console.error('Error in joinGroup:', err);
+			console.error('Error in joinTargetGroup:', err);
 			throw new BadRequestException(Message.CREATE_FAILED);
 		}
 	}
 
-	public async leaveGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {
+	public async leaveTargetGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {
 		const group: Group | null = await this.groupModel.findById(groupId).lean().exec();
 		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
 

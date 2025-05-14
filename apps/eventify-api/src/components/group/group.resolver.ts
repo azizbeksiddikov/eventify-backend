@@ -107,10 +107,13 @@ export class GroupResolver {
 	// ============== Group Member Methods ==============
 	@UseGuards(AuthGuard)
 	@Mutation(() => Group)
-	public async joinGroup(@Args('groupId') groupId: string, @AuthMember('_id') memberId: ObjectId): Promise<Group> {
-		console.log('Mutation: joinGroup');
+	public async joinTargetGroup(
+		@Args('groupId') groupId: string,
+		@AuthMember('_id') memberId: ObjectId,
+	): Promise<Group> {
+		console.log('Mutation: joinTargetGroup');
 		const targetId = shapeIntoMongoObjectId(groupId);
-		return await this.groupService.joinGroup(memberId, targetId);
+		return await this.groupService.joinTargetGroup(memberId, targetId);
 	}
 
 	@Roles(MemberType.ORGANIZER)
@@ -128,10 +131,13 @@ export class GroupResolver {
 
 	@UseGuards(AuthGuard)
 	@Mutation(() => Group)
-	public async leaveGroup(@Args('groupId') groupId: string, @AuthMember('_id') memberId: ObjectId): Promise<Group> {
-		console.log('Mutation: leaveGroup');
+	public async leaveTargetGroup(
+		@Args('groupId') groupId: string,
+		@AuthMember('_id') memberId: ObjectId,
+	): Promise<Group> {
+		console.log('Mutation: leaveTargetGroup');
 		const targetId = shapeIntoMongoObjectId(groupId);
-		return await this.groupService.leaveGroup(memberId, targetId);
+		return await this.groupService.leaveTargetGroup(memberId, targetId);
 	}
 
 	// ============== Admin Methods ==============

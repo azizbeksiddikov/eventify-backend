@@ -131,17 +131,19 @@ export class TicketService {
 		if (input.search.ticketStatus) {
 			match.ticketStatus = input.search.ticketStatus;
 		}
-
 		const sort = { [input?.sort || 'createdAt']: input?.direction || Direction.DESC };
 
 		const result = await this.ticketModel.aggregate([
 			{ $match: match },
 			{ $sort: sort },
-			{ $lookup: { from: 'events', localField: 'eventId', foreignField: '_id', as: 'event' } },
-			{ $unwind: '$event' },
 			{
 				$facet: {
-					list: [{ $skip: (input.page - 1) * input.limit }, { $limit: input.limit }],
+					list: [
+						{ $skip: (input.page - 1) * input.limit },
+						{ $limit: input.limit },
+						{ $lookup: { from: 'events', localField: 'eventId', foreignField: '_id', as: 'event' } },
+						{ $unwind: '$event' },
+					],
 					metaCounter: [{ $count: 'total' }],
 				},
 			},

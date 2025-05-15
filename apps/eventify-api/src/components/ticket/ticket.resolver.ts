@@ -38,8 +38,8 @@ export class TicketResolver {
 
 	@UseGuards(AuthGuard)
 	@Query(() => Tickets)
-	async getTickets(@AuthMember('_id') memberId: ObjectId, @Args('input') input: TicketInquiry): Promise<Tickets> {
-		console.log('Query: getTickets');
+	async getMyTickets(@AuthMember('_id') memberId: ObjectId, @Args('input') input: TicketInquiry): Promise<Tickets> {
+		console.log('Query: getMyTickets');
 		return this.ticketService.getMyTickets(memberId, input);
 	}
 

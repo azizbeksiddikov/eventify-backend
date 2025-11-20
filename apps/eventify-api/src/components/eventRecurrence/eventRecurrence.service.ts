@@ -64,21 +64,6 @@ export class EventRecurrenceService {
 			// Generate events for next 30 days
 			await this.generateEvents(recurrence);
 
-			// TODO: Update member stats - update for each event creation
-			// await this.memberService.memberStatsEditor({
-			// 	_id: memberId,
-			// 	targetKey: 'eventsOrganizedCount',
-			// 	modifier: 1,
-			// });
-
-			if (input.groupId) {
-				await this.groupService.groupStatsEditor({
-					_id: input.groupId,
-					targetKey: 'eventsCount',
-					modifier: 1,
-				});
-			}
-
 			return recurrence;
 		} catch (error) {
 			this.logger.error(`Failed to create recurring event: ${error.message}`);
@@ -100,6 +85,12 @@ export class EventRecurrenceService {
 		// Validate recurrence fields if changed
 		if (input.recurrenceType) {
 			this.validateRecurrenceFields(input as any);
+		}
+
+		// If status is CANCELLED or DELETED, set isActive to false
+		if (input.eventStatus === EventStatus.CANCELLED || input.eventStatus === EventStatus.DELETED) {
+			input.isActive = false;
+			input.recurrenceEndDate = input.eventEndAt || new Date();
 		}
 
 		// Update EventRecurrence template
@@ -201,6 +192,20 @@ export class EventRecurrenceService {
 					eventViews: 0,
 				});
 
+				await this.memberService.memberStatsEditor({
+					_id: recurrence.memberId,
+					targetKey: 'eventsOrganizedCount',
+					modifier: 1,
+				});
+
+				if (recurrence.groupId) {
+					await this.groupService.groupStatsEditor({
+						_id: recurrence.groupId,
+						targetKey: 'eventsCount',
+						modifier: 1,
+					});
+				}
+
 				// Schedule AgendaJS jobs
 				if (event.eventStartAt > new Date() && event.eventEndAt > new Date()) {
 					await this.agendaService.scheduleEventStart(event._id, event.eventStartAt);
@@ -284,12 +289,9 @@ export class EventRecurrenceService {
 
 		while (currentDate <= endDate) {
 			if (currentDate >= startDate) {
-				// Check if restricted to specific days of week
-				if (!recurrence.recurrenceDaysOfWeek || recurrence.recurrenceDaysOfWeek.includes(currentDate.getDay())) {
-					const eventStart = new Date(currentDate);
-					const eventEnd = new Date(currentDate.getTime() + duration);
-					occurrences.push({ startAt: eventStart, endAt: eventEnd });
-				}
+				const eventStart = new Date(currentDate);
+				const eventEnd = new Date(currentDate.getTime() + duration);
+				occurrences.push({ startAt: eventStart, endAt: eventEnd });
 			}
 			currentDate.setDate(currentDate.getDate() + recurrence.recurrenceInterval);
 		}

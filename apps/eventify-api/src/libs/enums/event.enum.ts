@@ -11,6 +11,7 @@ export enum EventStatus {
 	UPCOMING = 'UPCOMING', // created but not yet started
 	ONGOING = 'ONGOING', // started and ongoing
 	COMPLETED = 'COMPLETED', // completed and ended
+
 	CANCELLED = 'CANCELLED', // cancelled by the host
 	DELETED = 'DELETED', // deleted by the host
 }

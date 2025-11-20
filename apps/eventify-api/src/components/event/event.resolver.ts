@@ -8,7 +8,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { shapeIntoMongoObjectId } from '../../libs/config';
 import { WithoutGuard } from '../auth/guards/without.guard';
-import { Event, Events, EventsByCategory } from '../../libs/dto/event/event';
+import { Event, Events, CategoryEvents } from '../../libs/dto/event/event';
 import {
 	EventInput,
 	EventsByCategoryInquiry,
@@ -53,11 +53,21 @@ export class EventResolver {
 	}
 
 	@UseGuards(WithoutGuard)
-	@Query(() => EventsByCategory)
+	@Query(() => Events)
+	public async getUniqueEvents(
+		@Args('input') input: EventsInquiry,
+		@AuthMember('_id') memberId: ObjectId | null,
+	): Promise<Events> {
+		console.log('Query: getUniqueEvents');
+		return await this.eventService.getUniqueEvents(memberId, input);
+	}
+
+	@UseGuards(WithoutGuard)
+	@Query(() => [CategoryEvents])
 	public async getEventsByCategory(
 		@Args('input') input: EventsByCategoryInquiry,
 		@AuthMember('_id') memberId: ObjectId | null,
-	): Promise<EventsByCategory> {
+	): Promise<[CategoryEvents]> {
 		console.log('Query: getEventsByCategory');
 		return await this.eventService.getEventsByCategory(memberId, input);
 	}

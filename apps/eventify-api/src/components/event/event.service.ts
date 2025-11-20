@@ -11,7 +11,7 @@ import { NotificationType } from '../../libs/enums/notification.enum';
 
 // ===== Types & DTOs =====
 import { StatisticModifier, T } from '../../libs/types/common';
-import { Event, Events, EventsByCategory } from '../../libs/dto/event/event';
+import { Event, Events, CategoryEvents } from '../../libs/dto/event/event';
 import {
 	EventInput,
 	EventsByCategoryInquiry,
@@ -50,6 +50,8 @@ export class EventService {
 	) {}
 
 	// ============== Event Management Methods ==============
+
+	// CREATE
 	public async createEvent(memberId: ObjectId, input: EventInput): Promise<Event> {
 		// Validation: createEvent is only for ONE-TIME events
 		if (input.eventType && input.eventType !== EventType.ONCE) {
@@ -122,6 +124,7 @@ export class EventService {
 		}
 	}
 
+	// READ
 	public async getEvent(memberId: ObjectId | null, eventId: ObjectId): Promise<Event> {
 		const search: T = {
 			_id: eventId,
@@ -145,7 +148,7 @@ export class EventService {
 		}
 
 		event.memberData = await this.memberService.getMember(null, event.memberId);
-		event.hostingGroup = await this.groupService.getSimpleGroup(event.groupId);
+		event.hostingGroup = event.groupId ? await this.groupService.getSimpleGroup(event.groupId) : null;
 
 		event.similarEvents = await this.eventModel
 			.aggregate([
@@ -160,13 +163,6 @@ export class EventService {
 	}
 
 	public async getEvents(memberId: ObjectId | null, input: EventsInquiry): Promise<Events> {
-		const pipeline = this.getPipeline(memberId, input);
-
-		const result = await this.eventModel.aggregate(pipeline).exec();
-		return result[0];
-	}
-
-	private getPipeline(memberId: ObjectId | null, input: EventsInquiry): any[] {
 		const { text, eventCategories, eventStatus, eventStartDay, eventEndDay, eventCity } = input.search;
 		const match: T = {
 			eventStatus: { $ne: EventStatus.DELETED },
@@ -184,26 +180,76 @@ export class EventService {
 		if (eventStartDay) match.eventStartAt = { $gte: new Date(eventStartDay) };
 		if (eventEndDay) match.eventEndAt = { $lte: new Date(eventEndDay) };
 
-		const pipeline: any[] = [{ $match: match }, { $sort: sort }];
-		const facet: any = {
-			list: [],
-			metaCounter: [{ $count: 'total' }],
+		const result = await this.eventModel
+			.aggregate([
+				{ $match: match },
+				{ $sort: sort },
+				{
+					$facet: {
+						list: [{ $skip: (input.page - 1) * input.limit }, { $limit: input.limit }, lookupAuthMemberLiked(memberId)],
+						metaCounter: [{ $count: 'total' }],
+					},
+				},
+			])
+			.exec();
+		return result[0];
+	}
+
+	public async getUniqueEvents(memberId: ObjectId | null, input: EventsInquiry): Promise<Events> {
+		const { text, eventCategories, eventStatus, eventStartDay, eventEndDay, eventCity } = input.search;
+		const match: T = {
+			eventStatus: { $ne: EventStatus.DELETED },
 		};
+		if (eventStatus)
+			match.eventStatus = eventStatus === EventStatus.DELETED ? { $ne: EventStatus.DELETED } : eventStatus;
 
-		if (input?.limit) {
-			const page = input.page > 0 ? input.page : 1;
-			facet.list.push({ $skip: (page - 1) * input.limit }, { $limit: input.limit }, lookupAuthMemberLiked(memberId));
+		if (text) {
+			match.$or = [{ eventName: { $regex: new RegExp(text, 'i') } }, { eventDesc: { $regex: new RegExp(text, 'i') } }];
 		}
+		if (eventCategories && eventCategories.length > 0) match.eventCategories = { $in: eventCategories };
+		if (eventCity) match.eventCity = { $regex: new RegExp(eventCity, 'i') };
+		if (eventStartDay) match.eventStartAt = { $gte: new Date(eventStartDay) };
+		if (eventEndDay) match.eventEndAt = { $lte: new Date(eventEndDay) };
 
-		pipeline.push({ $facet: facet });
+		const sort: T = { [input?.sort ?? 'createdAt']: input?.direction ?? Direction.DESC };
 
-		return pipeline;
+		const result = await this.eventModel
+			.aggregate([
+				{ $match: match },
+				// Sort by eventStartAt ASC to get earliest occurrence in each group
+				{ $sort: { eventStartAt: 1 } },
+				// Group by recurrenceId (null for one-time events)
+				{
+					$group: {
+						_id: {
+							// For recurring events, group by recurrenceId
+							// For one-time events, each has unique _id
+							recurrenceId: '$recurrenceId',
+							eventId: { $cond: [{ $eq: ['$recurrenceId', null] }, '$_id', null] },
+						},
+						// Take the first event from each group (earliest by sort order)
+						event: { $first: '$$ROOT' },
+					},
+				},
+				// Replace root with the event document
+				{ $replaceRoot: { newRoot: '$event' } },
+				// Now sort the unique events by user's preference
+				{ $sort: sort },
+				{
+					$facet: {
+						list: [{ $skip: (input.page - 1) * input.limit }, { $limit: input.limit }, lookupAuthMemberLiked(memberId)],
+						metaCounter: [{ $count: 'total' }],
+					},
+				},
+			])
+			.exec();
+		return result[0];
 	}
 
 	public async getEventsByCategory(
 		memberId: ObjectId | null,
 		input: EventsByCategoryInquiry,
-	): Promise<EventsByCategory> {
+	): Promise<[CategoryEvents]> {
 		const categoryEvents = await Promise.all(
 			input.categories.map(async (category) => {
 				const events = await this.eventModel
@@ -229,45 +275,22 @@ export class EventService {
 		};
 	}
 
+	public async getFavorites(memberId: ObjectId, input: OrdinaryEventInquiry): Promise<Events> {
+		return await this.likeService.getFavoriteEvents(memberId, input);
+	}
+
+	public async getVisited(memberId: ObjectId, input: OrdinaryEventInquiry): Promise<Events> {
+		return await this.viewService.getVisitedEvents(memberId, input);
+	}
+
+	// UPDATE
 	public async updateEventByOrganizer(memberId: ObjectId, input: EventUpdateInput): Promise<Event> {
+		// Get and validate event
 		const event = await this.eventModel.findById(input._id).exec();
 		if (!event || event.eventStatus === EventStatus.DELETED) throw new Error(Message.EVENT_NOT_FOUND);
-		if (event.memberId.toString() !== memberId.toString()) {
-			throw new Error(Message.NOT_AUTHORIZED);
-		}
+		if (event.memberId.toString() !== memberId.toString()) throw new Error(Message.NOT_AUTHORIZED);
 
-		if (input.eventPrice <= 0) input.eventPrice = 0;
-		if (input.eventCategories && input.eventCategories.length > 3) {
-			input.eventCategories = input.eventCategories.slice(0, 3);
-		}
-
-		// Handle updateAllFuture for recurring events
-		if (input.updateAllFuture && event.recurrenceId) {
-			await this.updateRecurringEventAndFuture(event, input);
-		} else {
-			// Update single event only
-			// cancel existing jobs before update
-			await this.agendaService.cancelEventJobs(input._id);
-
-			const updatedEvent = await this.eventModel.findByIdAndUpdate(input._id, input, { new: true }).exec();
-			if (input.eventStatus === EventStatus.DELETED) {
-				await this.memberService.memberStatsEditor({
-					_id: memberId,
-					targetKey: 'eventsOrganizedCount',
-					modifier: -1,
-				});
-			} else if (updatedEvent.eventStatus === EventStatus.UPCOMING) {
-				// reschedule jobs if status is UPCOMING and dates are in future
-				const startAt = input.eventStartAt || updatedEvent.eventStartAt;
-				const endAt = input.eventEndAt || updatedEvent.eventEndAt;
-				if (startAt > new Date() && endAt > new Date()) {
-					await this.agendaService.rescheduleEventJobs(updatedEvent._id, startAt, endAt);
-				}
-			}
-			return updatedEvent;
-		}
-
-		return await this.eventModel.findById(input._id).exec();
+		return await this.updateEventWithValidation(event, input);
 	}
 
 	// ============== Event Interaction Methods ==============
@@ -304,14 +327,6 @@ export class EventService {
 		return event;
 	}
 
-	public async getFavorites(memberId: ObjectId, input: OrdinaryEventInquiry): Promise<Events> {
-		return await this.likeService.getFavoriteEvents(memberId, input);
-	}
-
-	public async getVisited(memberId: ObjectId, input: OrdinaryEventInquiry): Promise<Events> {
-		return await this.viewService.getVisitedEvents(memberId, input);
-	}
-
 	// ============== Admin Methods ==============
 	public async getAllEventsByAdmin(input: EventsInquiry): Promise<Events> {
 		const { text, eventCategories, eventStatus, eventStartDay, eventEndDay } = input.search;
@@ -346,30 +361,16 @@ export class EventService {
 	}
 
 	public async updateEventByAdmin(input: EventUpdateInput): Promise<Event> {
-		// cancel existing jobs before update
-		await this.agendaService.cancelEventJobs(input._id);
+		// Get event
+		const event = await this.eventModel.findById(input._id).exec();
+		if (!event) throw new Error(Message.EVENT_NOT_FOUND);
 
-		const result: Event | null = await this.eventModel.findByIdAndUpdate(input._id, input, { new: true }).exec();
-		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
-
-		// reschedule jobs if status is UPCOMING and dates are in future
-		if (result.eventStatus === EventStatus.UPCOMING) {
-			const startAt = input.eventStartAt || result.eventStartAt;
-			const endAt = input.eventEndAt || result.eventEndAt;
-			if (startAt > new Date() && endAt > new Date()) {
-				await this.agendaService.rescheduleEventJobs(result._id, startAt, endAt);
-			}
-		}
-
-		return result;
+		return await this.updateEventWithValidation(event, input);
 	}
 
 	public async removeEventByAdmin(eventId: ObjectId): Promise<Event | null> {
 		const event = await this.eventModel.findById(eventId).exec();
 		if (!event) throw new Error(Message.EVENT_NOT_FOUND);
-
-		// cancel all jobs for this event
-		await this.agendaService.cancelEventJobs(eventId);
 
 		if (event.eventStatus === EventStatus.DELETED) {
 			return await this.eventModel.findByIdAndDelete(eventId).exec();
@@ -392,7 +393,7 @@ export class EventService {
 		return event;
 	}
 
-	private async updateRecurringEventAndFuture(event: Event, input: EventUpdateInput): Promise<void> {
+	private async updateRecurringFutureEvents(event: Event, input: EventUpdateInput): Promise<void> {
 		// Update EventRecurrence template
 		const updateFields: any = {};
 		if (input.eventName) updateFields.eventName = input.eventName;
@@ -405,31 +406,102 @@ export class EventService {
 		if (input.eventCategories) updateFields.eventCategories = input.eventCategories;
 		if (input.eventStatus) updateFields.eventStatus = input.eventStatus;
 
+		if (input.eventStatus === EventStatus.CANCELLED || input.eventStatus === EventStatus.DELETED) {
+			updateFields.isActive = false;
+			updateFields.recurrenceEndDate = input.eventEndAt || new Date();
+		}
+
 		await this.eventRecurrenceModel.findByIdAndUpdate(event.recurrenceId, updateFields).exec();
 
-		// Find all future events
-		const futureEvents = await this.eventModel
+		// Find all upcoming events
+		const upcomingEvents = await this.eventModel
 			.find({
 				recurrenceId: event.recurrenceId,
 				eventStartAt: { $gte: event.eventStartAt },
-				eventStatus: { $in: [EventStatus.UPCOMING, EventStatus.ONGOING] },
+				eventStatus: { $in: [EventStatus.UPCOMING] },
 			})
 			.exec();
 
 		// Update each future event
-		for (const futureEvent of futureEvents) {
-			// Cancel existing jobs
-			await this.agendaService.cancelEventJobs(futureEvent._id);
-
+		for (const upcomingEvent of upcomingEvents) {
 			// Update event fields
-			Object.assign(futureEvent, updateFields);
-			await futureEvent.save();
+			await this.eventModel.findByIdAndUpdate(upcomingEvent._id, updateFields, { new: true }).exec();
 
-			// Reschedule jobs if status is UPCOMING
-			if (futureEvent.eventStatus === EventStatus.UPCOMING && futureEvent.eventStartAt > new Date()) {
-				await this.agendaService.scheduleEventStart(futureEvent._id, futureEvent.eventStartAt);
-				await this.agendaService.scheduleEventEnd(futureEvent._id, futureEvent.eventEndAt);
+			// Handle job management based on status changes or time changes
+			if (input.eventStatus === EventStatus.DELETED || input.eventStatus === EventStatus.CANCELLED) {
+				// Cancel all jobs if event is deleted or cancelled
+				await this.agendaService.cancelEventJobs(upcomingEvent._id);
+				await this.memberService.memberStatsEditor({
+					_id: upcomingEvent.memberId,
+					targetKey: 'eventsOrganizedCount',
+					modifier: -1,
+				});
+			} else if (
+				(input.eventStartAt && input.eventStartAt !== upcomingEvent.eventStartAt) ||
+				(input.eventEndAt && input.eventEndAt !== upcomingEvent.eventEndAt)
+			) {
+				await this.agendaService.rescheduleEventJobs(upcomingEvent._id, input.eventStartAt, input.eventEndAt);
 			}
 		}
+	}
+
+	private async updateEventWithValidation(event: Event, input: EventUpdateInput): Promise<Event> {
+		// Validate Input fields
+		if (input.eventPrice <= 0) input.eventPrice = 0;
+		if (input.eventCategories && input.eventCategories.length > 3) {
+			input.eventCategories = input.eventCategories.slice(0, 3);
+		}
+
+		// Validate CANCELLED status change
+		if (input.eventStatus === EventStatus.CANCELLED) {
+			// to cancel: event must not be ongoing or completed
+			if (event.eventStatus === EventStatus.ONGOING || event.eventStatus === EventStatus.COMPLETED) {
+				throw new BadRequestException('Cannot cancel event that is already ongoing or completed.');
+			}
+		}
+
+		// Validate DELETED status change
+		if (input.eventStatus === EventStatus.DELETED) {
+			// to delete: event must be completed OR have no attendees OR ongoing
+			if (
+				(event.eventStatus !== EventStatus.COMPLETED && event.attendeeCount > 0) ||
+				event.eventStatus === EventStatus.ONGOING
+			) {
+				throw new BadRequestException('Cannot delete event that is ongoing or completed with attendees.');
+			}
+		}
+
+		const result: Event | null = await this.eventModel.findByIdAndUpdate(input._id, input, { new: true }).exec();
+		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
+
+		// Handle updateAllFuture for recurring events
+		if (input.updateAllFuture && event.recurrenceId) {
+			await this.updateRecurringFutureEvents(event, input);
+		}
+
+		// Handle job management and stats based on status changes
+		if (input.eventStatus === EventStatus.DELETED || input.eventStatus === EventStatus.CANCELLED) {
+			// Cancel all jobs if event is deleted or cancelled
+			await this.agendaService.cancelEventJobs(input._id);
+
+			// Decrease event count: if event was not completed
+			if (
+				(input.eventStatus === EventStatus.DELETED || input.eventStatus === EventStatus.CANCELLED) &&
+				event.eventStatus !== EventStatus.COMPLETED
+			) {
+				await this.memberService.memberStatsEditor({
+					_id: event.memberId,
+					targetKey: 'eventsOrganizedCount',
+					modifier: -1,
+				});
+			}
+		} else if (
+			(input.eventStartAt && input.eventStartAt !== event.eventStartAt) ||
+			(input.eventEndAt && input.eventEndAt !== event.eventEndAt)
+		) {
+			await this.agendaService.rescheduleEventJobs(result._id, input.eventStartAt, input.eventEndAt);
+		}
+
+		return result;
 	}
 }

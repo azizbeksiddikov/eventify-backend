@@ -132,17 +132,7 @@ Event {
 ```typescript
 {
   recurrenceType: "INTERVAL",
-  recurrenceInterval: 14  // Every 14 days
-}
-```
-
-**Optional:** Restrict to specific weekdays
-
-```typescript
-{
-  recurrenceType: "INTERVAL",
-  recurrenceInterval: 14,
-  recurrenceDaysOfWeek: [6]  // Every 14 days, but only if landing on Saturday
+  recurrenceInterval: 14  // Every 14 days (strictly every N days, no day restrictions)
 }
 ```
 

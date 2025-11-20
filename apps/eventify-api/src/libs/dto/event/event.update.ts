@@ -58,14 +58,14 @@ export class EventUpdateInput {
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsString()
-	@MaxLength(200)
-	eventAddress?: string;
+	@MaxLength(100)
+	eventCity?: string;
 
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsString()
-	@MaxLength(100)
-	eventCity?: string;
+	@MaxLength(200)
+	eventAddress?: string;
 
 	@Field(() => Number, { nullable: true })
 	@IsOptional()

@@ -112,9 +112,3 @@ export class CategoryEvents {
 	@Field(() => [Event])
 	events: Event[];
 }
-
-@ObjectType()
-export class EventsByCategory {
-	@Field(() => [CategoryEvents])
-	categories: CategoryEvents[];
-}

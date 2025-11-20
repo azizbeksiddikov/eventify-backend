@@ -22,20 +22,16 @@ export class EventInput {
 	@IsNotEmpty()
 	eventImage: string;
 
-	// ===== Event Details =====
+	// ===== Event Timestamps =====
 	@Field(() => Date)
 	@IsNotEmpty()
-	@IsDate()
-	eventDate: Date;
+	eventStartAt: Date;
 
-	@Field(() => String)
+	@Field(() => Date)
 	@IsNotEmpty()
-	eventStartTime: string;
+	eventEndAt: Date;
 
-	@Field(() => String)
-	@IsNotEmpty()
-	eventEndTime: string;
-
+	// ===== Event Details =====
 	@Field(() => String)
 	@IsNotEmpty()
 	@MaxLength(100)

@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import EventSchema from '../../schemas/Event.schema';
 
 // ===== Components =====
+import { AgendaModule } from '../agenda/agenda.module';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationModule } from '../notification/notification.module';
 import { LikeModule } from '../like/like.module';
@@ -19,6 +20,7 @@ import { EventService } from './event.service';
 @Module({
 	imports: [
 		MongooseModule.forFeature([{ name: 'Event', schema: EventSchema }]),
+		AgendaModule,
 		AuthModule,
 		NotificationModule,
 		LikeModule,

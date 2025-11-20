@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MemberModule } from './member/member.module';
 import { AuthModule } from './auth/auth.module';
+import { AgendaModule } from './agenda/agenda.module';
 import { GroupModule } from './group/group.module';
 import { EventModule } from './event/event.module';
 import { TicketModule } from './ticket/ticket.module';
@@ -13,6 +14,7 @@ import { NotificationModule } from './notification/notification.module';
 
 @Module({
 	imports: [
+		AgendaModule,
 		AuthModule,
 		CommentModule,
 		EventModule,

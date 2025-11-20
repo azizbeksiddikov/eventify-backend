@@ -14,7 +14,7 @@ export class BatchController {
 		this.logger.debug('BATCH SERVER READY!');
 	}
 
-	@Cron('00 00 01 * * *', { name: BATCH_ROLLBACK })
+	@Cron('00 00 01 * * *', { name: BATCH_ROLLBACK }) // every day at 1:00 AM
 	public async batchRollback() {
 		try {
 			this.logger['context'] = BATCH_ROLLBACK;
@@ -25,7 +25,7 @@ export class BatchController {
 		}
 	}
 
-	@Cron('20 00 01 * * *', { name: BATCH_TOP_ORGANIZERS })
+	@Cron('20 00 01 * * *', { name: BATCH_TOP_ORGANIZERS }) // every day at 1:20 AM
 	public async batchTopOrganizers() {
 		try {
 			this.logger['context'] = BATCH_TOP_ORGANIZERS;

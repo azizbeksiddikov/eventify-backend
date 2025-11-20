@@ -207,9 +207,9 @@ export class MemberService {
 									$expr: {
 										$and: [
 											{ $eq: ['$memberId', '$$memberId'] },
-											{ $gte: ['$eventDate', new Date(new Date().setDate(new Date().getDate() - 7))] },
+											{ $gte: ['$eventStartAt', new Date(new Date().setDate(new Date().getDate() - 7))] },
 											{
-												$lte: ['$eventDate', new Date(new Date().setMonth(new Date().getMonth() + 1))],
+												$lte: ['$eventEndAt', new Date(new Date().setMonth(new Date().getMonth() + 1))],
 											},
 										],
 									},

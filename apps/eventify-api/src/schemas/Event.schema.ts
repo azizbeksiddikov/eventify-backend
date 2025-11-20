@@ -21,22 +21,18 @@ const EventSchema = new Schema(
 			required: true,
 		},
 
-		// ===== Event Details =====
-		eventDate: {
+		// ===== Event Timestamps =====
+		eventStartAt: {
 			type: Date,
 			required: true,
 		},
 
-		eventStartTime: {
-			type: String,
+		eventEndAt: {
+			type: Date,
 			required: true,
 		},
 
-		eventEndTime: {
-			type: String,
-			required: true,
-		},
-
+		// ===== Event Details =====
 		eventAddress: {
 			type: String,
 			required: true,

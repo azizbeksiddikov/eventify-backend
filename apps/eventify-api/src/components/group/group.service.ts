@@ -114,9 +114,9 @@ export class GroupService {
 									$expr: {
 										$and: [
 											{ $eq: ['$groupId', '$$groupId'] },
-											{ $gte: ['$eventDate', new Date()] },
+											{ $gte: ['$eventStartAt', new Date()] },
 											{
-												$lte: ['$eventDate', new Date(new Date().setMonth(new Date().getMonth() + 1))],
+												$lte: ['$eventEndAt', new Date(new Date().setMonth(new Date().getMonth() + 1))],
 											},
 										],
 									},

@@ -29,6 +29,7 @@ import { NotificationInput } from '../../libs/dto/notification/notification.inpu
 import { lookupAuthMemberLiked, lookupMember } from '../../libs/config';
 
 // ===== Services =====
+import { AgendaService } from '../agenda/agenda.service';
 import { LikeService } from '../like/like.service';
 import { ViewService } from '../view/view.service';
 import { MemberService } from '../member/member.service';
@@ -39,6 +40,7 @@ import { GroupService } from '../group/group.service';
 export class EventService {
 	constructor(
 		@InjectModel('Event') private readonly eventModel: Model<Event>,
+		private readonly agendaService: AgendaService,
 		private readonly likeService: LikeService,
 		private readonly viewService: ViewService,
 		private readonly notificationService: NotificationService,
@@ -89,6 +91,16 @@ export class EventService {
 				};
 				await this.notificationService.createNotification(newNotification);
 			});
+
+			// schedule event status auto-update jobs
+			if (
+				event.eventStatus === EventStatus.UPCOMING &&
+				event.eventStartAt > new Date() &&
+				event.eventEndAt > new Date()
+			) {
+				await this.agendaService.scheduleEventStart(event._id, event.eventStartAt);
+				await this.agendaService.scheduleEventEnd(event._id, event.eventEndAt);
+			}
 
 			return event;
 		} catch (error) {
@@ -155,13 +167,8 @@ export class EventService {
 		if (eventCity) match.eventCity = { $regex: new RegExp(eventCity, 'i') };
 
 		const sort: T = { [input?.sort ?? 'createdAt']: input?.direction ?? Direction.DESC };
-		if (eventStartDay && eventEndDay) {
-			match.eventDate = { $gte: new Date(eventStartDay), $lte: new Date(eventEndDay) };
-		} else if (eventStartDay) {
-			match.eventDate = { $gte: new Date(eventStartDay) };
-		} else if (eventEndDay) {
-			match.eventDate = { $lte: new Date(eventEndDay) };
-		}
+		if (eventStartDay) match.eventStartAt = { $gte: new Date(eventStartDay) };
+		if (eventEndDay) match.eventEndAt = { $lte: new Date(eventEndDay) };
 
 		const pipeline: any[] = [{ $match: match }, { $sort: sort }];
 		const facet: any = {
@@ -220,6 +227,9 @@ export class EventService {
 			input.eventCategories = input.eventCategories.slice(0, 3);
 		}
 
+		// cancel existing jobs before update
+		await this.agendaService.cancelEventJobs(input._id);
+
 		const updatedEvent = await this.eventModel.findByIdAndUpdate(input._id, input, { new: true }).exec();
 		if (input.eventStatus === EventStatus.DELETED) {
 			await this.memberService.memberStatsEditor({
@@ -227,6 +237,13 @@ export class EventService {
 				targetKey: 'eventsOrganizedCount',
 				modifier: -1,
 			});
+		} else if (updatedEvent.eventStatus === EventStatus.UPCOMING) {
+			// reschedule jobs if status is UPCOMING and dates are in future
+			const startAt = input.eventStartAt || updatedEvent.eventStartAt;
+			const endAt = input.eventEndAt || updatedEvent.eventEndAt;
+			if (startAt > new Date() && endAt > new Date()) {
+				await this.agendaService.rescheduleEventJobs(updatedEvent._id, startAt, endAt);
+			}
 		}
 		return updatedEvent;
 	}
@@ -287,13 +304,8 @@ export class EventService {
 		}
 		if (eventCategories && eventCategories.length > 0) match.eventCategories = { $in: eventCategories };
 
-		if (eventStartDay && eventEndDay) {
-			match.eventDate = { $gte: new Date(eventStartDay), $lte: new Date(eventEndDay) };
-		} else if (eventStartDay) {
-			match.eventDate = { $gte: new Date(eventStartDay) };
-		} else if (eventEndDay) {
-			match.eventDate = { $lte: new Date(eventEndDay) };
-		}
+		if (eventStartDay) match.eventStartAt = { $gte: new Date(eventStartDay) };
+		if (eventEndDay) match.eventEndAt = { $lte: new Date(eventEndDay) };
 
 		const result = await this.eventModel
 			.aggregate([
@@ -312,8 +324,20 @@ export class EventService {
 	}
 
 	public async updateEventByAdmin(input: EventUpdateInput): Promise<Event> {
+		// cancel existing jobs before update
+		await this.agendaService.cancelEventJobs(input._id);
+
 		const result: Event | null = await this.eventModel.findByIdAndUpdate(input._id, input, { new: true }).exec();
 		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
+
+		// reschedule jobs if status is UPCOMING and dates are in future
+		if (result.eventStatus === EventStatus.UPCOMING) {
+			const startAt = input.eventStartAt || result.eventStartAt;
+			const endAt = input.eventEndAt || result.eventEndAt;
+			if (startAt > new Date() && endAt > new Date()) {
+				await this.agendaService.rescheduleEventJobs(result._id, startAt, endAt);
+			}
+		}
 
 		return result;
 	}
@@ -321,6 +345,9 @@ export class EventService {
 	public async removeEventByAdmin(eventId: ObjectId): Promise<Event | null> {
 		const event = await this.eventModel.findById(eventId).exec();
 		if (!event) throw new Error(Message.EVENT_NOT_FOUND);
+
+		// cancel all jobs for this event
+		await this.agendaService.cancelEventJobs(eventId);
 
 		if (event.eventStatus === EventStatus.DELETED) {
 			return await this.eventModel.findByIdAndDelete(eventId).exec();

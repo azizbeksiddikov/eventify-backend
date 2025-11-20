@@ -20,16 +20,14 @@ export class Event {
 	@Field(() => String)
 	eventImage: string;
 
-	// ===== Event Details =====
+	// ===== Event Timestamps =====
 	@Field(() => Date)
-	eventDate: Date;
+	eventStartAt: Date;
 
-	@Field(() => String)
-	eventStartTime: string;
+	@Field(() => Date)
+	eventEndAt: Date;
 
-	@Field(() => String)
-	eventEndTime: string;
-
+	// ===== Event Details =====
 	@Field(() => String)
 	eventCity: string;
 

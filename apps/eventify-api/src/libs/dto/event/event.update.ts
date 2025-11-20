@@ -28,22 +28,16 @@ export class EventUpdateInput {
 	@IsString()
 	eventImage?: string;
 
-	// ===== Event Details =====
+	// ===== Event Timestamps =====
 	@Field(() => Date, { nullable: true })
 	@IsOptional()
-	@IsDate()
-	eventDate?: Date;
+	eventStartAt?: Date;
 
-	@Field(() => String, { nullable: true })
+	@Field(() => Date, { nullable: true })
 	@IsOptional()
-	@IsString()
-	eventStartTime?: string;
+	eventEndAt?: Date;
 
-	@Field(() => String, { nullable: true })
-	@IsOptional()
-	@IsString()
-	eventEndTime?: string;
-
+	// ===== Event Details =====
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	@IsString()

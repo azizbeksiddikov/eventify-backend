@@ -4,6 +4,7 @@ import { AuthModule } from './auth/auth.module';
 import { AgendaModule } from './agenda/agenda.module';
 import { GroupModule } from './group/group.module';
 import { EventModule } from './event/event.module';
+import { EventRecurrenceModule } from './eventRecurrence/eventRecurrence.module';
 import { TicketModule } from './ticket/ticket.module';
 import { ViewModule } from './view/view.module';
 import { LikeModule } from './like/like.module';
@@ -18,6 +19,7 @@ import { NotificationModule } from './notification/notification.module';
 		AuthModule,
 		CommentModule,
 		EventModule,
+		EventRecurrenceModule,
 		FaqModule,
 		FollowModule,
 		GroupModule,

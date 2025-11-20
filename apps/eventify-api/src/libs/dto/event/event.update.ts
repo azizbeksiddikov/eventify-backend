@@ -1,5 +1,16 @@
 import { Field, InputType } from '@nestjs/graphql';
-import { IsOptional, IsString, IsNumber, IsDate, IsArray, IsNotEmpty, Min, MaxLength, IsEnum } from 'class-validator';
+import {
+	IsOptional,
+	IsString,
+	IsNumber,
+	IsDate,
+	IsArray,
+	IsNotEmpty,
+	IsBoolean,
+	Min,
+	MaxLength,
+	IsEnum,
+} from 'class-validator';
 import { EventStatus, EventCategory } from '../../enums/event.enum';
 import { ObjectId } from 'mongoose';
 
@@ -9,6 +20,12 @@ export class EventUpdateInput {
 	@IsNotEmpty()
 	@Field(() => String)
 	_id: ObjectId;
+
+	// ===== Recurring Event Update Option =====
+	@Field(() => Boolean, { nullable: true })
+	@IsOptional()
+	@IsBoolean()
+	updateAllFuture?: boolean;
 
 	// ===== Basic Information =====
 	@Field(() => String, { nullable: true })
@@ -23,10 +40,10 @@ export class EventUpdateInput {
 	@MaxLength(2000)
 	eventDesc?: string;
 
-	@Field(() => String, { nullable: true })
+	@Field(() => [String], { nullable: true })
 	@IsOptional()
-	@IsString()
-	eventImage?: string;
+	@IsArray()
+	eventImages?: string[];
 
 	// ===== Event Timestamps =====
 	@Field(() => Date, { nullable: true })

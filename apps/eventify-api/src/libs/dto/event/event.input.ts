@@ -1,12 +1,18 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
 import { IsNotEmpty, IsOptional, IsNumber, IsArray, IsEnum, IsDate, Min, MaxLength, IsIn } from 'class-validator';
-import { EventStatus, EventCategory } from '../../enums/event.enum';
+import { EventStatus, EventCategory, EventType } from '../../enums/event.enum';
 import { Direction } from '../../enums/common.enum';
 import { ObjectId } from 'mongoose';
 
 // ============== Event Creation Input ==============
 @InputType()
 export class EventInput {
+	// ===== Event Type =====
+	@Field(() => EventType, { nullable: true })
+	@IsOptional()
+	@IsEnum(EventType)
+	eventType?: EventType;
+
 	// ===== Basic Information =====
 	@Field(() => String)
 	@IsNotEmpty()
@@ -18,9 +24,10 @@ export class EventInput {
 	@MaxLength(2000)
 	eventDesc: string;
 
-	@Field(() => String)
+	@Field(() => [String])
 	@IsNotEmpty()
-	eventImage: string;
+	@IsArray()
+	eventImages: string[];
 
 	// ===== Event Timestamps =====
 	@Field(() => Date)
@@ -42,11 +49,11 @@ export class EventInput {
 	@MaxLength(200)
 	eventAddress: string;
 
-	@Field(() => Number)
-	@IsNotEmpty()
+	@Field(() => Number, { nullable: true })
+	@IsOptional()
 	@IsNumber()
 	@Min(1)
-	eventCapacity: number;
+	eventCapacity?: number;
 
 	@Field(() => Number, { nullable: true })
 	@IsOptional()
@@ -67,9 +74,9 @@ export class EventInput {
 	eventCategories: EventCategory[];
 
 	// ===== References =====
-	@Field(() => String)
-	@IsNotEmpty()
-	groupId: ObjectId;
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	groupId?: ObjectId;
 }
 
 // ============== Search Inputs ==============

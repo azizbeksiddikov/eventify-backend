@@ -1,5 +1,5 @@
 import { Field, Int, ObjectType } from '@nestjs/graphql';
-import { EventStatus, EventCategory } from '../../enums/event.enum';
+import { EventStatus, EventCategory, EventType } from '../../enums/event.enum';
 import { Member, TotalCounter } from '../member/member';
 import { ObjectId } from 'mongoose';
 import { MeLiked } from '../like/like';
@@ -11,14 +11,20 @@ export class Event {
 	@Field(() => String)
 	_id: ObjectId;
 
+	@Field(() => EventType)
+	eventType: EventType;
+
+	@Field(() => String, { nullable: true })
+	recurrenceId?: ObjectId;
+
 	@Field(() => String)
 	eventName: string;
 
 	@Field(() => String)
 	eventDesc: string;
 
-	@Field(() => String)
-	eventImage: string;
+	@Field(() => [String])
+	eventImages: string[];
 
 	// ===== Event Timestamps =====
 	@Field(() => Date)
@@ -34,8 +40,8 @@ export class Event {
 	@Field(() => String)
 	eventAddress: string;
 
-	@Field(() => Int)
-	eventCapacity: number;
+	@Field(() => Int, { nullable: true })
+	eventCapacity?: number;
 
 	@Field(() => Number)
 	eventPrice: number;
@@ -48,11 +54,15 @@ export class Event {
 	eventCategories: EventCategory[];
 
 	// ===== References =====
-	@Field(() => String)
-	groupId: ObjectId;
+	@Field(() => String, { nullable: true })
+	groupId?: ObjectId;
 
 	@Field(() => String)
 	memberId: ObjectId;
+
+	// ===== Origin =====
+	@Field(() => String)
+	origin: string;
 
 	// ===== Statistics =====
 	@Field(() => Int)

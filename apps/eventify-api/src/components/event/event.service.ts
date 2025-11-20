@@ -4,7 +4,7 @@ import { Model, ObjectId } from 'mongoose';
 
 // ===== Enums =====
 import { Direction, Message } from '../../libs/enums/common.enum';
-import { EventStatus } from '../../libs/enums/event.enum';
+import { EventStatus, EventType } from '../../libs/enums/event.enum';
 import { LikeGroup } from '../../libs/enums/like.enum';
 import { ViewGroup } from '../../libs/enums/view.enum';
 import { NotificationType } from '../../libs/enums/notification.enum';
@@ -40,6 +40,7 @@ import { GroupService } from '../group/group.service';
 export class EventService {
 	constructor(
 		@InjectModel('Event') private readonly eventModel: Model<Event>,
+		@InjectModel('EventRecurrence') private readonly eventRecurrenceModel: Model<any>,
 		private readonly agendaService: AgendaService,
 		private readonly likeService: LikeService,
 		private readonly viewService: ViewService,
@@ -50,15 +51,23 @@ export class EventService {
 
 	// ============== Event Management Methods ==============
 	public async createEvent(memberId: ObjectId, input: EventInput): Promise<Event> {
+		// Validation: createEvent is only for ONE-TIME events
+		if (input.eventType && input.eventType !== EventType.ONCE) {
+			throw new BadRequestException('Use createRecurringEvent mutation for recurring events');
+		}
+
 		if (input.eventPrice <= 0) input.eventPrice = 0;
 		if (!input?.eventStatus) input.eventStatus = EventStatus.UPCOMING;
+		if (!input?.eventType) input.eventType = EventType.ONCE;
 
-		// check for group existence
-		const group = await this.groupService.getSimpleGroup(input.groupId);
+		// check for group existence if provided
+		if (input.groupId) {
+			const group = await this.groupService.getSimpleGroup(input.groupId);
 
-		// check for authorization
-		const groupAdmin = await this.groupService.isAuthorized(memberId, input.groupId);
-		if (!groupAdmin) throw new BadRequestException(Message.NOT_GROUP_ADMIN);
+			// check for authorization
+			const groupAdmin = await this.groupService.isAuthorized(memberId, input.groupId);
+			if (!groupAdmin) throw new BadRequestException(Message.NOT_GROUP_ADMIN);
+		}
 
 		try {
 			// create event
@@ -73,24 +82,29 @@ export class EventService {
 				targetKey: 'eventsOrganizedCount',
 				modifier: 1,
 			});
-			await this.groupService.groupStatsEditor({
-				_id: input.groupId,
-				targetKey: 'eventsCount',
-				modifier: 1,
-			});
 
-			// create notifications
-			const groupMembers: GroupMember[] = await this.groupService.getOtherGroupMembers(memberId, input.groupId);
+			if (input.groupId) {
+				await this.groupService.groupStatsEditor({
+					_id: input.groupId,
+					targetKey: 'eventsCount',
+					modifier: 1,
+				});
+			}
 
-			groupMembers.forEach(async (groupMember) => {
-				const newNotification: NotificationInput = {
-					memberId: memberId,
-					receiverId: groupMember.memberId,
-					notificationType: NotificationType.CREATE_EVENT,
-					notificationLink: `/event/detail?eventId=${event._id}`,
-				};
-				await this.notificationService.createNotification(newNotification);
-			});
+			// create notifications (only if event is part of a group)
+			if (input.groupId) {
+				const groupMembers: GroupMember[] = await this.groupService.getOtherGroupMembers(memberId, input.groupId);
+
+				groupMembers.forEach(async (groupMember) => {
+					const newNotification: NotificationInput = {
+						memberId: memberId,
+						receiverId: groupMember.memberId,
+						notificationType: NotificationType.CREATE_EVENT,
+						notificationLink: `/event/detail?eventId=${event._id}`,
+					};
+					await this.notificationService.createNotification(newNotification);
+				});
+			}
 
 			// schedule event status auto-update jobs
 			if (
@@ -227,25 +241,33 @@ export class EventService {
 			input.eventCategories = input.eventCategories.slice(0, 3);
 		}
 
-		// cancel existing jobs before update
-		await this.agendaService.cancelEventJobs(input._id);
+		// Handle updateAllFuture for recurring events
+		if (input.updateAllFuture && event.recurrenceId) {
+			await this.updateRecurringEventAndFuture(event, input);
+		} else {
+			// Update single event only
+			// cancel existing jobs before update
+			await this.agendaService.cancelEventJobs(input._id);
 
-		const updatedEvent = await this.eventModel.findByIdAndUpdate(input._id, input, { new: true }).exec();
-		if (input.eventStatus === EventStatus.DELETED) {
-			await this.memberService.memberStatsEditor({
-				_id: memberId,
-				targetKey: 'eventsOrganizedCount',
-				modifier: -1,
-			});
-		} else if (updatedEvent.eventStatus === EventStatus.UPCOMING) {
-			// reschedule jobs if status is UPCOMING and dates are in future
-			const startAt = input.eventStartAt || updatedEvent.eventStartAt;
-			const endAt = input.eventEndAt || updatedEvent.eventEndAt;
-			if (startAt > new Date() && endAt > new Date()) {
-				await this.agendaService.rescheduleEventJobs(updatedEvent._id, startAt, endAt);
+			const updatedEvent = await this.eventModel.findByIdAndUpdate(input._id, input, { new: true }).exec();
+			if (input.eventStatus === EventStatus.DELETED) {
+				await this.memberService.memberStatsEditor({
+					_id: memberId,
+					targetKey: 'eventsOrganizedCount',
+					modifier: -1,
+				});
+			} else if (updatedEvent.eventStatus === EventStatus.UPCOMING) {
+				// reschedule jobs if status is UPCOMING and dates are in future
+				const startAt = input.eventStartAt || updatedEvent.eventStartAt;
+				const endAt = input.eventEndAt || updatedEvent.eventEndAt;
+				if (startAt > new Date() && endAt > new Date()) {
+					await this.agendaService.rescheduleEventJobs(updatedEvent._id, startAt, endAt);
+				}
 			}
+			return updatedEvent;
 		}
-		return updatedEvent;
+
+		return await this.eventModel.findById(input._id).exec();
 	}
 
 	// ============== Event Interaction Methods ==============
@@ -368,5 +390,46 @@ export class EventService {
 		const event = await this.eventModel.findById(eventId).lean().exec();
 		if (!event) throw new Error(Message.EVENT_NOT_FOUND);
 		return event;
+	}
+
+	private async updateRecurringEventAndFuture(event: Event, input: EventUpdateInput): Promise<void> {
+		// Update EventRecurrence template
+		const updateFields: any = {};
+		if (input.eventName) updateFields.eventName = input.eventName;
+		if (input.eventDesc) updateFields.eventDesc = input.eventDesc;
+		if (input.eventImages) updateFields.eventImages = input.eventImages;
+		if (input.eventAddress) updateFields.eventAddress = input.eventAddress;
+		if (input.eventCity) updateFields.eventCity = input.eventCity;
+		if (input.eventCapacity !== undefined) updateFields.eventCapacity = input.eventCapacity;
+		if (input.eventPrice !== undefined) updateFields.eventPrice = input.eventPrice;
+		if (input.eventCategories) updateFields.eventCategories = input.eventCategories;
+		if (input.eventStatus) updateFields.eventStatus = input.eventStatus;
+
+		await this.eventRecurrenceModel.findByIdAndUpdate(event.recurrenceId, updateFields).exec();
+
+		// Find all future events
+		const futureEvents = await this.eventModel
+			.find({
+				recurrenceId: event.recurrenceId,
+				eventStartAt: { $gte: event.eventStartAt },
+				eventStatus: { $in: [EventStatus.UPCOMING, EventStatus.ONGOING] },
+			})
+			.exec();
+
+		// Update each future event
+		for (const futureEvent of futureEvents) {
+			// Cancel existing jobs
+			await this.agendaService.cancelEventJobs(futureEvent._id);
+
+			// Update event fields
+			Object.assign(futureEvent, updateFields);
+			await futureEvent.save();
+
+			// Reschedule jobs if status is UPCOMING
+			if (futureEvent.eventStatus === EventStatus.UPCOMING && futureEvent.eventStartAt > new Date()) {
+				await this.agendaService.scheduleEventStart(futureEvent._id, futureEvent.eventStartAt);
+				await this.agendaService.scheduleEventEnd(futureEvent._id, futureEvent.eventEndAt);
+			}
+		}
 	}
 }

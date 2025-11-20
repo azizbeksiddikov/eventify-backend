@@ -1,23 +1,37 @@
 import { Schema } from 'mongoose';
-import { EventCategory, EventStatus, EventType } from '../libs/enums/event.enum';
+import { EventCategory, EventStatus, RecurrenceType } from '../libs/enums/event.enum';
 
-const EventSchema = new Schema(
+const EventRecurrenceSchema = new Schema(
 	{
-		// ===== Event Type =====
-		eventType: {
+		// ===== Recurrence Rules =====
+		recurrenceType: {
 			type: String,
-			enum: EventType,
-			default: EventType.ONCE,
+			enum: RecurrenceType,
+			required: true,
 		},
 
-		recurrenceId: {
-			type: Schema.Types.ObjectId,
-			ref: 'EventRecurrence',
+		recurrenceInterval: {
+			type: Number,
+			required: false,
+		},
+
+		recurrenceDaysOfWeek: {
+			type: [Number],
+			required: false,
+		},
+
+		recurrenceDayOfMonth: {
+			type: Number,
+			required: false,
+		},
+
+		recurrenceEndDate: {
+			type: Date,
 			required: false,
 			default: null,
 		},
 
-		// ===== Basic Information =====
+		// ===== Template Fields (All Event fields) =====
 		eventName: {
 			type: String,
 			required: true,
@@ -36,23 +50,12 @@ const EventSchema = new Schema(
 			default: [],
 		},
 
-		// ===== Event Timestamps =====
-		eventStartAt: {
-			type: Date,
-			required: true,
-		},
-
-		eventEndAt: {
-			type: Date,
-			required: true,
-		},
-
-		// ===== Event Details =====
 		eventAddress: {
 			type: String,
 			required: true,
 			maxlength: 200,
 		},
+
 		eventCity: {
 			type: String,
 			required: true,
@@ -72,20 +75,30 @@ const EventSchema = new Schema(
 			min: 0,
 		},
 
-		// ===== Type and Status =====
-		eventStatus: {
-			type: String,
-			enum: EventStatus,
-			default: EventStatus.UPCOMING,
-		},
-
 		eventCategories: {
 			type: [String],
 			enum: EventCategory,
 			default: [],
 		},
 
-		// ===== References =====
+		eventStatus: {
+			type: String,
+			enum: EventStatus,
+			default: EventStatus.UPCOMING,
+		},
+
+		// ===== First Occurrence Template =====
+		eventStartAt: {
+			type: Date,
+			required: true,
+		},
+
+		eventEndAt: {
+			type: Date,
+			required: true,
+		},
+
+		// ===== Ownership =====
 		groupId: {
 			type: Schema.Types.ObjectId,
 			ref: 'Group',
@@ -105,29 +118,16 @@ const EventSchema = new Schema(
 			default: 'eventify.azbek.me',
 		},
 
-		// ===== Statistics =====
-		attendeeCount: {
-			type: Number,
-			default: 0,
-			min: 0,
-		},
-
-		eventLikes: {
-			type: Number,
-			default: 0,
-			min: 0,
-		},
-
-		eventViews: {
-			type: Number,
-			default: 0,
-			min: 0,
+		// ===== Status =====
+		isActive: {
+			type: Boolean,
+			default: true,
 		},
 	},
 	{
 		timestamps: true,
-		collection: 'events',
+		collection: 'eventRecurrences',
 	},
 );
 
-export default EventSchema;
+export default EventRecurrenceSchema;

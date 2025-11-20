@@ -2,37 +2,31 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
 // ===== Schemas =====
-import EventSchema from '../../schemas/Event.schema';
 import EventRecurrenceSchema from '../../schemas/EventRecurrence.schema';
+import EventSchema from '../../schemas/Event.schema';
 
 // ===== Components =====
 import { AgendaModule } from '../agenda/agenda.module';
 import { AuthModule } from '../auth/auth.module';
-import { NotificationModule } from '../notification/notification.module';
-import { LikeModule } from '../like/like.module';
-import { ViewModule } from '../view/view.module';
 import { MemberModule } from '../member/member.module';
 import { GroupModule } from '../group/group.module';
 
-// ===== Event Components =====
-import { EventResolver } from './event.resolver';
-import { EventService } from './event.service';
+// ===== EventRecurrence Components =====
+import { EventRecurrenceResolver } from './eventRecurrence.resolver';
+import { EventRecurrenceService } from './eventRecurrence.service';
 
 @Module({
 	imports: [
 		MongooseModule.forFeature([
-			{ name: 'Event', schema: EventSchema },
 			{ name: 'EventRecurrence', schema: EventRecurrenceSchema },
+			{ name: 'Event', schema: EventSchema },
 		]),
 		AgendaModule,
 		AuthModule,
-		NotificationModule,
-		LikeModule,
-		ViewModule,
 		MemberModule,
 		GroupModule,
 	],
-	providers: [EventResolver, EventService],
-	exports: [EventService],
+	providers: [EventRecurrenceResolver, EventRecurrenceService],
+	exports: [EventRecurrenceService],
 })
-export class EventModule {}
+export class EventRecurrenceModule {}

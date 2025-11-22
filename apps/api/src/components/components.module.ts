@@ -12,6 +12,7 @@ import { FollowModule } from './follow/follow.module';
 import { CommentModule } from './comment/comment.module';
 import { FaqModule } from './faq/faq.module';
 import { NotificationModule } from './notification/notification.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
 	imports: [
@@ -27,6 +28,7 @@ import { NotificationModule } from './notification/notification.module';
 		MemberModule,
 		NotificationModule,
 		TicketModule,
+		UploadModule,
 		ViewModule,
 	],
 })

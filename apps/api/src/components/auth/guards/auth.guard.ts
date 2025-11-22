@@ -9,37 +9,43 @@ export class AuthGuard implements CanActivate {
 	async canActivate(context: ExecutionContext | any): Promise<boolean> {
 		console.info('--- @guard() Authentication [AuthGuard] ---');
 
+		let request: any;
 		if (context.contextType === 'graphql') {
-			const request = context.getArgByIndex(2).req;
+			request = context.getArgByIndex(2).req;
+		} else if (context.contextType === 'http') {
+			request = context.switchToHttp().getRequest();
+		} else return false;
 
-			const bearerToken = request.headers.authorization;
-			if (!bearerToken) {
-				console.error('No bearer token provided');
+		const bearerToken = request.headers.authorization;
+		if (!bearerToken) {
+			console.error('No bearer token provided');
+			throw new BadRequestException(Message.TOKEN_NOT_EXIST);
+		}
+
+		try {
+			const token = bearerToken.split(' ')[1];
+			if (!token) {
+				console.error('Invalid token format');
 				throw new BadRequestException(Message.TOKEN_NOT_EXIST);
 			}
 
-			try {
-				const token = bearerToken.split(' ')[1];
-				if (!token) {
-					console.error('Invalid token format');
-					throw new BadRequestException(Message.TOKEN_NOT_EXIST);
-				}
-
-				const authMember = await this.authService.verifyToken(token);
-				if (!authMember) {
-					console.error('Token verification failed');
-					throw new UnauthorizedException(Message.NOT_AUTHENTICATED);
-				}
-
-				console.log('username[auth] =>', authMember.username);
-				request.body.authMember = authMember;
-				return true;
-			} catch (error) {
-				console.error('Authentication error:', error.message);
+			const authMember = await this.authService.verifyToken(token);
+			if (!authMember) {
+				console.error('Token verification failed');
 				throw new UnauthorizedException(Message.NOT_AUTHENTICATED);
 			}
-		}
 
-		return false;
+			console.log('username[auth] =>', authMember.username);
+
+			// Ensure request.body exists (may be undefined for multipart/form-data)
+			if (!request.body) {
+				request.body = {};
+			}
+			request.body.authMember = authMember;
+			return true;
+		} catch (error) {
+			console.error('Authentication error:', error.message);
+			throw new UnauthorizedException(Message.NOT_AUTHENTICATED);
+		}
 	}
 }

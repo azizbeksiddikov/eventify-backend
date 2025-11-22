@@ -180,13 +180,20 @@ export class EventService {
 		if (eventStartDay) match.eventStartAt = { $gte: new Date(eventStartDay) };
 		if (eventEndDay) match.eventEndAt = { $lte: new Date(eventEndDay) };
 
+		let aggList = [];
+		if (!input.limit) {
+			aggList = [lookupAuthMemberLiked(memberId)];
+		} else {
+			aggList = [{ $skip: (input.page - 1) * input.limit }, { $limit: input.limit }, lookupAuthMemberLiked(memberId)];
+		}
+
 		const result = await this.eventModel
 			.aggregate([
 				{ $match: match },
 				{ $sort: sort },
 				{
 					$facet: {
-						list: [{ $skip: (input.page - 1) * input.limit }, { $limit: input.limit }, lookupAuthMemberLiked(memberId)],
+						list: aggList,
 						metaCounter: [{ $count: 'total' }],
 					},
 				},
@@ -270,9 +277,7 @@ export class EventService {
 			}),
 		);
 
-		return {
-			categories: categoryEvents,
-		};
+		return categoryEvents as [CategoryEvents];
 	}
 
 	public async getFavorites(memberId: ObjectId, input: OrdinaryEventInquiry): Promise<Events> {

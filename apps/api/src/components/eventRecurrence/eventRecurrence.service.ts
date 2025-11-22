@@ -94,7 +94,9 @@ export class EventRecurrenceService {
 		}
 
 		// Update EventRecurrence template
-		const updatedRecurrence = await this.eventRecurrenceModel.findByIdAndUpdate(input._id, input, { new: true }).exec();
+		const updatedRecurrence = (await this.eventRecurrenceModel
+			.findByIdAndUpdate(input._id, input, { new: true })
+			.exec()) as EventRecurrence;
 
 		// If updateAllFuture is true, update all future events
 		if (input.updateAllFuture) {
@@ -284,6 +286,9 @@ export class EventRecurrenceService {
 		endDate: Date,
 		duration: number,
 	): { startAt: Date; endAt: Date }[] {
+		if (!recurrence.recurrenceInterval) {
+			throw new BadRequestException('recurrenceInterval is required for INTERVAL type and must be >= 1');
+		}
 		const occurrences: { startAt: Date; endAt: Date }[] = [];
 		let currentDate = new Date(recurrence.eventStartAt);
 
@@ -305,6 +310,9 @@ export class EventRecurrenceService {
 		endDate: Date,
 		duration: number,
 	): { startAt: Date; endAt: Date }[] {
+		if (!recurrence.recurrenceDaysOfWeek) {
+			throw new BadRequestException('recurrenceDaysOfWeek is required for DAYS_OF_WEEK type');
+		}
 		const occurrences: { startAt: Date; endAt: Date }[] = [];
 		let currentDate = new Date(startDate);
 		currentDate.setHours(new Date(recurrence.eventStartAt).getHours());
@@ -328,6 +336,9 @@ export class EventRecurrenceService {
 		endDate: Date,
 		duration: number,
 	): { startAt: Date; endAt: Date }[] {
+		if (!recurrence.recurrenceDayOfMonth) {
+			throw new BadRequestException('recurrenceDayOfMonth is required for DAY_OF_MONTH type and must be >= 1');
+		}
 		const occurrences: { startAt: Date; endAt: Date }[] = [];
 		let currentDate = new Date(startDate);
 		currentDate.setDate(1); // Start from first day of month
@@ -377,7 +388,11 @@ export class EventRecurrenceService {
 		}
 
 		// Validate recurrence end date
-		if (input.recurrenceEndDate && new Date(input.recurrenceEndDate) < new Date(input.eventStartAt)) {
+		if (
+			input.recurrenceEndDate &&
+			input.eventStartAt &&
+			new Date(input.recurrenceEndDate) < new Date(input.eventStartAt)
+		) {
 			throw new BadRequestException('recurrenceEndDate must be after eventStartAt');
 		}
 	}

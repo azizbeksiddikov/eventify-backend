@@ -1,6 +1,6 @@
 import { Field, Int, ObjectType } from '@nestjs/graphql';
 import { EventStatus, EventCategory, RecurrenceType } from '../../enums/event.enum';
-import { ObjectId } from 'mongoose';
+import type { ObjectId } from 'mongoose';
 
 @ObjectType()
 export class EventRecurrence {

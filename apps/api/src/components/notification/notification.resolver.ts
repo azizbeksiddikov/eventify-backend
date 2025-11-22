@@ -13,7 +13,7 @@ import { NotificationInput, NotificationsInquiry } from '../../libs/dto/notifica
 import { Notification } from '../../libs/dto/notification/notification';
 import { NotificationUpdate } from '../../libs/dto/notification/notification.update';
 import { AuthMember } from '../auth/decorators/authMember.decorator';
-import { ObjectId } from 'mongoose';
+import type { ObjectId } from 'mongoose';
 
 @Resolver()
 export class NotificationResolver {

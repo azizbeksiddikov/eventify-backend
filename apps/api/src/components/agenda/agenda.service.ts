@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ObjectId } from 'mongoose';
+import type { ObjectId } from 'mongoose';
 import { Agenda } from 'agenda';
 
 @Injectable()
@@ -11,7 +11,7 @@ export class AgendaService {
 		const mongoUri = process.env.NODE_ENV === 'production' ? process.env.MONGO_PROD : process.env.MONGO_DEV;
 
 		this.agenda = new Agenda({
-			db: { address: mongoUri },
+			db: { address: mongoUri as string },
 		});
 
 		this.logger.log('AgendaJS initialized for job scheduling');

@@ -1,4 +1,4 @@
-import { ObjectId } from 'mongoose';
+import type { ObjectId } from 'mongoose';
 import { Field, InputType } from '@nestjs/graphql';
 import { IsNotEmpty, IsString } from 'class-validator';
 import { GroupMemberRole } from '../../enums/group.enum';

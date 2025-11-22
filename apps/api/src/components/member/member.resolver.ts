@@ -4,7 +4,7 @@ import { GraphQLUpload, FileUpload } from 'graphql-upload';
 import { createWriteStream } from 'fs';
 import { mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
-import { ObjectId } from 'mongoose';
+import type { ObjectId } from 'mongoose';
 
 // ===== Nest Guards and Decorators =====
 import { AuthGuard } from '../auth/guards/auth.guard';

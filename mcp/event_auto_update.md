@@ -359,11 +359,9 @@ This allows easy cancellation and prevents duplicate jobs.
 ### Phase 1: Setup AgendaJS in API Server (Scheduling)
 
 - [ ] **Create agenda directory**
-
   - Create folder: `apps/api/src/components/agenda/`
 
 - [ ] **Create agenda.module.ts (API)**
-
   - File: `apps/api/src/components/agenda/agenda.module.ts`
   - Follow established import pattern with section comments:
 
@@ -387,12 +385,11 @@ This allows easy cancellation and prevents duplicate jobs.
     ```
 
 - [ ] **Create agenda.service.ts (API - Scheduling Only)**
-
   - File: `apps/api/src/components/agenda/agenda.service.ts`
   - Follow established import pattern with section comments:
     ```typescript
     import { Injectable, Logger } from '@nestjs/common';
-    import { ObjectId } from 'mongoose';
+    import type { ObjectId } from 'mongoose';
     import { Agenda } from 'agenda';
     ```
   - Create `AgendaService` class with `@Injectable()`
@@ -429,7 +426,6 @@ This allows easy cancellation and prevents duplicate jobs.
   - Add logging for scheduled/cancelled jobs
 
 - [ ] **Register AgendaModule in components.module.ts**
-
   - File: `apps/api/src/components/components.module.ts`
   - Import `AgendaModule` from `./agenda/agenda.module`
   - Add `AgendaModule` to imports array (alphabetically, after AuthModule)
@@ -444,14 +440,12 @@ This allows easy cancellation and prevents duplicate jobs.
 ### Phase 2: Integrate Scheduling in EventService
 
 - [ ] **Update event.service.ts - Inject AgendaService**
-
   - File: `apps/api/src/components/event/event.service.ts`
   - Import `AgendaService` from `../agenda/agenda.service`
   - Add import in `// ===== Services =====` section (follow established pattern)
   - Add `AgendaService` to constructor parameters (after existing services)
 
 - [ ] **Update createEvent() method**
-
   - File: `apps/api/src/components/event/event.service.ts`
   - After event creation (after line 66, before return)
   - Add check: Only schedule if `event.eventStatus === EventStatus.UPCOMING`
@@ -462,7 +456,6 @@ This allows easy cancellation and prevents duplicate jobs.
   - Add logging for successful scheduling
 
 - [ ] **Update updateEventByOrganizer() method**
-
   - File: `apps/api/src/components/event/event.service.ts`
   - Before update (before line 218): Call `await this.agendaService.cancelEventJobs(input._id)`
   - After update (after line 218): Check if status is UPCOMING and dates are in future
@@ -471,7 +464,6 @@ This allows easy cancellation and prevents duplicate jobs.
   - Add logging
 
 - [ ] **Update updateEventByAdmin() method**
-
   - File: `apps/api/src/components/event/event.service.ts`
   - Before update (before line 305): Call `await this.agendaService.cancelEventJobs(input._id)`
   - After update (after line 308): Check if status is UPCOMING and dates are in future
@@ -488,11 +480,9 @@ This allows easy cancellation and prevents duplicate jobs.
 ### Phase 3: Setup AgendaJS in Batch Server (Processing)
 
 - [ ] **Create agenda directory**
-
   - Create folder: `apps/batch/src/agenda/`
 
 - [ ] **Create agenda.module.ts (Batch)**
-
   - File: `apps/batch/src/agenda/agenda.module.ts`
   - Follow established import pattern:
 
@@ -513,7 +503,6 @@ This allows easy cancellation and prevents duplicate jobs.
   - Export `AgendaService` as provider
 
 - [ ] **Create agenda.service.ts (Batch - Processing)**
-
   - File: `apps/batch/src/agenda/agenda.service.ts`
   - Follow established import pattern with section comments:
 
@@ -583,7 +572,6 @@ This allows easy cancellation and prevents duplicate jobs.
   - Add error handling in processors
 
 - [ ] **Register AgendaModule in batch.module.ts**
-
   - File: `apps/batch/src/batch.module.ts`
   - Import `AgendaModule`
   - Add `AgendaModule` to imports array
@@ -595,13 +583,11 @@ This allows easy cancellation and prevents duplicate jobs.
 ### Phase 4: Handle Edge Cases
 
 - [ ] **Add past date handling in createEvent()**
-
   - Check if `eventStartAt < new Date()`: Set status to ONGOING or COMPLETED immediately
   - Check if `eventEndAt < new Date()`: Set status to COMPLETED immediately
   - Don't schedule jobs for past dates
 
 - [ ] **Add date validation in update methods**
-
   - Validate `eventStartAt < eventEndAt`
   - Handle timezone issues
   - Log warnings for suspicious date ranges
@@ -614,29 +600,24 @@ This allows easy cancellation and prevents duplicate jobs.
 ### Phase 5: Testing
 
 - [ ] **Test createEvent() scheduling**
-
   - Create event with future dates
   - Verify jobs appear in MongoDB `agendaJobs` collection
   - Check job names and scheduled times
 
 - [ ] **Test updateEventByOrganizer() rescheduling**
-
   - Create event, then update dates
   - Verify old jobs cancelled, new jobs scheduled
   - Check job data matches new dates
 
 - [ ] **Test updateEventByAdmin() rescheduling**
-
   - Create event, then update via admin
   - Verify jobs rescheduled correctly
 
 - [ ] **Test removeEventByAdmin() cancellation**
-
   - Create event, then delete
   - Verify all jobs cancelled in MongoDB
 
 - [ ] **Test job processing (Batch Server)**
-
   - Start batch server
   - Verify processors are registered
   - Create event with start time in near future (1-2 minutes)
@@ -651,14 +632,12 @@ This allows easy cancellation and prevents duplicate jobs.
 ### Phase 6: Error Handling & Logging
 
 - [ ] **Add comprehensive logging**
-
   - Log when jobs are scheduled (eventId, job type, scheduled time)
   - Log when jobs are cancelled (eventId, reason)
   - Log when jobs execute (eventId, old status, new status)
   - Log errors with full context
 
 - [ ] **Add error recovery**
-
   - Wrap all AgendaJS calls in try-catch
   - Don't block event operations if scheduling fails
   - Log errors but continue execution
@@ -671,18 +650,15 @@ This allows easy cancellation and prevents duplicate jobs.
 ### Phase 7: Documentation & Cleanup
 
 - [ ] **Update API documentation**
-
   - Document that event status changes automatically
   - Note the status transition flow: UPCOMING → ONGOING → COMPLETED
 
 - [ ] **Add code comments**
-
   - Comment complex logic in AgendaService
   - Document job naming conventions
   - Document MongoDB collection usage
 
 - [ ] **Verify no linting errors**
-
   - Run `npm run lint`
   - Fix any TypeScript/ESLint errors
 
@@ -694,12 +670,10 @@ This allows easy cancellation and prevents duplicate jobs.
 ### Phase 8: Production Readiness
 
 - [ ] **Environment variables**
-
   - Verify MongoDB connection strings work for both servers
   - Ensure AgendaJS uses correct database
 
 - [ ] **Docker configuration**
-
   - Verify both containers can access same MongoDB
   - Test docker-compose setup
 

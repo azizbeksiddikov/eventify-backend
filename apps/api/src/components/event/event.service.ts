@@ -58,7 +58,7 @@ export class EventService {
 			throw new BadRequestException('Use createRecurringEvent mutation for recurring events');
 		}
 
-		if (input.eventPrice <= 0) input.eventPrice = 0;
+		if (input.eventPrice && input.eventPrice <= 0) input.eventPrice = 0;
 		if (!input?.eventStatus) input.eventStatus = EventStatus.UPCOMING;
 		if (!input?.eventType) input.eventType = EventType.ONCE;
 
@@ -148,7 +148,7 @@ export class EventService {
 		}
 
 		event.memberData = await this.memberService.getMember(null, event.memberId);
-		event.hostingGroup = event.groupId ? await this.groupService.getSimpleGroup(event.groupId) : null;
+		event.hostingGroup = event.groupId ? await this.groupService.getSimpleGroup(event.groupId) : undefined;
 
 		event.similarEvents = await this.eventModel
 			.aggregate([
@@ -180,11 +180,12 @@ export class EventService {
 		if (eventStartDay) match.eventStartAt = { $gte: new Date(eventStartDay) };
 		if (eventEndDay) match.eventEndAt = { $lte: new Date(eventEndDay) };
 
-		let aggList = [];
+		let aggList: any[] = [];
 		if (!input.limit) {
 			aggList = [lookupAuthMemberLiked(memberId)];
 		} else {
-			aggList = [{ $skip: (input.page - 1) * input.limit }, { $limit: input.limit }, lookupAuthMemberLiked(memberId)];
+			const skip = (input.page - 1) * input.limit;
+			aggList = [{ $skip: skip }, { $limit: input.limit }, lookupAuthMemberLiked(memberId)];
 		}
 
 		const result = await this.eventModel
@@ -220,6 +221,14 @@ export class EventService {
 
 		const sort: T = { [input?.sort ?? 'createdAt']: input?.direction ?? Direction.DESC };
 
+		let aggList: any[] = [];
+		if (!input.limit) {
+			aggList = [lookupAuthMemberLiked(memberId)];
+		} else {
+			const skip = (input.page - 1) * input.limit;
+			aggList = [{ $skip: skip }, { $limit: input.limit }, lookupAuthMemberLiked(memberId)];
+		}
+
 		const result = await this.eventModel
 			.aggregate([
 				{ $match: match },
@@ -244,7 +253,7 @@ export class EventService {
 				{ $sort: sort },
 				{
 					$facet: {
-						list: [{ $skip: (input.page - 1) * input.limit }, { $limit: input.limit }, lookupAuthMemberLiked(memberId)],
+						list: aggList,
 						metaCounter: [{ $count: 'total' }],
 					},
 				},
@@ -349,13 +358,21 @@ export class EventService {
 		if (eventStartDay) match.eventStartAt = { $gte: new Date(eventStartDay) };
 		if (eventEndDay) match.eventEndAt = { $lte: new Date(eventEndDay) };
 
+		let aggList: any[] = [];
+		if (!input.limit) {
+			aggList = [];
+		} else {
+			const skip = (input.page - 1) * input.limit;
+			aggList = [{ $skip: skip }, { $limit: input.limit }];
+		}
+
 		const result = await this.eventModel
 			.aggregate([
 				{ $match: match },
 				{ $sort: sort },
 				{
 					$facet: {
-						list: [{ $skip: input.page - 1 }, { $limit: input.limit }],
+						list: aggList,
 						metaCounter: [{ $count: 'total' }],
 					},
 				},
@@ -388,7 +405,9 @@ export class EventService {
 		const { _id, targetKey, modifier } = input;
 		const event = await this.eventModel
 			.findByIdAndUpdate(_id, { $inc: { [targetKey]: modifier } }, { new: true })
+			.lean()
 			.exec();
+		if (!event) throw new BadRequestException(Message.UPDATE_FAILED);
 		return event;
 	}
 
@@ -411,7 +430,10 @@ export class EventService {
 		if (input.eventCategories) updateFields.eventCategories = input.eventCategories;
 		if (input.eventStatus) updateFields.eventStatus = input.eventStatus;
 
-		if (input.eventStatus === EventStatus.CANCELLED || input.eventStatus === EventStatus.DELETED) {
+		if (
+			input.eventStatus &&
+			(input.eventStatus === EventStatus.CANCELLED || input.eventStatus === EventStatus.DELETED)
+		) {
 			updateFields.isActive = false;
 			updateFields.recurrenceEndDate = input.eventEndAt || new Date();
 		}
@@ -433,7 +455,10 @@ export class EventService {
 			await this.eventModel.findByIdAndUpdate(upcomingEvent._id, updateFields, { new: true }).exec();
 
 			// Handle job management based on status changes or time changes
-			if (input.eventStatus === EventStatus.DELETED || input.eventStatus === EventStatus.CANCELLED) {
+			if (
+				input.eventStatus &&
+				(input.eventStatus === EventStatus.DELETED || input.eventStatus === EventStatus.CANCELLED)
+			) {
 				// Cancel all jobs if event is deleted or cancelled
 				await this.agendaService.cancelEventJobs(upcomingEvent._id);
 				await this.memberService.memberStatsEditor({
@@ -445,14 +470,16 @@ export class EventService {
 				(input.eventStartAt && input.eventStartAt !== upcomingEvent.eventStartAt) ||
 				(input.eventEndAt && input.eventEndAt !== upcomingEvent.eventEndAt)
 			) {
-				await this.agendaService.rescheduleEventJobs(upcomingEvent._id, input.eventStartAt, input.eventEndAt);
+				const startTime = input.eventStartAt ? input.eventStartAt : upcomingEvent.eventStartAt;
+				const endTime = input.eventEndAt ? input.eventEndAt : upcomingEvent.eventEndAt;
+				await this.agendaService.rescheduleEventJobs(upcomingEvent._id, startTime, endTime);
 			}
 		}
 	}
 
 	private async updateEventWithValidation(event: Event, input: EventUpdateInput): Promise<Event> {
 		// Validate Input fields
-		if (input.eventPrice <= 0) input.eventPrice = 0;
+		if (input.eventPrice && input.eventPrice <= 0) input.eventPrice = 0;
 		if (input.eventCategories && input.eventCategories.length > 3) {
 			input.eventCategories = input.eventCategories.slice(0, 3);
 		}
@@ -504,7 +531,9 @@ export class EventService {
 			(input.eventStartAt && input.eventStartAt !== event.eventStartAt) ||
 			(input.eventEndAt && input.eventEndAt !== event.eventEndAt)
 		) {
-			await this.agendaService.rescheduleEventJobs(result._id, input.eventStartAt, input.eventEndAt);
+			const startTime = input.eventStartAt ? input.eventStartAt : event.eventStartAt;
+			const endTime = input.eventEndAt ? input.eventEndAt : event.eventEndAt;
+			await this.agendaService.rescheduleEventJobs(result._id, startTime, endTime);
 		}
 
 		return result;

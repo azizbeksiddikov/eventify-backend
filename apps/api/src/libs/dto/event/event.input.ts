@@ -2,7 +2,7 @@ import { Field, InputType, Int } from '@nestjs/graphql';
 import { IsNotEmpty, IsOptional, IsNumber, IsArray, IsEnum, IsDate, Min, MaxLength, IsIn } from 'class-validator';
 import { EventStatus, EventCategory, EventType } from '../../enums/event.enum';
 import { Direction } from '../../enums/common.enum';
-import { ObjectId } from 'mongoose';
+import type { ObjectId } from 'mongoose';
 
 // ============== Event Creation Input ==============
 @InputType()

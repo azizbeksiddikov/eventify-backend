@@ -266,8 +266,10 @@ export class GroupService {
 			throw new BadRequestException(Message.NOT_GROUP_ADMIN);
 		}
 
-		if (input.groupCategories?.length > 3) input.groupCategories = input.groupCategories.slice(0, 3);
-		return await this.groupModel.findByIdAndUpdate(input._id, { ...input }, { new: true });
+		if (input.groupCategories && input.groupCategories.length > 3) {
+			input.groupCategories = input.groupCategories.slice(0, 3);
+		}
+		return (await this.groupModel.findByIdAndUpdate(input._id, { ...input }, { new: true }))!;
 	}
 
 	public async deleteGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {
@@ -283,7 +285,7 @@ export class GroupService {
 			modifier: -1,
 		});
 
-		return await this.groupModel.findByIdAndDelete(groupId);
+		return (await this.groupModel.findByIdAndDelete(groupId))!;
 	}
 
 	public async likeTargetGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {
@@ -478,7 +480,7 @@ export class GroupService {
 		return group;
 	}
 
-	public async isAuthorized(memberId: ObjectId, groupId: ObjectId): Promise<GroupMember> {
+	public async isAuthorized(memberId: ObjectId, groupId: ObjectId): Promise<GroupMember | null> {
 		return await this.groupMemberModel.findOne({
 			memberId,
 			groupId: groupId,

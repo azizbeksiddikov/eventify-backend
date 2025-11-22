@@ -43,7 +43,8 @@ export class TicketService {
 		if (!event) throw new BadRequestException(Message.EVENT_NOT_FOUND);
 
 		// Check if the event is full
-		if (event.attendeeCount + ticketQuantity > event.eventCapacity) throw new BadRequestException(Message.EVENT_FULL);
+		if (event.eventCapacity && event.attendeeCount + ticketQuantity > event.eventCapacity)
+			throw new BadRequestException(Message.EVENT_FULL);
 
 		// Check if the member has enough points
 		const member = await this.memberService.getSimpleMember(memberId);

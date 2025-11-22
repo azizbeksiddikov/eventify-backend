@@ -46,7 +46,7 @@ export class FaqResolver {
 	@Roles(MemberType.ADMIN)
 	@UseGuards(RolesGuard)
 	@Mutation(() => Faq)
-	public async updateFaq(@Args('input') input: FaqUpdate): Promise<Faq> {
+	public async updateFaq(@Args('input') input: FaqUpdate): Promise<Faq | null> {
 		console.log('Mutation: updateFaq');
 		input._id = shapeIntoMongoObjectId(input._id);
 		return await this.faqService.updateFaq(input);
@@ -55,7 +55,7 @@ export class FaqResolver {
 	@Roles(MemberType.ADMIN)
 	@UseGuards(RolesGuard)
 	@Mutation(() => Faq)
-	public async removeFaq(@Args('input') input: string): Promise<Faq> {
+	public async removeFaq(@Args('input') input: string): Promise<Faq | null> {
 		console.log('Mutation: removeFaq');
 		const faqId = shapeIntoMongoObjectId(input);
 		return await this.faqService.removeFaq(faqId);

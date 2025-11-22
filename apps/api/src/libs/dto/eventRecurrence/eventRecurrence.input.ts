@@ -11,7 +11,7 @@ import {
 	ValidateIf,
 } from 'class-validator';
 import { EventStatus, EventCategory, RecurrenceType } from '../../enums/event.enum';
-import { ObjectId } from 'mongoose';
+import type { ObjectId } from 'mongoose';
 
 @InputType()
 export class EventRecurrenceInput {

@@ -2,7 +2,7 @@ import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { AuthMember } from '../auth/decorators/authMember.decorator';
-import { ObjectId } from 'mongoose';
+import type { ObjectId } from 'mongoose';
 import { MemberType } from '../../libs/enums/member.enum';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -134,7 +134,7 @@ export class EventResolver {
 	@Roles(MemberType.ADMIN)
 	@UseGuards(RolesGuard)
 	@Mutation(() => Event)
-	public async removeEventByAdmin(@Args('eventId') eventId: string): Promise<Event> {
+	public async removeEventByAdmin(@Args('eventId') eventId: string): Promise<Event | null> {
 		console.log('Mutation: removeEventByAdmin');
 		const targetId = shapeIntoMongoObjectId(eventId);
 		return await this.eventService.removeEventByAdmin(targetId);

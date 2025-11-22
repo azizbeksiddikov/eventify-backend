@@ -1,6 +1,6 @@
 import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
-import { ObjectId } from 'mongoose';
+import type { ObjectId } from 'mongoose';
 
 // ===== Nest Guards and Decorators =====
 import { AuthGuard } from '../auth/guards/auth.guard';

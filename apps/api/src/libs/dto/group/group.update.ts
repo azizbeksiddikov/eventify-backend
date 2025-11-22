@@ -1,6 +1,6 @@
 import { Field, InputType } from '@nestjs/graphql';
 import { IsOptional, IsString, IsArray, IsNotEmpty } from 'class-validator';
-import { ObjectId } from 'mongoose';
+import type { ObjectId } from 'mongoose';
 
 @InputType()
 export class GroupUpdateInput {

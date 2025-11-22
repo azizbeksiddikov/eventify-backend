@@ -2,7 +2,7 @@ import { Field, ObjectType } from '@nestjs/graphql';
 import { TicketStatus } from '../../enums/ticket.enum';
 import { TotalCounter } from '../member/member';
 import { Event } from '../event/event';
-import { ObjectId } from 'mongoose';
+import type { ObjectId } from 'mongoose';
 
 @ObjectType()
 export class Ticket {

@@ -1,7 +1,7 @@
 import { Field, InputType } from '@nestjs/graphql';
 import { IsOptional, IsNotEmpty, IsBoolean, IsEnum } from 'class-validator';
 import { MemberType, MemberStatus } from '../../enums/member.enum';
-import { ObjectId } from 'mongoose';
+import type { ObjectId } from 'mongoose';
 
 // ============== Member Update Input ==============
 @InputType()

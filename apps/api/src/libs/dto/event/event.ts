@@ -1,7 +1,7 @@
 import { Field, Int, ObjectType } from '@nestjs/graphql';
 import { EventStatus, EventCategory, EventType } from '../../enums/event.enum';
 import { Member, TotalCounter } from '../member/member';
-import { ObjectId } from 'mongoose';
+import type { ObjectId } from 'mongoose';
 import { MeLiked } from '../like/like';
 import { Group, MeJoined } from '../group/group';
 

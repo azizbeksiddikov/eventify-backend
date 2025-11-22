@@ -1,5 +1,5 @@
 import { Field, InputType } from '@nestjs/graphql';
-import { ObjectId } from 'mongoose';
+import type { ObjectId } from 'mongoose';
 import { IsNotEmpty, IsOptional } from 'class-validator';
 
 @InputType()

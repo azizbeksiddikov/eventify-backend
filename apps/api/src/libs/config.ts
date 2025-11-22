@@ -2,7 +2,6 @@ import { ObjectId } from 'bson';
 import { ObjectId as MongooseId } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
-import { T } from './types/common';
 
 export const shapeIntoMongoObjectId = (target: any) => {
 	return typeof target === 'string' ? new ObjectId(target) : target;

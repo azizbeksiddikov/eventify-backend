@@ -95,6 +95,7 @@ export class MemberService {
 			.findByIdAndUpdate(memberId, { memberPassword: hashedPassword }, { new: true })
 			.exec();
 
+		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
 		result.accessToken = await this.authService.createToken(result);
 		return result;
 	}

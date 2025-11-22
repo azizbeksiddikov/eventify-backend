@@ -2,7 +2,7 @@ import { Field, InputType, Int } from '@nestjs/graphql';
 import { IsNotEmpty, IsString, IsNumber, IsEnum, IsOptional, IsIn, Min, IsArray } from 'class-validator';
 import { TicketStatus } from '../../enums/ticket.enum';
 import { Direction } from '../../enums/common.enum';
-import { ObjectId } from 'mongoose';
+import type { ObjectId } from 'mongoose';
 
 // ============== Ticket Creation Input ==============
 @InputType()

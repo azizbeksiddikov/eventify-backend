@@ -1,7 +1,7 @@
 import { Field, InputType } from '@nestjs/graphql';
 import { IsNotEmpty, IsString, IsEnum } from 'class-validator';
 import { LikeGroup } from '../../enums/like.enum';
-import { ObjectId } from 'mongoose';
+import type { ObjectId } from 'mongoose';
 
 // ============== Like Creation Input ==============
 @InputType()

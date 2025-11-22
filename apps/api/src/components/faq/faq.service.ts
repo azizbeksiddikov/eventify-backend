@@ -49,12 +49,12 @@ export class FaqService {
 		return result;
 	}
 
-	public async updateFaq(input: FaqUpdate): Promise<Faq> {
+	public async updateFaq(input: FaqUpdate): Promise<Faq | null> {
 		const faq = await this.faqModel.findByIdAndUpdate(input._id, input, { new: true });
 		return faq;
 	}
 
-	public async removeFaq(faqId: ObjectId): Promise<Faq> {
+	public async removeFaq(faqId: ObjectId): Promise<Faq | null> {
 		return await this.faqModel.findByIdAndDelete(faqId);
 	}
 }

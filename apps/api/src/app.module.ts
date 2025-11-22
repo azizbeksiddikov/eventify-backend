@@ -20,7 +20,8 @@ import { T } from './libs/types/common';
 
 		// serve static files
 		ServeStaticModule.forRoot({
-			rootPath: join(__dirname, '..', '..', 'uploads'),
+			rootPath: join(process.cwd(), 'uploads'),
+			serveRoot: '/uploads',
 		}),
 
 		// graphql

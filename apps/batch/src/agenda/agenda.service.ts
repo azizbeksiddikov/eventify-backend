@@ -4,10 +4,10 @@ import { Model } from 'mongoose';
 import { Agenda } from 'agenda';
 
 // ===== DTOs =====
-import { Event } from '@app/eventify-api/src/libs/dto/event/event';
+import { Event } from '@app/api/src/libs/dto/event/event';
 
 // ===== Enums =====
-import { EventStatus } from '@app/eventify-api/src/libs/enums/event.enum';
+import { EventStatus } from '@app/api/src/libs/enums/event.enum';
 
 @Injectable()
 export class AgendaService implements OnModuleInit, OnModuleDestroy {

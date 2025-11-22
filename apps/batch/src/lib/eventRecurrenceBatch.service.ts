@@ -5,11 +5,11 @@ import { Model } from 'mongoose';
 import { Agenda } from 'agenda';
 
 // ===== DTOs =====
-import { EventRecurrence } from '@app/eventify-api/src/libs/dto/eventRecurrence/eventRecurrence';
-import { Event } from '@app/eventify-api/src/libs/dto/event/event';
+import { EventRecurrence } from '@app/api/src/libs/dto/eventRecurrence/eventRecurrence';
+import { Event } from '@app/api/src/libs/dto/event/event';
 
 // ===== Enums =====
-import { EventStatus, EventType, RecurrenceType } from '@app/eventify-api/src/libs/enums/event.enum';
+import { EventStatus, EventType, RecurrenceType } from '@app/api/src/libs/enums/event.enum';
 
 @Injectable()
 export class EventRecurrenceBatchService {

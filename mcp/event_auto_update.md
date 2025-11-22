@@ -16,14 +16,14 @@ Implement automatic event status transitions using AgendaJS. Events will automat
 - ✅ Matches existing pattern (batch server already runs scheduled cron jobs)
 - ✅ API server stays lightweight and focused on request handling
 
-### API Server Responsibilities (eventify-api)
+### API Server Responsibilities (api)
 
 - On POST /events (createEvent): Save event to MongoDB and **schedule** jobs via AgendaJS
 - On update/delete: **Cancel** existing jobs and **reschedule** if needed
 - Only schedules jobs, does NOT process them
 - Uses AgendaJS to create jobs in MongoDB collection (`agendaJobs`)
 
-### Batch Server Responsibilities (eventify-batch)
+### Batch Server Responsibilities (batch)
 
 - **Process** scheduled jobs from AgendaJS MongoDB collection
 - Handle status transitions: UPCOMING → ONGOING → COMPLETED
@@ -34,7 +34,7 @@ Implement automatic event status transitions using AgendaJS. Events will automat
 
 If you prefer simplicity over separation:
 
-- Implement everything in `eventify-api`
+- Implement everything in `api`
 - Schedule AND process jobs in the same server
 - Simpler but mixes API handling with background processing
 
@@ -44,14 +44,14 @@ If you prefer simplicity over separation:
 
 #### 1.1 Create Agenda Module (API Server - for scheduling)
 
-- **File**: `apps/eventify-api/src/components/agenda/agenda.module.ts`
+- **File**: `apps/api/src/components/agenda/agenda.module.ts`
 - Import AgendaJS and configure MongoDB connection
 - Export AgendaService for dependency injection
 - **Purpose**: Only schedules jobs, does NOT process them
 
 #### 1.2 Create Agenda Service (API Server - for scheduling)
 
-- **File**: `apps/eventify-api/src/components/agenda/agenda.service.ts`
+- **File**: `apps/api/src/components/agenda/agenda.service.ts`
 - Initialize Agenda instance with MongoDB connection
 - **DO NOT** define job processors here (only scheduling)
 - Methods:
@@ -62,18 +62,18 @@ If you prefer simplicity over separation:
 
 #### 1.3 Register Agenda Module (API Server)
 
-- Add AgendaModule to `apps/eventify-api/src/components/components.module.ts`
+- Add AgendaModule to `apps/api/src/components/components.module.ts`
 - Ensure AgendaService is available in EventService
 
 #### 1.4 Create Agenda Module (Batch Server - for processing)
 
-- **File**: `apps/eventify-batch/src/agenda/agenda.module.ts`
+- **File**: `apps/batch/src/agenda/agenda.module.ts`
 - Import AgendaJS and configure MongoDB connection (same DB as API)
 - Export AgendaService for job processing
 
 #### 1.5 Create Agenda Service (Batch Server - for processing)
 
-- **File**: `apps/eventify-batch/src/agenda/agenda.service.ts`
+- **File**: `apps/batch/src/agenda/agenda.service.ts`
 - Initialize Agenda instance with MongoDB connection
 - **Define job processors** (this is where jobs are executed):
   - `event-start`: Change status from UPCOMING → ONGOING
@@ -85,14 +85,14 @@ If you prefer simplicity over separation:
 
 #### 1.6 Register Agenda Module (Batch Server)
 
-- Add AgendaModule to `apps/eventify-batch/src/batch.module.ts`
+- Add AgendaModule to `apps/batch/src/batch.module.ts`
 - Initialize job processors on batch server startup
 
 ### 2. Event Service Integration
 
 #### 2.1 Update `createEvent()` method
 
-**Location**: `apps/eventify-api/src/components/event/event.service.ts` (lines 50-97)
+**Location**: `apps/api/src/components/event/event.service.ts` (lines 50-97)
 
 **Changes**:
 
@@ -112,7 +112,7 @@ await this.agendaService.scheduleEventEnd(event._id, event.eventEndAt);
 
 #### 2.2 Update `updateEventByOrganizer()` method
 
-**Location**: `apps/eventify-api/src/components/event/event.service.ts` (lines 206-227)
+**Location**: `apps/api/src/components/event/event.service.ts` (lines 206-227)
 
 **Changes**:
 
@@ -139,7 +139,7 @@ if (updatedEvent.eventStatus === EventStatus.UPCOMING) {
 
 #### 2.3 Update `updateEventByAdmin()` method
 
-**Location**: `apps/eventify-api/src/components/event/event.service.ts` (lines 304-309)
+**Location**: `apps/api/src/components/event/event.service.ts` (lines 304-309)
 
 **Changes**:
 
@@ -162,7 +162,7 @@ if (result.eventStatus === EventStatus.UPCOMING) {
 
 #### 2.4 Update `removeEventByAdmin()` method
 
-**Location**: `apps/eventify-api/src/components/event/event.service.ts` (lines 311-319)
+**Location**: `apps/api/src/components/event/event.service.ts` (lines 311-319)
 
 **Changes**:
 
@@ -183,7 +183,7 @@ await this.agendaService.cancelEventJobs(eventId);
 #### 3.1 Event Start Job Handler
 
 - **Job Name**: `event-start`
-- **Location**: `apps/eventify-batch/src/agenda/agenda.service.ts`
+- **Location**: `apps/batch/src/agenda/agenda.service.ts`
 - **Action**: Update event status from UPCOMING → ONGOING
 - **Validation**:
   - Check if event still exists
@@ -194,7 +194,7 @@ await this.agendaService.cancelEventJobs(eventId);
 #### 3.2 Event End Job Handler
 
 - **Job Name**: `event-end`
-- **Location**: `apps/eventify-batch/src/agenda/agenda.service.ts`
+- **Location**: `apps/batch/src/agenda/agenda.service.ts`
 - **Action**: Update event status from ONGOING → COMPLETED
 - **Validation**:
   - Check if event still exists
@@ -318,21 +318,21 @@ This allows easy cancellation and prevents duplicate jobs.
 
 ### New Files (API Server):
 
-1. `apps/eventify-api/src/components/agenda/agenda.module.ts` - Agenda module for scheduling
-2. `apps/eventify-api/src/components/agenda/agenda.service.ts` - Agenda service for scheduling only
+1. `apps/api/src/components/agenda/agenda.module.ts` - Agenda module for scheduling
+2. `apps/api/src/components/agenda/agenda.service.ts` - Agenda service for scheduling only
 
 ### New Files (Batch Server):
 
-3. `apps/eventify-batch/src/agenda/agenda.module.ts` - Agenda module for processing
-4. `apps/eventify-batch/src/agenda/agenda.service.ts` - Agenda service with job processors
+3. `apps/batch/src/agenda/agenda.module.ts` - Agenda module for processing
+4. `apps/batch/src/agenda/agenda.service.ts` - Agenda service with job processors
 
 ### Modified Files:
 
-1. `apps/eventify-api/src/components/components.module.ts` - Add AgendaModule
-2. `apps/eventify-api/src/components/event/event.service.ts` - Integrate AgendaService (scheduling)
-3. `apps/eventify-api/src/components/event/event.module.ts` - Import AgendaModule
-4. `apps/eventify-batch/src/batch.module.ts` - Add AgendaModule and Event schema
-5. `apps/eventify-batch/src/batch.service.ts` - Initialize AgendaJS processors on startup (optional)
+1. `apps/api/src/components/components.module.ts` - Add AgendaModule
+2. `apps/api/src/components/event/event.service.ts` - Integrate AgendaService (scheduling)
+3. `apps/api/src/components/event/event.module.ts` - Import AgendaModule
+4. `apps/batch/src/batch.module.ts` - Add AgendaModule and Event schema
+5. `apps/batch/src/batch.service.ts` - Initialize AgendaJS processors on startup (optional)
 
 ## Implementation Order
 
@@ -360,11 +360,11 @@ This allows easy cancellation and prevents duplicate jobs.
 
 - [ ] **Create agenda directory**
 
-  - Create folder: `apps/eventify-api/src/components/agenda/`
+  - Create folder: `apps/api/src/components/agenda/`
 
 - [ ] **Create agenda.module.ts (API)**
 
-  - File: `apps/eventify-api/src/components/agenda/agenda.module.ts`
+  - File: `apps/api/src/components/agenda/agenda.module.ts`
   - Follow established import pattern with section comments:
 
     ```typescript
@@ -388,7 +388,7 @@ This allows easy cancellation and prevents duplicate jobs.
 
 - [ ] **Create agenda.service.ts (API - Scheduling Only)**
 
-  - File: `apps/eventify-api/src/components/agenda/agenda.service.ts`
+  - File: `apps/api/src/components/agenda/agenda.service.ts`
   - Follow established import pattern with section comments:
     ```typescript
     import { Injectable, Logger } from '@nestjs/common';
@@ -430,13 +430,13 @@ This allows easy cancellation and prevents duplicate jobs.
 
 - [ ] **Register AgendaModule in components.module.ts**
 
-  - File: `apps/eventify-api/src/components/components.module.ts`
+  - File: `apps/api/src/components/components.module.ts`
   - Import `AgendaModule` from `./agenda/agenda.module`
   - Add `AgendaModule` to imports array (alphabetically, after AuthModule)
   - Follow established pattern with organized imports
 
 - [ ] **Import AgendaModule in event.module.ts**
-  - File: `apps/eventify-api/src/components/event/event.module.ts`
+  - File: `apps/api/src/components/event/event.module.ts`
   - Import `AgendaModule` from `../agenda/agenda.module`
   - Add `AgendaModule` to imports array (in `// ===== Components =====` section)
   - Follow established import organization pattern
@@ -445,14 +445,14 @@ This allows easy cancellation and prevents duplicate jobs.
 
 - [ ] **Update event.service.ts - Inject AgendaService**
 
-  - File: `apps/eventify-api/src/components/event/event.service.ts`
+  - File: `apps/api/src/components/event/event.service.ts`
   - Import `AgendaService` from `../agenda/agenda.service`
   - Add import in `// ===== Services =====` section (follow established pattern)
   - Add `AgendaService` to constructor parameters (after existing services)
 
 - [ ] **Update createEvent() method**
 
-  - File: `apps/eventify-api/src/components/event/event.service.ts`
+  - File: `apps/api/src/components/event/event.service.ts`
   - After event creation (after line 66, before return)
   - Add check: Only schedule if `event.eventStatus === EventStatus.UPCOMING`
   - Add check: Only schedule if `event.eventStartAt > new Date()` (future date)
@@ -463,7 +463,7 @@ This allows easy cancellation and prevents duplicate jobs.
 
 - [ ] **Update updateEventByOrganizer() method**
 
-  - File: `apps/eventify-api/src/components/event/event.service.ts`
+  - File: `apps/api/src/components/event/event.service.ts`
   - Before update (before line 218): Call `await this.agendaService.cancelEventJobs(input._id)`
   - After update (after line 218): Check if status is UPCOMING and dates are in future
   - If conditions met: Call `await this.agendaService.rescheduleEventJobs(updatedEvent._id, updatedEvent.eventStartAt, updatedEvent.eventEndAt)`
@@ -472,7 +472,7 @@ This allows easy cancellation and prevents duplicate jobs.
 
 - [ ] **Update updateEventByAdmin() method**
 
-  - File: `apps/eventify-api/src/components/event/event.service.ts`
+  - File: `apps/api/src/components/event/event.service.ts`
   - Before update (before line 305): Call `await this.agendaService.cancelEventJobs(input._id)`
   - After update (after line 308): Check if status is UPCOMING and dates are in future
   - If conditions met: Call `await this.agendaService.rescheduleEventJobs(result._id, result.eventStartAt, result.eventEndAt)`
@@ -480,7 +480,7 @@ This allows easy cancellation and prevents duplicate jobs.
   - Add logging
 
 - [ ] **Update removeEventByAdmin() method**
-  - File: `apps/eventify-api/src/components/event/event.service.ts`
+  - File: `apps/api/src/components/event/event.service.ts`
   - Before deletion (before line 315): Call `await this.agendaService.cancelEventJobs(eventId)`
   - Wrap in try-catch
   - Add logging
@@ -489,11 +489,11 @@ This allows easy cancellation and prevents duplicate jobs.
 
 - [ ] **Create agenda directory**
 
-  - Create folder: `apps/eventify-batch/src/agenda/`
+  - Create folder: `apps/batch/src/agenda/`
 
 - [ ] **Create agenda.module.ts (Batch)**
 
-  - File: `apps/eventify-batch/src/agenda/agenda.module.ts`
+  - File: `apps/batch/src/agenda/agenda.module.ts`
   - Follow established import pattern:
 
     ```typescript
@@ -501,7 +501,7 @@ This allows easy cancellation and prevents duplicate jobs.
     import { MongooseModule } from '@nestjs/mongoose';
 
     // ===== Schemas =====
-    import EventSchema from '@app/eventify-api/src/schemas/Event.schema';
+    import EventSchema from '@app/api/src/schemas/Event.schema';
 
     // ===== Agenda Components =====
     import { AgendaService } from './agenda.service';
@@ -514,7 +514,7 @@ This allows easy cancellation and prevents duplicate jobs.
 
 - [ ] **Create agenda.service.ts (Batch - Processing)**
 
-  - File: `apps/eventify-batch/src/agenda/agenda.service.ts`
+  - File: `apps/batch/src/agenda/agenda.service.ts`
   - Follow established import pattern with section comments:
 
     ```typescript
@@ -524,10 +524,10 @@ This allows easy cancellation and prevents duplicate jobs.
     import { Agenda } from 'agenda';
 
     // ===== DTOs =====
-    import { Event } from '@app/eventify-api/src/libs/dto/event/event';
+    import { Event } from '@app/api/src/libs/dto/event/event';
 
     // ===== Enums =====
-    import { EventStatus } from '@app/eventify-api/src/libs/enums/event.enum';
+    import { EventStatus } from '@app/api/src/libs/enums/event.enum';
     ```
 
   - Create `AgendaService` class with `@Injectable()`
@@ -584,7 +584,7 @@ This allows easy cancellation and prevents duplicate jobs.
 
 - [ ] **Register AgendaModule in batch.module.ts**
 
-  - File: `apps/eventify-batch/src/batch.module.ts`
+  - File: `apps/batch/src/batch.module.ts`
   - Import `AgendaModule`
   - Add `AgendaModule` to imports array
 

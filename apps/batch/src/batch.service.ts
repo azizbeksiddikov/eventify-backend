@@ -1,7 +1,7 @@
-import { MemberStatus, MemberType } from '@app/eventify-api/src/libs/enums/member.enum';
+import { MemberStatus, MemberType } from '@app/api/src/libs/enums/member.enum';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Member } from 'apps/eventify-api/src/libs/dto/member/member';
+import { Member } from '@app/api/src/libs/dto/member/member';
 import { Model } from 'mongoose';
 
 @Injectable()
@@ -36,6 +36,6 @@ export class BatchService {
 	}
 
 	getHello(): string {
-		return 'Welcome to eventify-batch server!';
+		return 'Welcome to Eventify batch server!';
 	}
 }

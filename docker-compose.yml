@@ -1,6 +1,6 @@
 services:
-  eventify-api:
-    container_name: eventify-api
+  api:
+    container_name: api
     restart: always
     image: node:20.18.1
     ports:
@@ -14,8 +14,8 @@ services:
 
     # FOR PRODUCTION
     command: bash -c "rm -rf dist && rm -rf node_modules && npm install && npm run build && npm run start:prod"
-  eventify-batch:
-    container_name: eventify-batch
+  batch:
+    container_name: batch
     restart: unless-stopped
     image: node:20.18.1
     ports:

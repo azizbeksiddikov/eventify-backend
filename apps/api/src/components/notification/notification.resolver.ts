@@ -1,7 +1,7 @@
 import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 
 // Guards
-import { AuthGuard } from '../../components/auth/guards/auth.guard';
+import { AuthGuard } from '../auth/guards/auth.guard';
 import { UseGuards } from '@nestjs/common';
 
 // Services

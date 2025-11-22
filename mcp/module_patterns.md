@@ -1,4 +1,4 @@
-# Eventify-API Module Development Patterns
+# Eventify API Module Development Patterns
 
 ## Module Structure
 
@@ -140,7 +140,7 @@ export class ModuleResolver {
 ### 4. Register in ComponentsModule
 
 ```typescript
-// apps/eventify-api/src/components/components.module.ts
+// apps/api/src/components/components.module.ts
 import { ModuleModule } from './module/module.module';
 
 @Module({

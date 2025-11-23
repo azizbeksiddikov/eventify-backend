@@ -21,6 +21,7 @@ export class EventRecurrenceBatchService {
 		@InjectModel('Event') private readonly eventModel: Model<Event>,
 	) {
 		const mongoUri = process.env.NODE_ENV === 'production' ? process.env.MONGO_PROD : process.env.MONGO_DEV;
+		if (!mongoUri) throw new Error('No DB key configured');
 		this.agenda = new Agenda({
 			db: { address: mongoUri },
 		});
@@ -153,6 +154,7 @@ export class EventRecurrenceBatchService {
 		endDate: Date,
 		duration: number,
 	): { startAt: Date; endAt: Date }[] {
+		if (!recurrence.recurrenceInterval) throw new Error('No recurrence.recurrenceInterval');
 		const occurrences: { startAt: Date; endAt: Date }[] = [];
 		let currentDate = new Date(startDate);
 		currentDate.setHours(new Date(recurrence.eventStartAt).getHours());
@@ -177,6 +179,7 @@ export class EventRecurrenceBatchService {
 		endDate: Date,
 		duration: number,
 	): { startAt: Date; endAt: Date }[] {
+		if (!recurrence.recurrenceDaysOfWeek) throw new Error('recurrence.recurrenceDaysOfWeek');
 		const occurrences: { startAt: Date; endAt: Date }[] = [];
 		let currentDate = new Date(startDate);
 		currentDate.setHours(new Date(recurrence.eventStartAt).getHours());
@@ -200,6 +203,7 @@ export class EventRecurrenceBatchService {
 		endDate: Date,
 		duration: number,
 	): { startAt: Date; endAt: Date }[] {
+		if (!recurrence.recurrenceDayOfMonth) throw new Error('No recurrence.recurrenceDayOfMonth');
 		const occurrences: { startAt: Date; endAt: Date }[] = [];
 		let currentDate = new Date(startDate);
 		currentDate.setDate(1); // Start from first day of month

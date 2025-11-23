@@ -16,7 +16,7 @@ export class AgendaService implements OnModuleInit, OnModuleDestroy {
 
 	constructor(@InjectModel('Event') private readonly eventModel: Model<Event>) {
 		const mongoUri = process.env.NODE_ENV === 'production' ? process.env.MONGO_PROD : process.env.MONGO_DEV;
-
+		if (!mongoUri) throw new Error('No mongoDB uri');
 		this.agenda = new Agenda({
 			db: { address: mongoUri },
 		});

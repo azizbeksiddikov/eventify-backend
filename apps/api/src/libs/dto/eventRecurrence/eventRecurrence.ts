@@ -1,5 +1,5 @@
 import { Field, Int, ObjectType } from '@nestjs/graphql';
-import { EventStatus, EventCategory, RecurrenceType } from '../../enums/event.enum';
+import { EventStatus, EventCategory, RecurrenceType, EventLocationType } from '../../enums/event.enum';
 import type { ObjectId } from 'mongoose';
 
 @ObjectType()
@@ -35,10 +35,23 @@ export class EventRecurrence {
 	eventImages: string[];
 
 	@Field(() => String)
-	eventAddress: string;
+	eventTimezone: string;
 
-	@Field(() => String)
-	eventCity: string;
+	@Field(() => EventLocationType)
+	locationType: EventLocationType;
+
+	@Field(() => String, { nullable: true })
+	eventCity?: string;
+
+	@Field(() => String, { nullable: true })
+	eventAddress?: string;
+
+	// Coordinates
+	@Field(() => Number, { nullable: true })
+	coordinateLatitude?: number;
+
+	@Field(() => Number, { nullable: true })
+	coordinateLongitude?: number;
 
 	@Field(() => Int, { nullable: true })
 	eventCapacity?: number;
@@ -48,6 +61,9 @@ export class EventRecurrence {
 
 	@Field(() => [EventCategory])
 	eventCategories: EventCategory[];
+
+	@Field(() => [String])
+	eventTags: string[];
 
 	@Field(() => EventStatus)
 	eventStatus: EventStatus;

@@ -11,7 +11,7 @@ import {
 	MaxLength,
 	IsEnum,
 } from 'class-validator';
-import { EventStatus, EventCategory } from '../../enums/event.enum';
+import { EventStatus, EventCategory, EventLocationType } from '../../enums/event.enum';
 import type { ObjectId } from 'mongoose';
 
 @InputType()
@@ -54,6 +54,17 @@ export class EventUpdateInput {
 	@IsOptional()
 	eventEndAt?: Date;
 
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	@IsString()
+	eventTimezone?: string;
+
+	// ===== Location Details =====
+	@Field(() => EventLocationType, { nullable: true })
+	@IsOptional()
+	@IsEnum(EventLocationType)
+	locationType?: EventLocationType;
+
 	// ===== Event Details =====
 	@Field(() => String, { nullable: true })
 	@IsOptional()
@@ -66,6 +77,17 @@ export class EventUpdateInput {
 	@IsString()
 	@MaxLength(200)
 	eventAddress?: string;
+
+	// Coordinates
+	@Field(() => Number, { nullable: true })
+	@IsOptional()
+	@IsNumber()
+	coordinateLatitude?: number;
+
+	@Field(() => Number, { nullable: true })
+	@IsOptional()
+	@IsNumber()
+	coordinateLongitude?: number;
 
 	@Field(() => Number, { nullable: true })
 	@IsOptional()
@@ -90,4 +112,26 @@ export class EventUpdateInput {
 	@IsArray()
 	@IsEnum(EventCategory, { each: true })
 	eventCategories?: EventCategory[];
+
+	@Field(() => [String], { nullable: true })
+	@IsOptional()
+	@IsArray()
+	@IsString({ each: true })
+	eventTags?: string[];
+
+	// ===== External Source Information =====
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	@IsString()
+	externalId?: string;
+
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	@IsString()
+	externalUrl?: string;
+
+	@Field(() => Boolean, { nullable: true })
+	@IsOptional()
+	@IsBoolean()
+	isRealEvent?: boolean;
 }

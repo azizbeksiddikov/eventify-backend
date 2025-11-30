@@ -1,4 +1,4 @@
-import { EventCategory, EventStatus, EventType } from '../../enums/event.enum';
+import { EventCategory, EventStatus, EventType, EventLocationType } from '../../enums/event.enum';
 
 export class CrawledEvent {
 	// ===== Event Type =====
@@ -12,15 +12,28 @@ export class CrawledEvent {
 	// ===== Event Timestamps =====
 	eventStartAt: Date;
 	eventEndAt: Date;
+	eventTimezone?: string;
+
+	// ===== Location Details =====
+	locationType?: EventLocationType;
+	eventCity?: string;
+	eventAddress?: string;
+	eventCoordinates?: {
+		lat: number;
+		lon: number;
+	};
 
 	// ===== Event Details =====
-	// eventCity: string;
-	// eventAddress: string;
 	eventPrice: number; // default is 0
 
 	// ===== Type and Status =====
 	eventStatus?: EventStatus;
 	eventCategories: EventCategory[];
+	eventTags?: string[];
+
+	// ===== External Source Information =====
+	externalId?: string; // Original event ID from external platform
+	externalUrl?: string; // Link to original event page
 
 	// ===== References =====
 	groupId?: string;
@@ -30,11 +43,12 @@ export class CrawledEvent {
 	eventCapacity?: number; // default is null
 
 	// additional fields
-	eventUrl?: string;
-	location?: EventLocation;
+	eventUrl?: string; // Deprecated: use externalUrl instead
+	location?: EventLocation; // Deprecated: use locationType, eventCity, eventAddress instead
 
-	// Just in case (for debugging)
-	rawData?: any;
+	// ===== Data Storage =====
+	isRealEvent: boolean; // default is false
+	rawData?: any; // Just in case (for debugging)
 }
 
 export interface EventLocation {

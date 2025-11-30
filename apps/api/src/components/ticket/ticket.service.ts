@@ -63,14 +63,16 @@ export class TicketService {
 			};
 			const newTicket: Ticket = (await this.ticketModel.create(newTicketInput)) as Ticket;
 
-			// create notification
-			const newNotification: NotificationInput = {
-				memberId: memberId,
-				receiverId: event.memberId,
-				notificationType: NotificationType.JOIN_EVENT,
-				notificationLink: `/events?${eventId}`,
-			};
-			await this.notificationService.createNotification(newNotification);
+			// create notification for event organizer
+			if (event.memberId) {
+				const newNotification: NotificationInput = {
+					memberId: memberId,
+					receiverId: event.memberId,
+					notificationType: NotificationType.JOIN_EVENT,
+					notificationLink: `/events?${eventId}`,
+				};
+				await this.notificationService.createNotification(newNotification);
+			}
 
 			// update member stats
 			await this.memberService.memberStatsEditor({ _id: memberId, targetKey: 'memberEvents', modifier: 1 });

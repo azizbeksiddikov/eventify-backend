@@ -6,6 +6,11 @@ export enum EventType {
 	RECURRING = 'RECURRING',
 }
 
+export enum EventLocationType {
+	ONLINE = 'ONLINE',
+	OFFLINE = 'OFFLINE',
+}
+
 // ===== Event Status =====
 export enum EventStatus {
 	UPCOMING = 'UPCOMING', // created but not yet started
@@ -49,4 +54,5 @@ export enum EventJobStatus {
 registerEnumType(EventType, { name: 'EventType' });
 registerEnumType(EventStatus, { name: 'EventStatus' });
 registerEnumType(EventCategory, { name: 'EventCategory' });
+registerEnumType(EventLocationType, { name: 'EventLocationType' });
 registerEnumType(RecurrenceType, { name: 'RecurrenceType' });

@@ -443,6 +443,7 @@ export class MeetupScraper implements IEventScraper {
 		};
 
 		return {
+			isRealEvent: true,
 			eventType: EventType.ONCE,
 			eventName: eventName.substring(0, 100) || 'Untitled Event',
 			eventDesc:
@@ -677,6 +678,7 @@ export class MeetupScraper implements IEventScraper {
 		const eventEndDate = new Date(eventStartDate.getTime() + 2 * 60 * 60 * 1000); // Add 2 hours
 
 		return {
+			isRealEvent: true,
 			eventType: EventType.ONCE,
 			eventName: eventName.substring(0, 100),
 			eventDesc: eventDescription.substring(0, 2000) || 'No description available',

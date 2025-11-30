@@ -1,9 +1,9 @@
 import { Field, Int, ObjectType } from '@nestjs/graphql';
-import { EventStatus, EventCategory, EventType } from '../../enums/event.enum';
+import { EventStatus, EventCategory, EventType, EventLocationType } from '../../enums/event.enum';
 import { Member, TotalCounter } from '../member/member';
 import type { ObjectId } from 'mongoose';
 import { MeLiked } from '../like/like';
-import { Group, MeJoined } from '../group/group';
+import { Group } from '../group/group';
 
 @ObjectType()
 export class Event {
@@ -33,13 +33,27 @@ export class Event {
 	@Field(() => Date)
 	eventEndAt: Date;
 
+	@Field(() => String)
+	eventTimezone: string;
+
+	// ===== Location Details =====
+	@Field(() => EventLocationType)
+	locationType: EventLocationType;
+
+	@Field(() => String, { nullable: true })
+	eventCity?: string;
+
+	@Field(() => String, { nullable: true })
+	eventAddress?: string;
+
+	// Coordinates
+	@Field(() => Number, { nullable: true })
+	coordinateLatitude?: number;
+
+	@Field(() => Number, { nullable: true })
+	coordinateLongitude?: number;
+
 	// ===== Event Details =====
-	@Field(() => String)
-	eventCity: string;
-
-	@Field(() => String)
-	eventAddress: string;
-
 	@Field(() => Int, { nullable: true })
 	eventCapacity?: number;
 
@@ -53,16 +67,28 @@ export class Event {
 	@Field(() => [EventCategory])
 	eventCategories: EventCategory[];
 
-	// ===== References =====
+	@Field(() => [String])
+	eventTags: string[];
+
+	// ===== Internal References =====
 	@Field(() => String, { nullable: true })
 	groupId?: ObjectId;
 
-	@Field(() => String)
-	memberId: ObjectId;
+	@Field(() => String, { nullable: true })
+	memberId?: ObjectId;
 
-	// ===== Origin =====
+	// ===== External Source Information =====
 	@Field(() => String)
-	origin: string;
+	origin: string; // 'internal' | 'meetup.com' | 'luma.com' | 'eventbrite.com', etc.
+
+	@Field(() => String, { nullable: true })
+	externalId?: string; // Original event ID from external platform
+
+	@Field(() => String, { nullable: true })
+	externalUrl?: string; // Link to original event page
+
+	@Field(() => Boolean)
+	isRealEvent: boolean;
 
 	// ===== Statistics =====
 	@Field(() => Int)
@@ -83,7 +109,7 @@ export class Event {
 
 	// ===== Aggregated Fields =====
 	@Field(() => Member, { nullable: true })
-	memberData?: Member;
+	memberData?: Member | null;
 
 	@Field(() => Group, { nullable: true })
 	hostingGroup?: Group;

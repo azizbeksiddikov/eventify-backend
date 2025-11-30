@@ -318,6 +318,7 @@ export class LumaScraper implements IEventScraper {
 						eventStartAt: startDate,
 						eventEndAt: endDate,
 						eventPrice: 0,
+						isRealEvent: true,
 						eventStatus: determineStatus(startDate, endDate),
 						eventCategories: [],
 						attendeeCount: 0,
@@ -438,6 +439,7 @@ export class LumaScraper implements IEventScraper {
 				eventImages: lumaEvent.cover_url ? [lumaEvent.cover_url] : [],
 				eventStartAt: startDate,
 				eventEndAt: endDate,
+				isRealEvent: true,
 				eventPrice: 0, // Will be enriched later
 				eventStatus: determineStatus(startDate, endDate),
 				eventCategories: [],

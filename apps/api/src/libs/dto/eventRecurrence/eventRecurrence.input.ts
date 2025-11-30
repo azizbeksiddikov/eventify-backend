@@ -9,8 +9,9 @@ import {
 	Min,
 	MaxLength,
 	ValidateIf,
+	IsString,
 } from 'class-validator';
-import { EventStatus, EventCategory, RecurrenceType } from '../../enums/event.enum';
+import { EventStatus, EventCategory, RecurrenceType, EventLocationType } from '../../enums/event.enum';
 import type { ObjectId } from 'mongoose';
 
 @InputType()
@@ -63,13 +64,41 @@ export class EventRecurrenceInput {
 
 	@Field(() => String)
 	@IsNotEmpty()
-	@MaxLength(100)
-	eventCity: string;
+	@IsString()
+	eventTimezone: string;
 
-	@Field(() => String)
+	@Field(() => EventLocationType)
 	@IsNotEmpty()
+	@IsEnum(EventLocationType)
+	locationType: EventLocationType;
+
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	@IsString()
+	@MaxLength(100)
+	eventCity?: string;
+
+	@Field(() => Boolean, { nullable: true })
+	@IsOptional()
+	@IsBoolean()
+	isRealEvent?: boolean;
+
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	@IsString()
 	@MaxLength(200)
-	eventAddress: string;
+	eventAddress?: string;
+
+	// Coordinates
+	@Field(() => Number, { nullable: true })
+	@IsOptional()
+	@IsNumber()
+	coordinateLatitude?: number;
+
+	@Field(() => Number, { nullable: true })
+	@IsOptional()
+	@IsNumber()
+	coordinateLongitude?: number;
 
 	@Field(() => Number, { nullable: true })
 	@IsOptional()
@@ -93,6 +122,12 @@ export class EventRecurrenceInput {
 	@IsArray()
 	@IsEnum(EventCategory, { each: true })
 	eventCategories: EventCategory[];
+
+	@Field(() => [String])
+	@IsNotEmpty()
+	@IsArray()
+	@IsString({ each: true })
+	eventTags: string[];
 
 	// ===== First Occurrence Template =====
 	@Field(() => Date)
@@ -165,13 +200,36 @@ export class EventRecurrenceUpdateInput {
 
 	@Field(() => String, { nullable: true })
 	@IsOptional()
+	@IsString()
+	eventTimezone?: string;
+
+	@Field(() => EventLocationType, { nullable: true })
+	@IsOptional()
+	@IsEnum(EventLocationType)
+	locationType?: EventLocationType;
+
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	@IsString()
 	@MaxLength(100)
 	eventCity?: string;
 
 	@Field(() => String, { nullable: true })
 	@IsOptional()
+	@IsString()
 	@MaxLength(200)
 	eventAddress?: string;
+
+	// Coordinates
+	@Field(() => Number, { nullable: true })
+	@IsOptional()
+	@IsNumber()
+	coordinateLatitude?: number;
+
+	@Field(() => Number, { nullable: true })
+	@IsOptional()
+	@IsNumber()
+	coordinateLongitude?: number;
 
 	@Field(() => Number, { nullable: true })
 	@IsOptional()
@@ -195,6 +253,12 @@ export class EventRecurrenceUpdateInput {
 	@IsArray()
 	@IsEnum(EventCategory, { each: true })
 	eventCategories?: EventCategory[];
+
+	@Field(() => [String], { nullable: true })
+	@IsOptional()
+	@IsArray()
+	@IsString({ each: true })
+	eventTags?: string[];
 
 	@Field(() => Date, { nullable: true })
 	@IsOptional()

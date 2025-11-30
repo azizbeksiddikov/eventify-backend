@@ -147,7 +147,7 @@ export class EventService {
 			event.meLiked = await this.likeService.checkLikeExistence(likeInput);
 		}
 
-		event.memberData = await this.memberService.getMember(null, event.memberId);
+		event.memberData = event.memberId ? await this.memberService.getMember(null, event.memberId) : null;
 		event.hostingGroup = event.groupId ? await this.groupService.getSimpleGroup(event.groupId) : undefined;
 
 		event.similarEvents = await this.eventModel
@@ -273,8 +273,8 @@ export class EventService {
 						{ $match: { eventCategories: category } },
 						{ $sort: { createdAt: Direction.DESC } },
 						{ $limit: input.limit },
-						lookupMember,
-						{ $unwind: '$memberData' },
+						// lookupMember,
+						// { $unwind: '$memberData' },
 						lookupAuthMemberLiked(memberId),
 					])
 					.exec();
@@ -302,7 +302,8 @@ export class EventService {
 		// Get and validate event
 		const event = await this.eventModel.findById(input._id).exec();
 		if (!event || event.eventStatus === EventStatus.DELETED) throw new Error(Message.EVENT_NOT_FOUND);
-		if (event.memberId.toString() !== memberId.toString()) throw new Error(Message.NOT_AUTHORIZED);
+		// if no event.memberId or if event.memberId but not the same as the memberId
+		if (!event.memberId || event.memberId.toString() !== memberId.toString()) throw new Error(Message.NOT_AUTHORIZED);
 
 		return await this.updateEventWithValidation(event, input);
 	}
@@ -315,12 +316,16 @@ export class EventService {
 
 		// like => unlike, unlike => like
 		const input: LikeInput = { memberId: memberId, likeRefId: likeRefId, likeGroup: LikeGroup.EVENT };
-		const newNotification: NotificationInput = {
-			memberId: memberId,
-			receiverId: event.memberId,
-			notificationType: NotificationType.LIKE_EVENT,
-			notificationLink: `/events?${likeRefId}`,
-		};
+
+		let newNotification: NotificationInput | null = null;
+		if (event.memberId) {
+			newNotification = {
+				memberId: memberId,
+				receiverId: event.memberId,
+				notificationType: NotificationType.LIKE_EVENT,
+				notificationLink: `/events?${likeRefId}`,
+			};
+		}
 		const modifier = await this.likeService.toggleLike(input, newNotification);
 
 		// update event stats
@@ -329,7 +334,7 @@ export class EventService {
 
 		// AGGREGATED FIELDS
 		// find eventorganizer
-		event.memberData = await this.memberService.getSimpleMember(event.memberId);
+		// event.memberData = event.memberId ? await this.memberService.getSimpleMember(event.memberId) : null;
 
 		// get meLiked
 		if (modifier > 0) {
@@ -423,11 +428,16 @@ export class EventService {
 		if (input.eventName) updateFields.eventName = input.eventName;
 		if (input.eventDesc) updateFields.eventDesc = input.eventDesc;
 		if (input.eventImages) updateFields.eventImages = input.eventImages;
+		if (input.eventTimezone) updateFields.eventTimezone = input.eventTimezone;
+		if (input.locationType) updateFields.locationType = input.locationType;
 		if (input.eventAddress) updateFields.eventAddress = input.eventAddress;
 		if (input.eventCity) updateFields.eventCity = input.eventCity;
+		if (input.coordinateLatitude) updateFields.coordinateLatitude = input.coordinateLatitude;
+		if (input.coordinateLongitude) updateFields.coordinateLongitude = input.coordinateLongitude;
 		if (input.eventCapacity !== undefined) updateFields.eventCapacity = input.eventCapacity;
 		if (input.eventPrice !== undefined) updateFields.eventPrice = input.eventPrice;
 		if (input.eventCategories) updateFields.eventCategories = input.eventCategories;
+		if (input.eventTags) updateFields.eventTags = input.eventTags;
 		if (input.eventStatus) updateFields.eventStatus = input.eventStatus;
 
 		if (
@@ -461,11 +471,13 @@ export class EventService {
 			) {
 				// Cancel all jobs if event is deleted or cancelled
 				await this.agendaService.cancelEventJobs(upcomingEvent._id);
-				await this.memberService.memberStatsEditor({
-					_id: upcomingEvent.memberId,
-					targetKey: 'eventsOrganizedCount',
-					modifier: -1,
-				});
+				if (upcomingEvent.memberId) {
+					await this.memberService.memberStatsEditor({
+						_id: upcomingEvent.memberId,
+						targetKey: 'eventsOrganizedCount',
+						modifier: -1,
+					});
+				}
 			} else if (
 				(input.eventStartAt && input.eventStartAt !== upcomingEvent.eventStartAt) ||
 				(input.eventEndAt && input.eventEndAt !== upcomingEvent.eventEndAt)
@@ -521,11 +533,13 @@ export class EventService {
 				(input.eventStatus === EventStatus.DELETED || input.eventStatus === EventStatus.CANCELLED) &&
 				event.eventStatus !== EventStatus.COMPLETED
 			) {
-				await this.memberService.memberStatsEditor({
-					_id: event.memberId,
-					targetKey: 'eventsOrganizedCount',
-					modifier: -1,
-				});
+				if (event.memberId) {
+					await this.memberService.memberStatsEditor({
+						_id: event.memberId,
+						targetKey: 'eventsOrganizedCount',
+						modifier: -1,
+					});
+				}
 			}
 		} else if (
 			(input.eventStartAt && input.eventStartAt !== event.eventStartAt) ||

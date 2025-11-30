@@ -88,12 +88,14 @@ export class CommentService {
 					targetKey: 'eventComments',
 					modifier: 1,
 				});
-				await this.notificationService.createNotification({
-					...newNotification,
-					receiverId: event.memberId,
-					notificationLink: `/events?${input.commentRefId}`,
-					notificationType: NotificationType.COMMENT_EVENT,
-				});
+				if (event.memberId) {
+					await this.notificationService.createNotification({
+						...newNotification,
+						receiverId: event.memberId,
+						notificationLink: `/events?${input.commentRefId}`,
+						notificationType: NotificationType.COMMENT_EVENT,
+					});
+				}
 				break;
 
 			case CommentGroup.GROUP:

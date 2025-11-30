@@ -1,5 +1,5 @@
 import { Schema } from 'mongoose';
-import { EventCategory, EventStatus, EventType } from '../libs/enums/event.enum';
+import { EventCategory, EventStatus, EventType, EventLocationType } from '../libs/enums/event.enum';
 
 const EventSchema = new Schema(
 	{
@@ -21,13 +21,11 @@ const EventSchema = new Schema(
 		eventName: {
 			type: String,
 			required: true,
-			maxlength: 100,
 		},
 
 		eventDesc: {
 			type: String,
 			required: true,
-			maxlength: 2000,
 		},
 
 		eventImages: {
@@ -47,23 +45,45 @@ const EventSchema = new Schema(
 			required: true,
 		},
 
-		// ===== Event Details =====
-		eventAddress: {
+		eventTimezone: {
 			type: String,
 			required: true,
-			maxlength: 200,
-		},
-		eventCity: {
-			type: String,
-			required: true,
-			maxlength: 100,
 		},
 
+		// ===== Location Details =====
+		locationType: {
+			type: String,
+			enum: EventLocationType,
+			required: true,
+		},
+
+		eventCity: {
+			type: String,
+			required: false,
+			default: null,
+		},
+
+		eventAddress: {
+			type: String,
+			required: false,
+			default: null,
+		},
+
+		coordinateLatitude: {
+			type: Number,
+			required: false,
+		},
+
+		coordinateLongitude: {
+			type: Number,
+			required: false,
+		},
+
+		// ===== Event Details =====
 		eventCapacity: {
 			type: Number,
 			required: false,
 			default: null,
-			min: 1,
 		},
 
 		eventPrice: {
@@ -85,6 +105,12 @@ const EventSchema = new Schema(
 			default: [],
 		},
 
+		eventTags: {
+			type: [String],
+			required: true,
+			default: [],
+		},
+
 		// ===== References =====
 		groupId: {
 			type: Schema.Types.ObjectId,
@@ -96,13 +122,32 @@ const EventSchema = new Schema(
 		memberId: {
 			type: Schema.Types.ObjectId,
 			ref: 'Member',
-			required: true,
+			required: false,
+			default: null,
 		},
 
-		// ===== Origin =====
+		// ===== External Source Information =====
 		origin: {
 			type: String,
-			default: 'eventify.azbek.me',
+			default: 'internal',
+		},
+
+		externalId: {
+			type: String,
+			required: false,
+			default: null,
+		},
+
+		externalUrl: {
+			type: String,
+			required: false,
+			default: null,
+		},
+
+		isRealEvent: {
+			type: Boolean,
+			required: true,
+			default: false,
 		},
 
 		// ===== Statistics =====

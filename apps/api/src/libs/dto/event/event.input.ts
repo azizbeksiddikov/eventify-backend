@@ -1,6 +1,16 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
-import { IsNotEmpty, IsOptional, IsNumber, IsArray, IsEnum, IsDate, Min, MaxLength, IsIn } from 'class-validator';
-import { EventStatus, EventCategory, EventType } from '../../enums/event.enum';
+import {
+	IsNotEmpty,
+	IsOptional,
+	IsNumber,
+	IsArray,
+	IsEnum,
+	Min,
+	MaxLength,
+	IsString,
+	IsBoolean,
+} from 'class-validator';
+import { EventStatus, EventCategory, EventType, EventLocationType } from '../../enums/event.enum';
 import { Direction } from '../../enums/common.enum';
 import type { ObjectId } from 'mongoose';
 
@@ -38,16 +48,37 @@ export class EventInput {
 	@IsNotEmpty()
 	eventEndAt: Date;
 
-	// ===== Event Details =====
 	@Field(() => String)
 	@IsNotEmpty()
-	@MaxLength(100)
-	eventCity: string;
+	@IsString()
+	eventTimezone: string;
 
-	@Field(() => String)
+	// ===== Location Details =====
+	@Field(() => EventLocationType)
 	@IsNotEmpty()
-	@MaxLength(200)
-	eventAddress: string;
+	@IsEnum(EventLocationType)
+	locationType: EventLocationType;
+
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	@IsString()
+	eventCity?: string;
+
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	@IsString()
+	eventAddress?: string;
+
+	// Coordinates
+	@Field(() => Number, { nullable: true })
+	@IsOptional()
+	@IsNumber()
+	coordinateLatitude?: number;
+
+	@Field(() => Number, { nullable: true })
+	@IsOptional()
+	@IsNumber()
+	coordinateLongitude?: number;
 
 	@Field(() => Number, { nullable: true })
 	@IsOptional()
@@ -72,6 +103,28 @@ export class EventInput {
 	@IsArray()
 	@IsEnum(EventCategory, { each: true })
 	eventCategories: EventCategory[];
+
+	@Field(() => [String])
+	@IsNotEmpty()
+	@IsArray()
+	@IsString({ each: true })
+	eventTags: string[];
+
+	// ===== External Source Information =====
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	@IsString()
+	externalId?: string;
+
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	@IsString()
+	externalUrl?: string;
+
+	@Field(() => Boolean, { nullable: true })
+	@IsOptional()
+	@IsBoolean()
+	isRealEvent?: boolean;
 
 	// ===== References =====
 	@Field(() => String, { nullable: true })

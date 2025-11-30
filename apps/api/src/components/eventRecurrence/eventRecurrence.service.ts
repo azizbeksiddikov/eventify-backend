@@ -180,15 +180,21 @@ export class EventRecurrenceService {
 					eventImages: recurrence.eventImages,
 					eventStartAt: occurrence.startAt,
 					eventEndAt: occurrence.endAt,
-					eventAddress: recurrence.eventAddress,
+					eventTimezone: recurrence.eventTimezone,
+					locationType: recurrence.locationType,
 					eventCity: recurrence.eventCity,
+					eventAddress: recurrence.eventAddress,
+					coordinateLatitude: recurrence.coordinateLatitude,
+					coordinateLongitude: recurrence.coordinateLongitude,
 					eventCapacity: recurrence.eventCapacity,
 					eventPrice: recurrence.eventPrice,
 					eventCategories: recurrence.eventCategories,
+					eventTags: recurrence.eventTags || [],
 					eventStatus: EventStatus.UPCOMING,
 					groupId: recurrence.groupId,
 					memberId: recurrence.memberId,
 					origin: recurrence.origin,
+					isRealEvent: false,
 					attendeeCount: 0,
 					eventLikes: 0,
 					eventViews: 0,
@@ -414,11 +420,16 @@ export class EventRecurrenceService {
 			event.eventName = recurrence.eventName;
 			event.eventDesc = recurrence.eventDesc;
 			event.eventImages = recurrence.eventImages;
+			event.eventTimezone = recurrence.eventTimezone;
+			event.locationType = recurrence.locationType;
 			event.eventAddress = recurrence.eventAddress;
 			event.eventCity = recurrence.eventCity;
+			event.coordinateLatitude = recurrence.coordinateLatitude;
+			event.coordinateLongitude = recurrence.coordinateLongitude;
 			event.eventCapacity = recurrence.eventCapacity;
 			event.eventPrice = recurrence.eventPrice;
 			event.eventCategories = recurrence.eventCategories;
+			event.eventTags = recurrence.eventTags || [];
 			event.eventStatus = recurrence.eventStatus;
 
 			await event.save();

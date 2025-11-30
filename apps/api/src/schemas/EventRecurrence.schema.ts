@@ -1,5 +1,5 @@
 import { Schema } from 'mongoose';
-import { EventCategory, EventStatus, RecurrenceType } from '../libs/enums/event.enum';
+import { EventCategory, EventStatus, RecurrenceType, EventLocationType } from '../libs/enums/event.enum';
 
 const EventRecurrenceSchema = new Schema(
 	{
@@ -52,14 +52,14 @@ const EventRecurrenceSchema = new Schema(
 
 		eventAddress: {
 			type: String,
-			required: true,
-			maxlength: 200,
+			required: false,
+			default: null,
 		},
 
 		eventCity: {
 			type: String,
-			required: true,
-			maxlength: 100,
+			required: false,
+			default: null,
 		},
 
 		eventCapacity: {
@@ -96,6 +96,39 @@ const EventRecurrenceSchema = new Schema(
 		eventEndAt: {
 			type: Date,
 			required: true,
+		},
+
+		eventTimezone: {
+			type: String,
+			required: true,
+		},
+
+		// ===== Location Details =====
+		locationType: {
+			type: String,
+			enum: EventLocationType,
+			required: true,
+		},
+
+		eventCoordinates: {
+			type: {
+				lat: {
+					type: Number,
+					required: false,
+				},
+				lon: {
+					type: Number,
+					required: false,
+				},
+			},
+			required: false,
+			default: null,
+		},
+
+		eventTags: {
+			type: [String],
+			required: true,
+			default: [],
 		},
 
 		// ===== Ownership =====

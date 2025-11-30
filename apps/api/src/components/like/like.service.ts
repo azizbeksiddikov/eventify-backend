@@ -19,7 +19,7 @@ export class LikeService {
 		private readonly notificationService: NotificationService,
 	) {}
 
-	public async toggleLike(input: LikeInput, notificationInput: NotificationInput): Promise<number> {
+	public async toggleLike(input: LikeInput, notificationInput: NotificationInput | null): Promise<number> {
 		console.log('LikeService: toggleLike');
 
 		// check for existence of like
@@ -37,7 +37,9 @@ export class LikeService {
 				await this.likeModel.create(input);
 
 				// create notification
-				await this.notificationService.createNotification(notificationInput);
+				if (notificationInput) {
+					await this.notificationService.createNotification(notificationInput);
+				}
 			} catch (err) {
 				console.log('ERROR: Service.model:', err.message);
 				throw new BadRequestException(Message.CREATE_FAILED);

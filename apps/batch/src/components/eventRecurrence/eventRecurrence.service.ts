@@ -1,69 +1,49 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Agenda } from 'agenda';
-
-// ===== DTOs =====
 import { EventRecurrence } from '@app/api/src/libs/dto/eventRecurrence/eventRecurrence';
 import { Event } from '@app/api/src/libs/dto/event/event';
-
-// ===== Enums =====
-import { EventStatus, EventType, RecurrenceType } from '@app/api/src/libs/enums/event.enum';
+import { EventJobStatus, EventStatus, EventType, RecurrenceType } from '@app/api/src/libs/enums/event.enum';
+import { AgendaService } from '../../agenda/agenda.service';
 
 @Injectable()
-export class EventRecurrenceBatchService {
-	private readonly logger = new Logger(EventRecurrenceBatchService.name);
-	private agenda: Agenda;
+export class EventRecurrenceService {
+	private readonly logger = new Logger(EventRecurrenceService.name);
 
 	constructor(
 		@InjectModel('EventRecurrence') private readonly eventRecurrenceModel: Model<EventRecurrence>,
 		@InjectModel('Event') private readonly eventModel: Model<Event>,
-	) {
-		const mongoUri = process.env.NODE_ENV === 'production' ? process.env.MONGO_PROD : process.env.MONGO_DEV;
-		if (!mongoUri) throw new Error('No DB key configured');
-		this.agenda = new Agenda({
-			db: { address: mongoUri },
-		});
-	}
+		private readonly agendaService: AgendaService,
+	) {}
 
-	@Cron('0 2 * * *') // Every day at 02:00 AM
 	async generateRecurringEvents() {
-		this.logger.log('Starting daily event generation for recurring events...');
+		const activeRecurrences = await this.eventRecurrenceModel.find({ isActive: true }).exec();
+		this.logger.log(`Found ${activeRecurrences.length} active event recurrences`);
 
-		try {
-			const activeRecurrences = await this.eventRecurrenceModel.find({ isActive: true }).exec();
-			this.logger.log(`Found ${activeRecurrences.length} active event recurrences`);
-
-			for (const recurrence of activeRecurrences) {
-				// Skip if recurrenceEndDate is in the past
-				if (recurrence.recurrenceEndDate && recurrence.recurrenceEndDate < new Date()) {
-					this.logger.log(`Skipping recurrence ${recurrence._id} - end date in the past`);
-					continue;
-				}
-
-				// Find latest generated event
-				const latestEvent = await this.eventModel
-					.findOne({ recurrenceId: recurrence._id })
-					.sort({ eventStartAt: -1 })
-					.exec();
-
-				const today = new Date();
-				const targetDate = new Date(today);
-				targetDate.setDate(targetDate.getDate() + 30);
-
-				// Check if we need to generate more events
-				if (!latestEvent || latestEvent.eventStartAt < targetDate) {
-					const startDate = latestEvent ? new Date(latestEvent.eventStartAt) : new Date(recurrence.eventStartAt);
-					startDate.setDate(startDate.getDate() + 1); // Start from next day after latest
-
-					await this.generateEvents(recurrence, startDate, targetDate);
-				}
+		for (const recurrence of activeRecurrences) {
+			// Skip if recurrenceEndDate is in the past
+			if (recurrence.recurrenceEndDate && recurrence.recurrenceEndDate < new Date()) {
+				this.logger.log(`Skipping recurrence ${recurrence._id} - end date in the past`);
+				continue;
 			}
 
-			this.logger.log('Completed daily event generation for recurring events');
-		} catch (error) {
-			this.logger.error(`Error during daily event generation: ${error.message}`, error.stack);
+			// Find latest generated event
+			const latestEvent = await this.eventModel
+				.findOne({ recurrenceId: recurrence._id })
+				.sort({ eventStartAt: -1 })
+				.exec();
+
+			const today = new Date();
+			const targetDate = new Date(today);
+			targetDate.setDate(targetDate.getDate() + 30);
+
+			// Check if we need to generate more events
+			if (!latestEvent || latestEvent.eventStartAt < targetDate) {
+				const startDate = latestEvent ? new Date(latestEvent.eventStartAt) : new Date(recurrence.eventStartAt);
+				startDate.setDate(startDate.getDate() + 1); // Start from next day after latest
+
+				await this.generateEvents(recurrence, startDate, targetDate);
+			}
 		}
 	}
 
@@ -107,8 +87,9 @@ export class EventRecurrenceBatchService {
 				// Schedule AgendaJS jobs
 				if (event.eventStartAt > new Date() && event.eventEndAt > new Date()) {
 					try {
-						await this.agenda.schedule(event.eventStartAt, 'event-start', { eventId: event._id.toString() });
-						await this.agenda.schedule(event.eventEndAt, 'event-end', { eventId: event._id.toString() });
+						const agenda = this.agendaService.getAgenda();
+						await agenda.schedule(event.eventStartAt, EventJobStatus.EVENT_START, { eventId: event._id.toString() });
+						await agenda.schedule(event.eventEndAt, EventJobStatus.EVENT_END, { eventId: event._id.toString() });
 					} catch (error) {
 						this.logger.error(`Failed to schedule jobs for event ${event._id}: ${error.message}`);
 					}

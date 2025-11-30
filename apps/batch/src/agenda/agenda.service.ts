@@ -7,7 +7,7 @@ import { Agenda } from 'agenda';
 import { Event } from '@app/api/src/libs/dto/event/event';
 
 // ===== Enums =====
-import { EventStatus } from '@app/api/src/libs/enums/event.enum';
+import { EventStatus, EventJobStatus } from '@app/api/src/libs/enums/event.enum';
 
 @Injectable()
 export class AgendaService implements OnModuleInit, OnModuleDestroy {
@@ -24,26 +24,35 @@ export class AgendaService implements OnModuleInit, OnModuleDestroy {
 		this.logger.log('AgendaJS initialized for job processing');
 	}
 
+	getAgenda(): Agenda {
+		return this.agenda;
+	}
+
 	async onModuleInit() {
 		await this.initializeProcessors();
 		await this.startProcessing();
 	}
 
 	async onModuleDestroy() {
-		await this.agenda.stop();
-		this.logger.log('AgendaJS stopped');
+		try {
+			await this.agenda.stop();
+			await this.agenda.close();
+			this.logger.log('AgendaJS stopped');
+		} catch (error) {
+			this.logger.error('Error stopping AgendaJS:', error);
+		}
 	}
 
 	private async initializeProcessors(): Promise<void> {
 		// Define event-start processor
-		this.agenda.define('event-start', async (job) => {
+		this.agenda.define(EventJobStatus.EVENT_START, async (job) => {
 			const { eventId } = job.attrs.data;
-			this.logger.log(`Processing event-start job for event ${eventId}`);
+			this.logger.log(`Processing ${EventJobStatus.EVENT_START} job for event ${eventId}`);
 
 			try {
 				const event = await this.eventModel.findById(eventId).exec();
 				if (!event) {
-					this.logger.warn(`Event ${eventId} not found for event-start job`);
+					this.logger.warn(`Event ${eventId} not found for ${EventJobStatus.EVENT_START} job`);
 					return;
 				}
 
@@ -56,19 +65,19 @@ export class AgendaService implements OnModuleInit, OnModuleDestroy {
 					);
 				}
 			} catch (error) {
-				this.logger.error(`Error processing event-start job for event ${eventId}:`, error);
+				this.logger.error(`Error processing ${EventJobStatus.EVENT_START} job for event ${eventId}:`, error);
 			}
 		});
 
 		// Define event-end processor
-		this.agenda.define('event-end', async (job) => {
+		this.agenda.define(EventJobStatus.EVENT_END, async (job) => {
 			const { eventId } = job.attrs.data;
-			this.logger.log(`Processing event-end job for event ${eventId}`);
+			this.logger.log(`Processing ${EventJobStatus.EVENT_END} job for event ${eventId}`);
 
 			try {
 				const event = await this.eventModel.findById(eventId).exec();
 				if (!event) {
-					this.logger.warn(`Event ${eventId} not found for event-end job`);
+					this.logger.warn(`Event ${eventId} not found for ${EventJobStatus.EVENT_END} job`);
 					return;
 				}
 
@@ -81,7 +90,7 @@ export class AgendaService implements OnModuleInit, OnModuleDestroy {
 					);
 				}
 			} catch (error) {
-				this.logger.error(`Error processing event-end job for event ${eventId}:`, error);
+				this.logger.error(`Error processing ${EventJobStatus.EVENT_END} job for event ${eventId}:`, error);
 			}
 		});
 

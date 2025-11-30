@@ -39,6 +39,12 @@ export enum EventCategory {
 	OTHER = 'OTHER',
 }
 
+// ===== Event Job Status =====
+export enum EventJobStatus {
+	EVENT_START = 'event-start',
+	EVENT_END = 'event-end',
+}
+
 // Register Event enums
 registerEnumType(EventType, { name: 'EventType' });
 registerEnumType(EventStatus, { name: 'EventStatus' });

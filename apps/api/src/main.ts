@@ -17,7 +17,7 @@ async function bootstrap() {
 	app.enableCors({ origin: true, credentials: true });
 
 	const port = process.env.PORT_API ?? 3010;
-	console.log(`Server running on port ${process.env.DOMAIN_NAME}:${port}`);
 	await app.listen(port);
+	console.log(`API server is running on ${process.env.DOMAIN_NAME}:${port}`);
 }
 bootstrap();

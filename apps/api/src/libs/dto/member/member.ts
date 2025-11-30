@@ -43,8 +43,8 @@ export class Member {
 	memberImage?: string;
 
 	// ===== Statistics =====
-	@Field(() => Number)
-	memberPoints: number;
+	@Field(() => Number, { nullable: true })
+	memberPoints?: number;
 
 	@Field(() => Number)
 	memberLikes: number;

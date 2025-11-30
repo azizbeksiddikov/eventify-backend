@@ -25,6 +25,7 @@ export enum Message {
 	INSUFFICIENT_POINTS = 'You do not have enough points for this action.',
 	ALREADY_SUBSCRIBED = 'You are already subscribed to this member.',
 	ADMIN_COUNT_MAX = 'The maximum number of admins has been reached.',
+	NOT_SUBSCRIBED = 'You are not subscribed to this member.',
 
 	// ===== Event Related Messages =====
 	EVENT_NOT_FOUND = 'Event not found.',

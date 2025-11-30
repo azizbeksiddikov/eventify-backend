@@ -24,7 +24,6 @@ export class TicketResolver {
 	@Mutation(() => Ticket)
 	async createTicket(@Args('input') input: TicketInput, @AuthMember('_id') memberId: ObjectId): Promise<Ticket> {
 		console.log('Mutation: createTicket');
-		console.log('memberId:', memberId);
 		return this.ticketService.createTicket(memberId, input);
 	}
 

@@ -12,18 +12,9 @@ export class TicketInput {
 	@IsNotEmpty()
 	eventId: ObjectId;
 
-	// ===== Pricing =====
-	@Field(() => Number)
-	@IsNotEmpty()
-	ticketPrice: number;
-
 	@Field(() => Number)
 	@IsNotEmpty()
 	ticketQuantity: number;
-
-	@Field(() => Number)
-	@IsNotEmpty()
-	totalPrice: number;
 }
 
 // ============== Search Inputs ==============

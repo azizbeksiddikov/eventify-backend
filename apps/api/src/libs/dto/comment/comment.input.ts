@@ -32,6 +32,10 @@ class CISearch {
 	@IsNotEmpty()
 	@Field(() => String)
 	commentRefId: ObjectId;
+
+	@IsNotEmpty()
+	@Field(() => CommentGroup)
+	commentGroup: CommentGroup;
 }
 
 // ============== Inquiry Inputs ==============

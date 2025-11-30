@@ -20,6 +20,14 @@ export const lookupMember = {
 		from: 'members',
 		localField: 'memberId',
 		foreignField: '_id',
+		pipeline: [
+			{
+				$project: {
+					memberPassword: 0,
+					memberPoints: 0,
+				},
+			},
+		],
 		as: 'memberData',
 	},
 };
@@ -132,6 +140,14 @@ export const lookupFollowingData = {
 		from: 'members',
 		localField: 'followingId',
 		foreignField: '_id',
+		pipeline: [
+			{
+				$project: {
+					memberPassword: 0,
+					memberPoints: 0,
+				},
+			},
+		],
 		as: 'followingData',
 	},
 };
@@ -141,6 +157,14 @@ export const lookupFollowerData = {
 		from: 'members',
 		localField: 'followerId',
 		foreignField: '_id',
+		pipeline: [
+			{
+				$project: {
+					memberPassword: 0,
+					memberPoints: 0,
+				},
+			},
+		],
 		as: 'followerData',
 	},
 };
@@ -151,6 +175,14 @@ export const lookupVisit = {
 		from: 'members',
 		localField: 'visitedEvent.memberId',
 		foreignField: '_id',
+		pipeline: [
+			{
+				$project: {
+					memberPassword: 0,
+					memberPoints: 0,
+				},
+			},
+		],
 		as: 'visitedEvent.memberData',
 	},
 };
@@ -160,6 +192,14 @@ export const lookupFavorite = {
 		from: 'members',
 		localField: 'favoriteEvent.memberId',
 		foreignField: '_id',
+		pipeline: [
+			{
+				$project: {
+					memberPassword: 0,
+					memberPoints: 0,
+				},
+			},
+		],
 		as: 'favoriteEvent.memberData',
 	},
 };

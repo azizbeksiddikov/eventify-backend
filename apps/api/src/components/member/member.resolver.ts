@@ -41,23 +41,23 @@ export class MemberResolver {
 		return await this.memberService.login(input);
 	}
 
-	@UseGuards(AuthGuard)
-	@Mutation(() => Member)
-	public async updatePassword(
-		@Args('input') input: PasswordUpdateInput,
-		@AuthMember('_id') memberId: ObjectId,
-	): Promise<Member> {
-		console.log('Mutation: updatePassword');
-		return await this.memberService.updatePassword(memberId, input);
-	}
+	// @UseGuards(AuthGuard)
+	// @Mutation(() => Member)
+	// public async updatePassword(
+	// 	@Args('input') input: PasswordUpdateInput,
+	// 	@AuthMember('_id') memberId: ObjectId,
+	// ): Promise<Member> {
+	// 	console.log('Mutation: updatePassword');
+	// 	return await this.memberService.updatePassword(memberId, input);
+	// }
 
-	@UseGuards(AuthGuard)
-	@Mutation(() => Member)
-	public async resetPassword(@Args('input') input: string, @AuthMember('_id') memberId: ObjectId): Promise<Member> {
-		console.log('Mutation: resetPassword');
-		console.log('memberId', memberId);
-		return await this.memberService.resetPassword(memberId, input);
-	}
+	// @UseGuards(AuthGuard)
+	// @Mutation(() => Member)
+	// public async resetPassword(@Args('input') input: string, @AuthMember('_id') memberId: ObjectId): Promise<Member> {
+	// 	console.log('Mutation: resetPassword');
+	// 	console.log('memberId', memberId);
+	// 	return await this.memberService.resetPassword(memberId, input);
+	// }
 
 	// ============== Profile Management Methods ==============
 	@UseGuards(AuthGuard)

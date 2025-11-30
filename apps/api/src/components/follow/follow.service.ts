@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
 
@@ -71,7 +71,7 @@ export class FollowService {
 			};
 
 			if (targetMember.memberType === MemberType.ORGANIZER) {
-				newNotification.notificationLink = `/organizer/detail?organizerId=${followerId}`;
+				newNotification.notificationLink = `/organizers?${followerId}`;
 			}
 			await this.notificationService.createNotification(newNotification);
 
@@ -87,10 +87,10 @@ export class FollowService {
 
 	public async unsubscribe(followerId: ObjectId, followingId: ObjectId): Promise<Member> {
 		const targetMember = await this.memberService.getSimpleMember(followingId);
-		if (!targetMember) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
+		if (!targetMember) throw new NotFoundException(Message.NO_DATA_FOUND);
 
 		const result = await this.followModel.findOneAndDelete({ followingId: followingId, followerId: followerId }).exec();
-		if (!result) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
+		if (!result) throw new BadRequestException(Message.NOT_SUBSCRIBED);
 
 		await this.memberService.memberStatsEditor({ _id: followerId, targetKey: 'memberFollowings', modifier: -1 });
 		await this.memberService.memberStatsEditor({ _id: followingId, targetKey: 'memberFollowers', modifier: -1 });

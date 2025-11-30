@@ -59,6 +59,7 @@ const MemberSchema = new Schema(
 			type: Number,
 			default: 50,
 			min: 0,
+			select: false,
 		},
 		memberLikes: {
 			type: Number,

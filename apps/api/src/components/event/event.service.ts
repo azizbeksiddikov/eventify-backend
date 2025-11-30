@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
 
@@ -102,7 +102,7 @@ export class EventService {
 						memberId: memberId,
 						receiverId: groupMember.memberId,
 						notificationType: NotificationType.CREATE_EVENT,
-						notificationLink: `/event/detail?eventId=${event._id}`,
+						notificationLink: `/events?${event._id}`,
 					};
 					await this.notificationService.createNotification(newNotification);
 				});
@@ -319,7 +319,7 @@ export class EventService {
 			memberId: memberId,
 			receiverId: event.memberId,
 			notificationType: NotificationType.LIKE_EVENT,
-			notificationLink: `/event/detail?eventId=${likeRefId}`,
+			notificationLink: `/events?${likeRefId}`,
 		};
 		const modifier = await this.likeService.toggleLike(input, newNotification);
 
@@ -408,12 +408,12 @@ export class EventService {
 			.lean()
 			.exec();
 		if (!event) throw new BadRequestException(Message.UPDATE_FAILED);
-		return event;
+		return event as Event;
 	}
 
 	public async getSimpleEvent(eventId: ObjectId): Promise<Event> {
 		const event = await this.eventModel.findById(eventId).lean().exec();
-		if (!event) throw new Error(Message.EVENT_NOT_FOUND);
+		if (!event) throw new NotFoundException(Message.EVENT_NOT_FOUND);
 		return event;
 	}
 

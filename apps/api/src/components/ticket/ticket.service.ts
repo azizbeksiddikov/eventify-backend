@@ -33,37 +33,42 @@ export class TicketService {
 	) {}
 
 	public async createTicket(memberId: ObjectId, ticket: TicketInput): Promise<Ticket> {
-		const { eventId, totalPrice, ticketQuantity } = ticket;
+		const { eventId, ticketQuantity } = ticket;
 
-		// Check for  valid ticket quantity
-		if (ticket.ticketQuantity < 1) throw new BadRequestException(Message.TICKET_QUANTITY_INVALID);
+		// Check for valid ticket quantity
+		if (ticketQuantity < 1) throw new BadRequestException(Message.TICKET_QUANTITY_INVALID);
 
 		// Check for event existence
 		const event: Event = await this.eventService.getSimpleEvent(eventId);
-		if (!event) throw new BadRequestException(Message.EVENT_NOT_FOUND);
+		if (!event) throw new NotFoundException(Message.EVENT_NOT_FOUND);
 
 		// Check if the event is full
 		if (event.eventCapacity && event.attendeeCount + ticketQuantity > event.eventCapacity)
 			throw new BadRequestException(Message.EVENT_FULL);
 
 		// Check if the member has enough points
-		const member = await this.memberService.getSimpleMember(memberId);
-		if (member.memberPoints < totalPrice) throw new BadRequestException(Message.INSUFFICIENT_POINTS);
+		let totalPrice = event.eventPrice * ticketQuantity;
+		const memberPoints = await this.memberService.getMemberPoints(memberId);
+		if (memberPoints < totalPrice) throw new BadRequestException(Message.INSUFFICIENT_POINTS);
 
 		// Create a new ticket
 		try {
-			const newTicket: Ticket = await this.ticketModel.create({
-				...ticket,
+			const newTicketInput: T = {
+				eventId: eventId,
 				memberId: memberId,
 				ticketStatus: TicketStatus.PURCHASED,
-			});
+				ticketPrice: event.eventPrice,
+				ticketQuantity: ticketQuantity,
+				totalPrice: totalPrice,
+			};
+			const newTicket: Ticket = (await this.ticketModel.create(newTicketInput)) as Ticket;
 
 			// create notification
 			const newNotification: NotificationInput = {
 				memberId: memberId,
 				receiverId: event.memberId,
 				notificationType: NotificationType.JOIN_EVENT,
-				notificationLink: `/event/detail?eventId=${eventId}`,
+				notificationLink: `/events?${eventId}`,
 			};
 			await this.notificationService.createNotification(newNotification);
 
@@ -86,10 +91,10 @@ export class TicketService {
 
 	public async cancelTicket(memberId: ObjectId, ticketId: ObjectId): Promise<Ticket> {
 		// find a ticket
-		const ticket = await this.ticketModel
+		const ticket = (await this.ticketModel
 			.findOneAndUpdate({ _id: ticketId, memberId: memberId }, { ticketStatus: TicketStatus.CANCELLED }, { new: true })
 			.lean()
-			.exec();
+			.exec()) as Ticket;
 		if (!ticket) throw new Error(Message.TICKET_NOT_FOUND);
 
 		// change members's points
@@ -128,6 +133,8 @@ export class TicketService {
 		const match: T = { memberId: memberId };
 		if (input.search.eventId) {
 			match.eventId = shapeIntoMongoObjectId(input.search.eventId);
+			const event: Event = await this.eventService.getSimpleEvent(match.eventId);
+			if (!event) throw new NotFoundException(Message.EVENT_NOT_FOUND);
 		}
 		if (input.search.ticketStatus) {
 			match.ticketStatus = input.search.ticketStatus;

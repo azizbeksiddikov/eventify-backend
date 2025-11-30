@@ -66,7 +66,7 @@ export class MemberService {
 
 		const result: Member | null = await this.memberModel
 			.findOne({ username: username })
-			.select('+memberPassword')
+			.select('+memberPassword +memberPoints')
 			.exec();
 
 		if (!result) throw new BadRequestException(Message.NO_MEMBER_NICK);
@@ -81,41 +81,44 @@ export class MemberService {
 		return result;
 	}
 
-	public async updatePassword(memberId: ObjectId, input: PasswordUpdateInput): Promise<Member> {
-		const { currentPassword, newPassword } = input;
+	// public async updatePassword(memberId: ObjectId, input: PasswordUpdateInput): Promise<Member> {
+	// 	const { currentPassword, newPassword } = input;
 
-		let result: Member | null = await this.memberModel.findById(memberId).select('+memberPassword').exec();
-		if (!result) throw new BadRequestException(Message.NO_DATA_FOUND);
+	// 	let result: Member | null = await this.memberModel.findById(memberId).select('+memberPassword').exec();
+	// 	if (!result) throw new BadRequestException(Message.NO_DATA_FOUND);
 
-		const isMatch = await this.authService.comparePasswords(currentPassword, result.memberPassword);
-		if (!isMatch) throw new BadRequestException(Message.WRONG_PASSWORD);
+	// 	const isMatch = await this.authService.comparePasswords(currentPassword, result.memberPassword);
+	// 	if (!isMatch) throw new BadRequestException(Message.WRONG_PASSWORD);
 
-		const hashedPassword = await this.authService.hashPassword(newPassword);
-		result = await this.memberModel
-			.findByIdAndUpdate(memberId, { memberPassword: hashedPassword }, { new: true })
-			.exec();
+	// 	const hashedPassword = await this.authService.hashPassword(newPassword);
+	// 	result = await this.memberModel
+	// 		.findByIdAndUpdate(memberId, { memberPassword: hashedPassword }, { new: true })
+	// 		.exec();
 
-		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
-		result.accessToken = await this.authService.createToken(result);
-		return result;
-	}
+	// 	if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
+	// 	result.accessToken = await this.authService.createToken(result);
+	// 	return result;
+	// }
 
-	public async resetPassword(memberId: ObjectId, password: string): Promise<Member> {
-		const newPassword = await this.authService.hashPassword(password);
+	// public async resetPassword(memberId: ObjectId, password: string): Promise<Member> {
+	// 	const newPassword = await this.authService.hashPassword(password);
 
-		const result: Member | null = await this.memberModel
-			.findByIdAndUpdate(memberId, { memberPassword: newPassword }, { new: true })
-			.exec();
+	// 	const result: Member | null = await this.memberModel
+	// 		.findByIdAndUpdate(memberId, { memberPassword: newPassword }, { new: true })
+	// 		.exec();
 
-		if (!result) throw new BadRequestException(Message.NO_DATA_FOUND);
-		return result;
-	}
+	// 	if (!result) throw new BadRequestException(Message.NO_DATA_FOUND);
+	// 	return result;
+	// }
 
 	// ============== Profile Management Methods ==============
 	public async updateMember(memberId: ObjectId, input: MemberUpdateInput): Promise<Member> {
 		const { _id, emailVerified, memberStatus, ...otherInput } = input;
 
-		const result: Member | null = await this.memberModel.findByIdAndUpdate(memberId, otherInput, { new: true }).exec();
+		const result: Member | null = await this.memberModel
+			.findByIdAndUpdate(memberId, otherInput, { new: true })
+			.select('+memberPoints')
+			.exec();
 
 		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
 
@@ -131,7 +134,11 @@ export class MemberService {
 
 	// ============== Member Interaction Methods ==============
 	public async getMember(memberId: ObjectId | null, targetId: ObjectId): Promise<Member> {
-		const targetMember: Member | null = await this.memberModel.findById(targetId).lean().exec();
+		// Only fetch memberPoints if the user is viewing their own profile
+		const isOwnProfile = memberId?.toString() === targetId.toString();
+		const selectFields = isOwnProfile ? '+memberPoints' : '';
+
+		const targetMember: Member | null = await this.memberModel.findById(targetId).select(selectFields).lean().exec();
 		if (!targetMember) throw new BadRequestException(Message.NO_DATA_FOUND);
 
 		if (memberId) {
@@ -147,7 +154,6 @@ export class MemberService {
 			}
 			const likeInput: LikeInput = { memberId: memberId, likeRefId: targetId, likeGroup: LikeGroup.MEMBER };
 			targetMember.meLiked = await this.likeService.checkLikeExistence(likeInput);
-
 			targetMember.meFollowed = await this.checkSubscription(memberId, targetId);
 		}
 
@@ -179,6 +185,7 @@ export class MemberService {
 							{ $limit: input.limit },
 							lookupAuthMemberLiked(memberId),
 							lookupAuthMemberFollowed({ followerId: memberId, followingId: '$_id' }),
+							{ $project: { memberPassword: 0, memberPoints: 0 } },
 						],
 						metaCounter: [{ $count: 'total' }],
 					},
@@ -243,6 +250,7 @@ export class MemberService {
 				},
 				lookupAuthMemberLiked(memberId),
 				lookupAuthMemberFollowed({ followerId: memberId, followingId: '$_id' }),
+				{ $project: { memberPassword: 0, memberPoints: 0 } },
 			])
 			.exec();
 
@@ -271,7 +279,7 @@ export class MemberService {
 			.findOne({ _id: likeRefId, memberStatus: MemberStatus.ACTIVE })
 			.lean()
 			.exec();
-		if (!member) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
+		if (!member) throw new NotFoundException(Message.MEMBER_NOT_FOUND);
 
 		// create like input
 		const input: LikeInput = { memberId: authMember._id, likeRefId: likeRefId, likeGroup: LikeGroup.MEMBER };
@@ -282,7 +290,7 @@ export class MemberService {
 		};
 
 		if (authMember.memberType === MemberType.ORGANIZER) {
-			newNotification.notificationLink = `/organizer/detail?organizerId=${authMember._id}`;
+			newNotification.notificationLink = `/organizers?${authMember._id}`;
 		}
 
 		const modifier = await this.likeService.toggleLike(input, newNotification);
@@ -332,14 +340,17 @@ export class MemberService {
 		const { _id, ...otherInput } = input;
 		if (!_id) throw new BadRequestException(Message.NO_DATA_FOUND);
 
-		const result: Member | null = await this.memberModel.findByIdAndUpdate(input._id, input, { new: true }).exec();
+		const result: Member | null = await this.memberModel
+			.findByIdAndUpdate(_id, otherInput, { new: true })
+			.select('+memberPoints')
+			.exec();
 
 		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
 		return result;
 	}
 
 	public async removeMemberByAdmin(memberId: ObjectId): Promise<Member> {
-		const result: Member | null = await this.memberModel.findByIdAndDelete(memberId).exec();
+		const result: Member | null = await this.memberModel.findByIdAndDelete(memberId).select('+memberPoints').exec();
 		if (!result) throw new BadRequestException(Message.NO_DATA_FOUND);
 		return result;
 	}
@@ -362,8 +373,14 @@ export class MemberService {
 	}
 
 	public async getSimpleMember(memberId: ObjectId): Promise<Member> {
-		const result = await this.memberModel.findById(memberId).exec();
-		if (!result) throw new BadRequestException(Message.NO_DATA_FOUND);
+		const result = await this.memberModel.findById(memberId).lean().exec();
+		if (!result) throw new NotFoundException(Message.MEMBER_NOT_FOUND);
 		return result;
+	}
+
+	public async getMemberPoints(memberId: ObjectId): Promise<number> {
+		const result = (await this.memberModel.findById(memberId).select('+memberPoints').lean().exec()) as Member;
+		if (!result || !result.memberPoints) throw new BadRequestException(Message.NO_DATA_FOUND);
+		return result.memberPoints;
 	}
 }

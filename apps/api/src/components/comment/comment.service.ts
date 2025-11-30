@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
 
@@ -40,6 +40,24 @@ export class CommentService {
 		input.memberId = memberId;
 		let result: Comment | null = null;
 
+		// Validate comment reference exists
+		switch (input.commentGroup) {
+			case CommentGroup.MEMBER:
+				const member = await this.memberService.getSimpleMember(input.commentRefId);
+				if (!member) throw new NotFoundException(Message.MEMBER_NOT_FOUND);
+				break;
+
+			case CommentGroup.EVENT:
+				const event = await this.eventService.getSimpleEvent(input.commentRefId);
+				if (!event) throw new NotFoundException(Message.EVENT_NOT_FOUND);
+				break;
+
+			case CommentGroup.GROUP:
+				const group = await this.groupService.getSimpleGroup(input.commentRefId);
+				if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
+				break;
+		}
+
 		try {
 			result = await this.commentModel.create(input);
 		} catch (err) {
@@ -51,7 +69,7 @@ export class CommentService {
 			memberId: memberId,
 			notificationType: NotificationType.COMMENT_MEMBER,
 			receiverId: input.commentRefId,
-			notificationLink: `/organizer/detail?organizerId=${input.commentRefId}`,
+			notificationLink: `/organizers?${input.commentRefId}`,
 		};
 
 		switch (input.commentGroup) {
@@ -73,7 +91,7 @@ export class CommentService {
 				await this.notificationService.createNotification({
 					...newNotification,
 					receiverId: event.memberId,
-					notificationLink: `/event/detail?eventId=${input.commentRefId}`,
+					notificationLink: `/events?${input.commentRefId}`,
 					notificationType: NotificationType.COMMENT_EVENT,
 				});
 				break;
@@ -87,7 +105,7 @@ export class CommentService {
 				await this.notificationService.createNotification({
 					...newNotification,
 					receiverId: group.memberId,
-					notificationLink: `/group/detail?groupId=${input.commentRefId}`,
+					notificationLink: `/groups?${input.commentRefId}`,
 					notificationType: NotificationType.COMMENT_GROUP,
 				});
 				break;
@@ -109,7 +127,26 @@ export class CommentService {
 
 	// ============== Comment Query Methods ==============
 	public async getComments(memberId: ObjectId, input: CommentsInquiry): Promise<Comments> {
-		const { commentRefId } = input.search;
+		const { commentRefId, commentGroup } = input.search;
+
+		// Validate comment reference exists
+		switch (commentGroup) {
+			case CommentGroup.MEMBER:
+				const member = await this.memberService.getSimpleMember(commentRefId);
+				if (!member) throw new NotFoundException(Message.MEMBER_NOT_FOUND);
+				break;
+
+			case CommentGroup.EVENT:
+				const event = await this.eventService.getSimpleEvent(commentRefId);
+				if (!event) throw new NotFoundException(Message.EVENT_NOT_FOUND);
+				break;
+
+			case CommentGroup.GROUP:
+				const group = await this.groupService.getSimpleGroup(commentRefId);
+				if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
+				break;
+		}
+
 		const match: T = { commentRefId: commentRefId, commentStatus: CommentStatus.ACTIVE };
 		const sort: T = { [input?.sort ?? 'createdAt']: input?.direction ?? Direction.DESC };
 

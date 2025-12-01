@@ -8,9 +8,10 @@ import { WebCrawlingService } from './webCrawling.service';
 import { WebCrawlingController } from './webCrawling.controller';
 import { MeetupScraper } from './scrapers/meetup.scraper';
 import { LumaScraper } from './scrapers/luma.scraper';
+import { LLMModule } from '../llm/llm.module';
 
 @Module({
-	imports: [MongooseModule.forFeature([{ name: 'Event', schema: EventSchema }]), HttpModule],
+	imports: [MongooseModule.forFeature([{ name: 'Event', schema: EventSchema }]), HttpModule, LLMModule],
 	controllers: [WebCrawlingController],
 	providers: [WebCrawlingService, MeetupScraper, LumaScraper],
 	exports: [WebCrawlingService],

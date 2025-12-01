@@ -16,7 +16,11 @@ async function bootstrap() {
 	// enable cors
 	app.enableCors({ origin: true, credentials: true });
 
-	const port = process.env.PORT_API ?? 3010;
+	const port = process.env.PORT_API;
+	if (!port) {
+		throw new Error('PORT_API is not defined in .env file. Please set PORT_API in your environment variables.');
+	}
+
 	await app.listen(port);
 	console.log(`API server is running on ${process.env.DOMAIN_NAME}:${port}`);
 }

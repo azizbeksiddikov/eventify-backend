@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CrawledEvent } from '@app/api/src/libs/dto/event/eventCrawling';
 import { LLM_DEFAULTS } from '../../libs/constants/llm.constants';
 import { buildSafetyCheckPrompt, fillEventDataPrompt } from '../../libs/constants/llm.prompts';
+import { EventCategory } from '@app/api/src/libs/enums/event.enum';
 
 @Injectable()
 export class LLMService {
@@ -98,7 +99,7 @@ export class LLMService {
 					prompt: prompt,
 					stream: false,
 					options: {
-						temperature: 0.3, // Slightly creative for categorization
+						temperature: 0.1,
 						num_predict: 700, // Categories + tags with raw_html + structured data
 					},
 				}),
@@ -163,10 +164,16 @@ export class LLMService {
 				}
 			}
 
+			// Validate and sanitize categories
+			const sanitizedCategories = this.validateAndSanitizeCategories(parsedData.categories || [], event.eventName);
+
+			// Sanitize tags (lowercase, no special chars except hyphen)
+			const sanitizedTags = parsedData.tags?.length > 0 ? this.sanitizeTags(parsedData.tags) : event.eventTags;
+
 			const completedEvent: CrawledEvent = {
 				...event,
-				eventCategories: parsedData.categories?.length > 0 ? parsedData.categories : event.eventCategories,
-				eventTags: parsedData.tags?.length > 0 ? parsedData.tags : event.eventTags,
+				eventCategories: sanitizedCategories.length > 0 ? sanitizedCategories : event.eventCategories,
+				eventTags: sanitizedTags,
 			};
 
 			console.log(
@@ -216,5 +223,92 @@ export class LLMService {
 			console.error(`Ollama error: ${error.message}`);
 			return { isSafe: true, reason: 'LLM unavailable - accepting' };
 		}
+	}
+
+	/**
+	 * Validate and sanitize categories returned by LLM
+	 * Maps common mistakes to valid enum values
+	 */
+	private validateAndSanitizeCategories(categories: string[], eventName: string): EventCategory[] {
+		// Valid enum values
+		const validCategories = Object.values(EventCategory);
+
+		// Mapping for common LLM mistakes
+		const categoryMapping: Record<string, EventCategory> = {
+			// Common mistakes
+			EVENT: EventCategory.ENTERTAINMENT,
+			EVENTS: EventCategory.ENTERTAINMENT,
+			COMMUNITY: EventCategory.OTHER,
+			SOCIAL: EventCategory.OTHER,
+			NETWORKING: EventCategory.BUSINESS,
+			LANGUAGE: EventCategory.EDUCATION,
+			LEARNING: EventCategory.EDUCATION,
+			WORKSHOP: EventCategory.EDUCATION,
+			DINING: EventCategory.FOOD,
+			PARTY: EventCategory.ENTERTAINMENT,
+			MUSIC: EventCategory.ART,
+			FITNESS: EventCategory.SPORTS,
+			WELLNESS: EventCategory.HEALTH,
+			CONFERENCE: EventCategory.BUSINESS,
+			MEETUP: EventCategory.OTHER,
+		};
+
+		const sanitized: EventCategory[] = [];
+
+		for (const cat of categories) {
+			const upperCat = cat.toUpperCase().trim();
+
+			// Check if it's a valid enum value
+			if (validCategories.includes(upperCat as EventCategory)) {
+				sanitized.push(upperCat as EventCategory);
+			}
+			// Check if we have a mapping for this mistake
+			else if (categoryMapping[upperCat]) {
+				console.warn(`   ⚠️  Mapped invalid category "${cat}" -> "${categoryMapping[upperCat]}" for "${eventName}"`);
+				sanitized.push(categoryMapping[upperCat]);
+			}
+			// Otherwise skip this category
+			else {
+				console.warn(`   ⚠️  Ignoring invalid category "${cat}" for "${eventName}"`);
+			}
+		}
+
+		// If no valid categories, default to OTHER
+		if (sanitized.length === 0) {
+			console.warn(`   ⚠️  No valid categories found, defaulting to OTHER for "${eventName}"`);
+			sanitized.push(EventCategory.OTHER);
+		}
+
+		// Limit to 3 categories max
+		return sanitized.slice(0, 3);
+	}
+
+	/**
+	 * Sanitize tags - ensure they are strings and lowercase
+	 */
+	private sanitizeTags(tags: any[]): string[] {
+		const sanitized: string[] = [];
+
+		for (const tag of tags) {
+			// Skip non-string values
+			if (typeof tag !== 'string') {
+				console.warn(`   ⚠️  Skipping non-string tag: ${typeof tag}`);
+				continue;
+			}
+
+			// Clean and normalize
+			const cleaned = tag
+				.trim()
+				.toLowerCase()
+				.replace(/[^a-z0-9\s-]/g, '') // Remove special chars except hyphen
+				.replace(/\s+/g, ' '); // Normalize spaces
+
+			if (cleaned.length > 0 && cleaned.length <= 50) {
+				sanitized.push(cleaned);
+			}
+		}
+
+		// Limit to 10 tags max
+		return sanitized.slice(0, 10);
 	}
 }

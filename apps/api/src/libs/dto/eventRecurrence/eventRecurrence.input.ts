@@ -12,6 +12,7 @@ import {
 	IsString,
 } from 'class-validator';
 import { EventStatus, EventCategory, RecurrenceType, EventLocationType } from '../../enums/event.enum';
+import { Currency } from '../../enums/common.enum';
 import type { ObjectId } from 'mongoose';
 
 @InputType()
@@ -62,11 +63,6 @@ export class EventRecurrenceInput {
 	@IsArray()
 	eventImages: string[];
 
-	@Field(() => String)
-	@IsNotEmpty()
-	@IsString()
-	eventTimezone: string;
-
 	@Field(() => EventLocationType)
 	@IsNotEmpty()
 	@IsEnum(EventLocationType)
@@ -111,6 +107,11 @@ export class EventRecurrenceInput {
 	@IsNumber()
 	@Min(0)
 	eventPrice?: number;
+
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	@IsString()
+	eventCurrency?: string;
 
 	@Field(() => String, { nullable: true })
 	@IsOptional()
@@ -198,11 +199,6 @@ export class EventRecurrenceUpdateInput {
 	@IsArray()
 	eventImages?: string[];
 
-	@Field(() => String, { nullable: true })
-	@IsOptional()
-	@IsString()
-	eventTimezone?: string;
-
 	@Field(() => EventLocationType, { nullable: true })
 	@IsOptional()
 	@IsEnum(EventLocationType)
@@ -242,6 +238,11 @@ export class EventRecurrenceUpdateInput {
 	@IsNumber()
 	@Min(0)
 	eventPrice?: number;
+
+	@Field(() => Currency, { nullable: true })
+	@IsOptional()
+	@IsEnum(Currency)
+	eventCurrency?: Currency;
 
 	@Field(() => String, { nullable: true })
 	@IsOptional()

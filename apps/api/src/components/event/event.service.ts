@@ -428,7 +428,6 @@ export class EventService {
 		if (input.eventName) updateFields.eventName = input.eventName;
 		if (input.eventDesc) updateFields.eventDesc = input.eventDesc;
 		if (input.eventImages) updateFields.eventImages = input.eventImages;
-		if (input.eventTimezone) updateFields.eventTimezone = input.eventTimezone;
 		if (input.locationType) updateFields.locationType = input.locationType;
 		if (input.eventAddress) updateFields.eventAddress = input.eventAddress;
 		if (input.eventCity) updateFields.eventCity = input.eventCity;
@@ -436,6 +435,7 @@ export class EventService {
 		if (input.coordinateLongitude) updateFields.coordinateLongitude = input.coordinateLongitude;
 		if (input.eventCapacity !== undefined) updateFields.eventCapacity = input.eventCapacity;
 		if (input.eventPrice !== undefined) updateFields.eventPrice = input.eventPrice;
+		if (input.eventCurrency !== undefined) updateFields.eventCurrency = input.eventCurrency;
 		if (input.eventCategories) updateFields.eventCategories = input.eventCategories;
 		if (input.eventTags) updateFields.eventTags = input.eventTags;
 		if (input.eventStatus) updateFields.eventStatus = input.eventStatus;

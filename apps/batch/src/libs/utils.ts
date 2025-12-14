@@ -1,4 +1,6 @@
 import { EventStatus, EventCategory } from '@app/api/src/libs/enums/event.enum';
+import path from 'path';
+import fs from 'fs';
 
 // Event Status
 export function determineStatus(eventStartAt: Date, eventEndAt: Date): EventStatus {
@@ -56,4 +58,70 @@ export function mapTagsToCategories(tags: string[]): EventCategory[] {
 	});
 
 	return categories.size > 0 ? Array.from(categories) : [EventCategory.OTHER];
+}
+
+// Save to JSON file
+export async function saveToJsonFile(filepath: string, data: any): Promise<void> {
+	try {
+		// Create jsons directory if it doesn't exist
+		const jsonsDir = path.dirname(filepath);
+		if (!fs.existsSync(jsonsDir)) fs.mkdirSync(jsonsDir, { recursive: true });
+
+		// Write to file
+		fs.writeFileSync(filepath, JSON.stringify(data, null, 2), 'utf-8');
+	} catch (error) {
+		console.warn(`Failed to save to JSON file: ${error.message}`);
+	}
+}
+
+export function mergeJsonData(firstJsonData: any, secondJsonData: any): any {
+	const bothAreArrays = Array.isArray(firstJsonData) && Array.isArray(secondJsonData);
+	if (bothAreArrays) {
+		return [...firstJsonData, ...secondJsonData];
+	}
+
+	const bothAreObjects = typeof firstJsonData === 'object' && typeof secondJsonData === 'object';
+	if (bothAreObjects) {
+		return { ...firstJsonData, ...secondJsonData };
+	}
+
+	// Return second data if available, otherwise first
+	return secondJsonData || firstJsonData;
+}
+
+/**
+ * Deep merge two objects (for merging API responses)
+ * Used by scrapers to merge nested JSON data structures
+ */
+export function deepMerge(target: any, source: any): any {
+	if (!source) return target;
+	if (!target) return source;
+
+	// If both are arrays, concatenate
+	if (Array.isArray(target) && Array.isArray(source)) {
+		return [...target, ...source];
+	}
+
+	// If both are objects, merge recursively
+	if (typeof target === 'object' && typeof source === 'object') {
+		const result = { ...target };
+		for (const key in source) {
+			if (source.hasOwnProperty(key)) {
+				result[key] = deepMerge(result[key], source[key]);
+			}
+		}
+		return result;
+	}
+
+	// Otherwise, prefer source
+	return source;
+}
+
+/**
+ * Random delay to simulate human behavior and avoid rate limiting
+ * Used by scrapers between requests
+ */
+export async function randomDelay(minMs: number, maxMs: number): Promise<void> {
+	const delay = Math.floor(Math.random() * (maxMs - minMs) + minMs);
+	await new Promise((resolve) => setTimeout(resolve, delay));
 }

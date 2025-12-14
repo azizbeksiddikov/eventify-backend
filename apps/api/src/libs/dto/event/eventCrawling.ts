@@ -1,4 +1,5 @@
 import { EventCategory, EventStatus, EventType, EventLocationType } from '../../enums/event.enum';
+import { Currency } from '../../enums/common.enum';
 
 export class CrawledEvent {
 	// ===== Event Type =====
@@ -8,53 +9,40 @@ export class CrawledEvent {
 	eventName: string;
 	eventDesc: string;
 	eventImages: string[];
+	eventPrice?: number; // default is 0
+	eventCurrency?: Currency;
 
 	// ===== Event Timestamps =====
 	eventStartAt: Date;
 	eventEndAt: Date;
-	eventTimezone?: string;
 
 	// ===== Location Details =====
-	locationType?: EventLocationType;
+	locationType: EventLocationType;
 	eventCity?: string;
 	eventAddress?: string;
-	eventCoordinates?: {
-		lat: number;
-		lon: number;
-	};
-
-	// ===== Event Details =====
-	eventPrice: number; // default is 0
+	coordinateLatitude?: number;
+	coordinateLongitude?: number;
 
 	// ===== Type and Status =====
 	eventStatus?: EventStatus;
 	eventCategories: EventCategory[];
 	eventTags?: string[];
+	isRealEvent: boolean; // default is false
 
 	// ===== External Source Information =====
+	origin?: string;
 	externalId?: string; // Original event ID from external platform
 	externalUrl?: string; // Link to original event page
 
 	// ===== References =====
 	groupId?: string;
 
-	// Event Attendees
-	attendeeCount: number; // default is 0
+	// ===== Event Attendees =====
+	attendeeCount?: number; // default is 0
 	eventCapacity?: number; // default is null
 
-	// additional fields
-	eventUrl?: string; // Deprecated: use externalUrl instead
-	location?: EventLocation; // Deprecated: use locationType, eventCity, eventAddress instead
-
 	// ===== Data Storage =====
-	isRealEvent: boolean; // default is false
-	rawData?: any; // Just in case (for debugging)
-}
-
-export interface EventLocation {
-	type: 'online' | 'offline';
-	eventCity?: string;
-	address?: string;
+	rawData?: any; // for debugging and LLM input
 }
 
 export interface ScraperConfig {
@@ -66,6 +54,6 @@ export interface ScraperConfig {
 }
 
 export interface IEventScraper {
-	scrapeEvents(): Promise<CrawledEvent[]>;
+	scrapeEvents(limit?: number): Promise<CrawledEvent[]>;
 	getName(): string;
 }

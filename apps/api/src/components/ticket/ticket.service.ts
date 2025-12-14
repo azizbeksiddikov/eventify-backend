@@ -58,6 +58,7 @@ export class TicketService {
 				memberId: memberId,
 				ticketStatus: TicketStatus.PURCHASED,
 				ticketPrice: event.eventPrice,
+				ticketCurrency: event.eventCurrency,
 				ticketQuantity: ticketQuantity,
 				totalPrice: totalPrice,
 			};

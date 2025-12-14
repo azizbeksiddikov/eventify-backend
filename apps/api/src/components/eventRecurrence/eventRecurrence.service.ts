@@ -180,7 +180,6 @@ export class EventRecurrenceService {
 					eventImages: recurrence.eventImages,
 					eventStartAt: occurrence.startAt,
 					eventEndAt: occurrence.endAt,
-					eventTimezone: recurrence.eventTimezone,
 					locationType: recurrence.locationType,
 					eventCity: recurrence.eventCity,
 					eventAddress: recurrence.eventAddress,
@@ -188,6 +187,7 @@ export class EventRecurrenceService {
 					coordinateLongitude: recurrence.coordinateLongitude,
 					eventCapacity: recurrence.eventCapacity,
 					eventPrice: recurrence.eventPrice,
+					eventCurrency: recurrence.eventCurrency,
 					eventCategories: recurrence.eventCategories,
 					eventTags: recurrence.eventTags || [],
 					eventStatus: EventStatus.UPCOMING,
@@ -420,7 +420,6 @@ export class EventRecurrenceService {
 			event.eventName = recurrence.eventName;
 			event.eventDesc = recurrence.eventDesc;
 			event.eventImages = recurrence.eventImages;
-			event.eventTimezone = recurrence.eventTimezone;
 			event.locationType = recurrence.locationType;
 			event.eventAddress = recurrence.eventAddress;
 			event.eventCity = recurrence.eventCity;
@@ -428,6 +427,7 @@ export class EventRecurrenceService {
 			event.coordinateLongitude = recurrence.coordinateLongitude;
 			event.eventCapacity = recurrence.eventCapacity;
 			event.eventPrice = recurrence.eventPrice;
+			event.eventCurrency = recurrence.eventCurrency;
 			event.eventCategories = recurrence.eventCategories;
 			event.eventTags = recurrence.eventTags || [];
 			event.eventStatus = recurrence.eventStatus;

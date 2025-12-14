@@ -11,7 +11,7 @@ import {
 	IsBoolean,
 } from 'class-validator';
 import { EventStatus, EventCategory, EventType, EventLocationType } from '../../enums/event.enum';
-import { Direction } from '../../enums/common.enum';
+import { Currency, Direction } from '../../enums/common.enum';
 import type { ObjectId } from 'mongoose';
 
 // ============== Event Creation Input ==============
@@ -26,18 +26,27 @@ export class EventInput {
 	// ===== Basic Information =====
 	@Field(() => String)
 	@IsNotEmpty()
-	@MaxLength(100)
 	eventName: string;
 
 	@Field(() => String)
 	@IsNotEmpty()
-	@MaxLength(2000)
 	eventDesc: string;
 
 	@Field(() => [String])
 	@IsNotEmpty()
 	@IsArray()
 	eventImages: string[];
+
+	@Field(() => Number, { nullable: true })
+	@IsOptional()
+	@IsNumber()
+	@Min(0)
+	eventPrice?: number;
+
+	@Field(() => Currency, { nullable: true })
+	@IsOptional()
+	@IsEnum(Currency)
+	eventCurrency?: Currency;
 
 	// ===== Event Timestamps =====
 	@Field(() => Date)
@@ -47,11 +56,6 @@ export class EventInput {
 	@Field(() => Date)
 	@IsNotEmpty()
 	eventEndAt: Date;
-
-	@Field(() => String)
-	@IsNotEmpty()
-	@IsString()
-	eventTimezone: string;
 
 	// ===== Location Details =====
 	@Field(() => EventLocationType)
@@ -80,18 +84,6 @@ export class EventInput {
 	@IsNumber()
 	coordinateLongitude?: number;
 
-	@Field(() => Number, { nullable: true })
-	@IsOptional()
-	@IsNumber()
-	@Min(1)
-	eventCapacity?: number;
-
-	@Field(() => Number, { nullable: true })
-	@IsOptional()
-	@IsNumber()
-	@Min(0)
-	eventPrice?: number;
-
 	// ===== Type and Status =====
 	@Field(() => String, { nullable: true })
 	@IsOptional()
@@ -110,6 +102,11 @@ export class EventInput {
 	@IsString({ each: true })
 	eventTags: string[];
 
+	@Field(() => Boolean, { nullable: true })
+	@IsOptional()
+	@IsBoolean()
+	isRealEvent?: boolean;
+
 	// ===== External Source Information =====
 	@Field(() => String, { nullable: true })
 	@IsOptional()
@@ -121,15 +118,27 @@ export class EventInput {
 	@IsString()
 	externalUrl?: string;
 
-	@Field(() => Boolean, { nullable: true })
+	@Field(() => String, { nullable: true })
 	@IsOptional()
-	@IsBoolean()
-	isRealEvent?: boolean;
+	@IsString()
+	origin?: string;
 
 	// ===== References =====
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	groupId?: ObjectId;
+
+	@Field(() => Number, { nullable: true })
+	@IsOptional()
+	@IsNumber()
+	@Min(0)
+	attendeeCount?: number;
+
+	@Field(() => Number, { nullable: true })
+	@IsOptional()
+	@IsNumber()
+	@Min(0)
+	eventCapacity?: number;
 }
 
 // ============== Search Inputs ==============

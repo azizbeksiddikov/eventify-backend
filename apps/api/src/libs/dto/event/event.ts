@@ -1,5 +1,6 @@
 import { Field, Int, ObjectType } from '@nestjs/graphql';
 import { EventStatus, EventCategory, EventType, EventLocationType } from '../../enums/event.enum';
+import { Currency } from '../../enums/common.enum';
 import { Member, TotalCounter } from '../member/member';
 import type { ObjectId } from 'mongoose';
 import { MeLiked } from '../like/like';
@@ -33,9 +34,6 @@ export class Event {
 	@Field(() => Date)
 	eventEndAt: Date;
 
-	@Field(() => String)
-	eventTimezone: string;
-
 	// ===== Location Details =====
 	@Field(() => EventLocationType)
 	locationType: EventLocationType;
@@ -59,6 +57,9 @@ export class Event {
 
 	@Field(() => Number)
 	eventPrice: number;
+
+	@Field(() => Currency, { nullable: true })
+	eventCurrency?: Currency;
 
 	// ===== Type and Status =====
 	@Field(() => EventStatus)

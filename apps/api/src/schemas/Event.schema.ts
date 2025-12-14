@@ -1,5 +1,6 @@
 import { Schema } from 'mongoose';
 import { EventCategory, EventStatus, EventType, EventLocationType } from '../libs/enums/event.enum';
+import { Currency } from '../libs/enums/common.enum';
 
 const EventSchema = new Schema(
 	{
@@ -45,11 +46,6 @@ const EventSchema = new Schema(
 			required: true,
 		},
 
-		eventTimezone: {
-			type: String,
-			required: true,
-		},
-
 		// ===== Location Details =====
 		locationType: {
 			type: String,
@@ -90,6 +86,13 @@ const EventSchema = new Schema(
 			type: Number,
 			default: 0,
 			min: 0,
+		},
+
+		eventCurrency: {
+			type: String,
+			enum: Currency,
+			required: false,
+			default: null,
 		},
 
 		// ===== Type and Status =====

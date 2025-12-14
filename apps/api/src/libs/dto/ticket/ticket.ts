@@ -1,5 +1,6 @@
 import { Field, ObjectType } from '@nestjs/graphql';
 import { TicketStatus } from '../../enums/ticket.enum';
+import { Currency } from '../../enums/common.enum';
 import { TotalCounter } from '../member/member';
 import { Event } from '../event/event';
 import type { ObjectId } from 'mongoose';
@@ -24,6 +25,9 @@ export class Ticket {
 	// ===== Pricing =====
 	@Field(() => Number)
 	ticketPrice: number;
+
+	@Field(() => Currency)
+	ticketCurrency: Currency;
 
 	@Field(() => Number)
 	ticketQuantity: number;

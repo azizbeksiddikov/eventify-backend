@@ -33,66 +33,31 @@ Default to safe=true unless CLEARLY inappropriate.`;
 }
 
 export function fillEventDataPrompt(event: CrawledEvent): string {
-	return `Task: Extract and fill missing event data from the raw data provided. Fill in ALL fields that are missing or incomplete.
+	// Extract raw HTML from scraper
+	const rawHtml = event.rawData?.raw_html || '';
 
-RAW DATA FROM SCRAPER:
-${JSON.stringify(event.rawData, null, 2)}
+	// Create a clean version of raw data without the large HTML field
+	const rawDataClean = event.rawData ? { ...event.rawData } : {};
+	delete rawDataClean.raw_html;
 
-CURRENT EVENT DATA (with missing/incomplete fields):
-${JSON.stringify(
-	{
-		eventType: event.eventType,
-		eventName: event.eventName,
-		eventDesc: event.eventDesc,
-		eventImages: event.eventImages,
-		eventPrice: event.eventPrice,
-		eventCurrency: event.eventCurrency,
-		eventStartAt: event.eventStartAt,
-		eventEndAt: event.eventEndAt,
-		locationType: event.locationType,
-		eventCity: event.eventCity,
-		eventAddress: event.eventAddress,
-		coordinateLatitude: event.coordinateLatitude,
-		coordinateLongitude: event.coordinateLongitude,
-		eventStatus: event.eventStatus,
-		eventCategories: event.eventCategories,
-		eventTags: event.eventTags,
-		externalId: event.externalId,
-		externalUrl: event.externalUrl,
-		attendeeCount: event.attendeeCount,
-		eventCapacity: event.eventCapacity,
-	},
-	null,
-	2,
-)}
+	return `Task: Assign categories and tags to this event.
+
+EVENT NAME: 
+${event.eventName}
+
+EVENT DESCRIPTION (TEXT): 
+${event.eventDesc?.substring(0, 600) || 'N/A'}
+
+RAW HTML FROM PAGE (may contain extra keywords/details):
+${rawHtml ? String(rawHtml).substring(0, 1000) : 'N/A'}
+
+RAW STRUCTURED DATA (topics, group info, metadata):
+${JSON.stringify(rawDataClean, null, 2).substring(0, 1200)}
 
 INSTRUCTIONS:
-1. Fill in ALL missing/null fields from the raw data where possible
-2. If data is not available in raw data, set optional fields to null
-3. Preserve existing non-null values unless raw data clearly has better information
-4. For eventStatus:
-   - Use "UPCOMING" if eventStartAt is in the future (after ${new Date().toISOString()})
-   - Use "ONGOING" if event is currently happening
-5. For eventType:
-   - Use "ONCE" for single events
-   - Use "RECURRING" if event repeats (check raw data for recurrence info)
-6. For eventPrice:
-   - Must be a number (0 for free events)
-   - Extract numeric value from price strings (e.g., "$25" → 25, "Free" → 0)
-7. For eventCategories:
-   - Assign 1-3 most relevant categories from the list below
-   - Choose based on event name, description, and tags
-8. For eventTags:
-   - Extract 3-10 relevant keywords from event name/description
-   - Use lowercase, single words or short phrases
-9. For locationType:
-   - Use "ONLINE" for virtual/online events
-   - Use "OFFLINE" for physical/in-person events
-10. For coordinates:
-    - Extract if available in raw data, otherwise set to null
-    - Must be valid numbers (latitude: -90 to 90, longitude: -180 to 180)
+Analyze ALL information above to assign 1-3 categories and 5-10 tags.
 
-AVAILABLE CATEGORIES (EventCategory enum - choose 1-3):
+AVAILABLE CATEGORIES (choose 1-3):
 - TECHNOLOGY: AI, coding, software, tech, blockchain, data science, programming
 - BUSINESS: entrepreneurship, networking, career, marketing, sales, startups
 - SPORTS: fitness, yoga, running, sports, outdoor activities, gym, athletics
@@ -106,37 +71,11 @@ AVAILABLE CATEGORIES (EventCategory enum - choose 1-3):
 - RELIGION: religious services, spiritual gatherings, faith-based events
 - OTHER: events that don't fit other categories
 
-CATEGORY EXAMPLES:
-- "Seoul AI Meetup" → ["TECHNOLOGY"]
-- "Korean Language Exchange at Cafe" → ["EDUCATION"]
-- "Startup Networking Night" → ["BUSINESS"]
-- "Yoga in the Park" → ["SPORTS", "HEALTH"]
-- "Friday Movie Night" → ["ENTERTAINMENT"]
-- "Tech & Business Summit" → ["TECHNOLOGY", "BUSINESS"]
+EXAMPLES:
+- "Seoul AI Meetup" → {"categories":["TECHNOLOGY"],"tags":["ai","meetup","tech","seoul","networking"]}
+- "Korean Language Exchange" → {"categories":["EDUCATION"],"tags":["language","korean","learning","exchange","social"]}
+- "Blockchain Networking" → {"categories":["TECHNOLOGY","BUSINESS"],"tags":["blockchain","crypto","web3","networking"]}
 
-OUTPUT FORMAT (valid JSON only, no additional text):
-{
-  "eventType": "ONCE" | "RECURRING",
-  "eventName": "string",
-  "eventDesc": "string (detailed description)",
-  "eventImages": ["url1", "url2"],
-  "eventPrice": number (0 for free),
-  "eventCurrency"?: "string",
-  "eventStartAt": "ISO8601 datetime string",
-  "eventEndAt": "ISO8601 datetime string",
-  "locationType": "ONLINE" | "OFFLINE",
-  "eventCity": "string" | null,
-  "eventAddress": "full address string" | null,
-  "coordinateLatitude": number | null,
-  "coordinateLongitude": number | null,
-  "eventStatus": "UPCOMING" | "ONGOING",
-  "eventCategories": ["CATEGORY1", "CATEGORY2"],
-  "eventTags": ["tag1", "tag2", "tag3"],
-  "externalId": "string" | null,
-  "externalUrl": "string" | null,
-  "attendeeCount": number (default 0),
-  "eventCapacity": number | null
-}
-
-Return ONLY the JSON object. No markdown, no explanation, just valid JSON.`;
+OUTPUT (ONLY JSON, no markdown, no text):
+{"categories":["CATEGORY1"],"tags":["tag1","tag2","tag3","tag4","tag5"]}`;
 }

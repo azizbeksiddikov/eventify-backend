@@ -48,32 +48,34 @@ export class WebCrawlingService {
 					console.warn(`Continuing with other scrapers...`);
 				}
 			}
-			return allEvents;
 
 			////////////////////////////////////////////////////////////
 			// Step 2: Filter events with LLM + Fill missing data
 			////////////////////////////////////////////////////////////
-			// const { accepted, rejected, reasons } = await this.llmService.filterAndCompleteEvents(allEvents);
+			const { accepted, rejected, reasons } = await this.llmService.filterAndCompleteEvents(allEvents);
 
-			// await this.saveStepToJson('step2_llm', {
-			// 	metadata: {
-			// 		step: 2,
-			// 		description: 'Events after LLM processing',
-			// 		processedAt: new Date().toISOString(),
-			// 		totalAccepted: accepted.length,
-			// 		totalRejected: rejected.length,
-			// 		acceptanceRate: allEvents.length > 0 ? `${((accepted.length / allEvents.length) * 100).toFixed(1)}%` : 'N/A',
-			// 		llmEnabled: process.env.LLM_ENABLED === 'true',
-			// 	},
-			// 	acceptedEvents: accepted,
-			// 	rejectedEvents: rejected.map((event) => ({
-			// 		eventName: event.eventName,
-			// 		externalUrl: event.externalUrl,
-			// 		origin: event.origin,
-			// 		reason: reasons.get(event.externalId || event.eventName) || 'Unknown',
-			// 	})),
-			// });
-			// await this.saveAllEventsToJson(allEvents, accepted, rejected, reasons, scraperResults);
+			await this.saveStepToJson('step2_llm', {
+				metadata: {
+					step: 2,
+					description: 'Events after LLM processing',
+					processedAt: new Date().toISOString(),
+					totalAccepted: accepted.length,
+					totalRejected: rejected.length,
+					acceptanceRate: allEvents.length > 0 ? `${((accepted.length / allEvents.length) * 100).toFixed(1)}%` : 'N/A',
+					llmEnabled: process.env.LLM_ENABLED === 'true',
+				},
+				acceptedEvents: accepted.map((event) => {
+					const { rawData, ...eventWithoutRawData } = event;
+					return eventWithoutRawData;
+				}),
+				rejectedEvents: rejected.map((event) => ({
+					eventName: event.eventName,
+					externalUrl: event.externalUrl,
+					origin: event.origin,
+					reason: reasons.get(event.externalId || event.eventName) || 'Unknown',
+				})),
+			});
+			await this.saveAllEventsToJson(allEvents, accepted, rejected, reasons, scraperResults);
 
 			////////////////////////////////////////////////////////////
 			// Step 3: Import accepted events to database
@@ -98,7 +100,7 @@ export class WebCrawlingService {
 			// 	});
 			// }
 
-			// return accepted;
+			return accepted;
 		} catch (error) {
 			console.error(`Error during web crawling: ${error.message}`, error.stack);
 			throw error;
@@ -150,7 +152,10 @@ export class WebCrawlingService {
 						model: process.env.OLLAMA_MODEL,
 					},
 				},
-				acceptedEvents: acceptedEvents,
+				acceptedEvents: acceptedEvents.map((event) => {
+					const { rawData, ...eventWithoutRawData } = event;
+					return eventWithoutRawData;
+				}),
 				rejectedEvents: rejectedEvents.map((event) => ({
 					eventName: event.eventName,
 					externalUrl: event.externalUrl,

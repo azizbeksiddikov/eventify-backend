@@ -58,6 +58,8 @@ export enum Message {
 export enum Currency {
 	KRW = 'KRW',
 	USD = 'USD',
+	JPY = 'JPY',
+	EUR = 'EUR',
 }
 
 // ===== Direction =====

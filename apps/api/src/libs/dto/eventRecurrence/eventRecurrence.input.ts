@@ -108,10 +108,10 @@ export class EventRecurrenceInput {
 	@Min(0)
 	eventPrice?: number;
 
-	@Field(() => String, { nullable: true })
+	@Field(() => Currency, { nullable: true })
 	@IsOptional()
-	@IsString()
-	eventCurrency?: string;
+	@IsEnum(Currency)
+	eventCurrency?: Currency;
 
 	@Field(() => String, { nullable: true })
 	@IsOptional()
@@ -272,6 +272,11 @@ export class EventRecurrenceUpdateInput {
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	groupId?: ObjectId;
+
+	@Field(() => Boolean, { nullable: true })
+	@IsOptional()
+	@IsBoolean()
+	isRealEvent?: boolean;
 
 	@Field(() => Boolean, { nullable: true })
 	@IsOptional()

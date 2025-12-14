@@ -24,6 +24,11 @@ export class EventInput {
 	eventType?: EventType;
 
 	// ===== Basic Information =====
+
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	recurrenceId?: ObjectId;
+
 	@Field(() => String)
 	@IsNotEmpty()
 	eventName: string;
@@ -36,17 +41,6 @@ export class EventInput {
 	@IsNotEmpty()
 	@IsArray()
 	eventImages: string[];
-
-	@Field(() => Number, { nullable: true })
-	@IsOptional()
-	@IsNumber()
-	@Min(0)
-	eventPrice?: number;
-
-	@Field(() => Currency, { nullable: true })
-	@IsOptional()
-	@IsEnum(Currency)
-	eventCurrency?: Currency;
 
 	// ===== Event Timestamps =====
 	@Field(() => Date)
@@ -84,6 +78,24 @@ export class EventInput {
 	@IsNumber()
 	coordinateLongitude?: number;
 
+	// ===== Event Details =====
+	@Field(() => Number, { nullable: true })
+	@IsOptional()
+	@IsNumber()
+	@Min(0)
+	eventCapacity?: number;
+
+	@Field(() => Number, { nullable: true })
+	@IsOptional()
+	@IsNumber()
+	@Min(0)
+	eventPrice?: number;
+
+	@Field(() => Currency, { nullable: true })
+	@IsOptional()
+	@IsEnum(Currency)
+	eventCurrency?: Currency;
+
 	// ===== Type and Status =====
 	@Field(() => String, { nullable: true })
 	@IsOptional()
@@ -107,38 +119,33 @@ export class EventInput {
 	@IsBoolean()
 	isRealEvent?: boolean;
 
-	// ===== External Source Information =====
-	@Field(() => String, { nullable: true })
-	@IsOptional()
-	@IsString()
-	externalId?: string;
-
-	@Field(() => String, { nullable: true })
-	@IsOptional()
-	@IsString()
-	externalUrl?: string;
-
-	@Field(() => String, { nullable: true })
-	@IsOptional()
-	@IsString()
-	origin?: string;
-
-	// ===== References =====
+	// ===== Internal References =====
 	@Field(() => String, { nullable: true })
 	@IsOptional()
 	groupId?: ObjectId;
 
+	// ===== External Source Information =====
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	@IsString()
+	origin?: string; // 'internal' | 'meetup.com' | 'luma.com' | 'eventbrite.com', etc.
+
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	@IsString()
+	externalId?: string; // Original event ID from external platform
+
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	@IsString()
+	externalUrl?: string; // Link to original event page
+
+	// ===== Statistics =====
 	@Field(() => Number, { nullable: true })
 	@IsOptional()
 	@IsNumber()
 	@Min(0)
 	attendeeCount?: number;
-
-	@Field(() => Number, { nullable: true })
-	@IsOptional()
-	@IsNumber()
-	@Min(0)
-	eventCapacity?: number;
 }
 
 // ============== Search Inputs ==============

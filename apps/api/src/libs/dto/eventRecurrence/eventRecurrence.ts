@@ -87,6 +87,9 @@ export class EventRecurrence {
 	@Field(() => String)
 	origin: string;
 
+	@Field(() => Boolean)
+	isRealEvent: boolean;
+
 	// ===== Status =====
 	@Field(() => Boolean)
 	isActive: boolean;

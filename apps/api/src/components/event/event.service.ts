@@ -108,15 +108,8 @@ export class EventService {
 				});
 			}
 
-			// schedule event status auto-update jobs
-			if (
-				event.eventStatus === EventStatus.UPCOMING &&
-				event.eventStartAt > new Date() &&
-				event.eventEndAt > new Date()
-			) {
-				await this.agendaService.scheduleEventStart(event._id, event.eventStartAt);
-				await this.agendaService.scheduleEventEnd(event._id, event.eventEndAt);
-			}
+			// Schedule event status auto-update jobs based on event status
+			await this.scheduleEventJobs(event);
 
 			return event;
 		} catch (error) {
@@ -462,29 +455,13 @@ export class EventService {
 		// Update each future event
 		for (const upcomingEvent of upcomingEvents) {
 			// Update event fields
-			await this.eventModel.findByIdAndUpdate(upcomingEvent._id, updateFields, { new: true }).exec();
+			const updatedEvent = await this.eventModel
+				.findByIdAndUpdate(upcomingEvent._id, updateFields, { new: true })
+				.exec();
 
-			// Handle job management based on status changes or time changes
-			if (
-				input.eventStatus &&
-				(input.eventStatus === EventStatus.DELETED || input.eventStatus === EventStatus.CANCELLED)
-			) {
-				// Cancel all jobs if event is deleted or cancelled
-				await this.agendaService.cancelEventJobs(upcomingEvent._id);
-				if (upcomingEvent.memberId) {
-					await this.memberService.memberStatsEditor({
-						_id: upcomingEvent.memberId,
-						targetKey: 'eventsOrganizedCount',
-						modifier: -1,
-					});
-				}
-			} else if (
-				(input.eventStartAt && input.eventStartAt !== upcomingEvent.eventStartAt) ||
-				(input.eventEndAt && input.eventEndAt !== upcomingEvent.eventEndAt)
-			) {
-				const startTime = input.eventStartAt ? input.eventStartAt : upcomingEvent.eventStartAt;
-				const endTime = input.eventEndAt ? input.eventEndAt : upcomingEvent.eventEndAt;
-				await this.agendaService.rescheduleEventJobs(upcomingEvent._id, startTime, endTime);
+			// Handle job management using the same logic as single event updates
+			if (updatedEvent) {
+				await this.handleEventJobsOnUpdate(upcomingEvent, updatedEvent, input);
 			}
 		}
 	}
@@ -524,32 +501,127 @@ export class EventService {
 		}
 
 		// Handle job management and stats based on status changes
-		if (input.eventStatus === EventStatus.DELETED || input.eventStatus === EventStatus.CANCELLED) {
-			// Cancel all jobs if event is deleted or cancelled
-			await this.agendaService.cancelEventJobs(input._id);
-
-			// Decrease event count: if event was not completed
-			if (
-				(input.eventStatus === EventStatus.DELETED || input.eventStatus === EventStatus.CANCELLED) &&
-				event.eventStatus !== EventStatus.COMPLETED
-			) {
-				if (event.memberId) {
-					await this.memberService.memberStatsEditor({
-						_id: event.memberId,
-						targetKey: 'eventsOrganizedCount',
-						modifier: -1,
-					});
-				}
-			}
-		} else if (
-			(input.eventStartAt && input.eventStartAt !== event.eventStartAt) ||
-			(input.eventEndAt && input.eventEndAt !== event.eventEndAt)
-		) {
-			const startTime = input.eventStartAt ? input.eventStartAt : event.eventStartAt;
-			const endTime = input.eventEndAt ? input.eventEndAt : event.eventEndAt;
-			await this.agendaService.rescheduleEventJobs(result._id, startTime, endTime);
-		}
+		await this.handleEventJobsOnUpdate(event, result, input);
 
 		return result;
+	}
+
+	/**
+	 * Schedule event jobs based on event status and timing
+	 * - UPCOMING: Schedule both EVENT_START and EVENT_END
+	 * - ONGOING: Schedule only EVENT_END
+	 * - COMPLETED/CANCELLED/DELETED: No jobs
+	 */
+	private async scheduleEventJobs(event: any): Promise<void> {
+		const now = new Date();
+		const startTime = new Date(event.eventStartAt);
+		const endTime = new Date(event.eventEndAt);
+
+		// Handle UPCOMING events
+		if (event.eventStatus === EventStatus.UPCOMING) {
+			// Schedule start job if event hasn't started yet
+			if (startTime > now) await this.agendaService.scheduleEventStart(event._id, startTime);
+
+			// Schedule end job if event hasn't ended yet
+			if (endTime > now) await this.agendaService.scheduleEventEnd(event._id, endTime);
+
+			// Warn if event should already be ONGOING or COMPLETED
+			if (startTime <= now && endTime > now) {
+				console.warn(
+					`Event ${event._id} is marked as UPCOMING but should be ONGOING (start: ${startTime.toISOString()})`,
+				);
+			} else if (endTime <= now) {
+				console.warn(
+					`Event ${event._id} is marked as UPCOMING but should be COMPLETED (end: ${endTime.toISOString()})`,
+				);
+			}
+			return;
+		}
+
+		// Handle ONGOING events
+		if (event.eventStatus === EventStatus.ONGOING) {
+			// Only schedule end job if event hasn't ended yet
+			if (endTime > now) await this.agendaService.scheduleEventEnd(event._id, endTime);
+			else {
+				console.warn(`Event ${event._id} is marked as ONGOING but end time has passed (end: ${endTime.toISOString()})`);
+			}
+			return;
+		}
+
+		// COMPLETED, CANCELLED, DELETED events don't need jobs
+	}
+
+	/**
+	 * Handle event job scheduling when updating an event
+	 * Manages job lifecycle based on status changes and time updates
+	 */
+	private async handleEventJobsOnUpdate(oldEvent: Event, updatedEvent: Event, input: EventUpdateInput): Promise<void> {
+		const oldStatus = oldEvent.eventStatus;
+		const newStatus = updatedEvent.eventStatus;
+		const statusChanged = input.eventStatus && oldStatus !== newStatus;
+		const timeChanged =
+			(input.eventStartAt && input.eventStartAt !== oldEvent.eventStartAt) ||
+			(input.eventEndAt && input.eventEndAt !== oldEvent.eventEndAt);
+		const now = new Date();
+
+		// Case 1: Status changed to DELETED or CANCELLED → Cancel all jobs
+		if (newStatus === EventStatus.DELETED || newStatus === EventStatus.CANCELLED) {
+			await this.agendaService.cancelEventJobs(updatedEvent._id);
+
+			// Decrease event count if event was not completed
+			if (oldStatus !== EventStatus.COMPLETED && oldEvent.memberId) {
+				await this.memberService.memberStatsEditor({
+					_id: oldEvent.memberId,
+					targetKey: 'eventsOrganizedCount',
+					modifier: -1,
+				});
+			}
+			return;
+		}
+
+		// Case 2: Status changed to COMPLETED → Cancel all jobs
+		if (statusChanged && newStatus === EventStatus.COMPLETED) {
+			await this.agendaService.cancelEventJobs(updatedEvent._id);
+			return;
+		}
+
+		// Case 3: Status changed to ONGOING → Cancel EVENT_START, keep/schedule EVENT_END
+		if (statusChanged && newStatus === EventStatus.ONGOING) {
+			// Cancel all existing jobs first
+			await this.agendaService.cancelEventJobs(updatedEvent._id);
+
+			// Schedule EVENT_END if end time is in the future
+			if (new Date(updatedEvent.eventEndAt) > now) {
+				await this.agendaService.scheduleEventEnd(updatedEvent._id, updatedEvent.eventEndAt);
+			}
+			return;
+		}
+
+		// Case 4: Status changed from CANCELLED/DELETED/COMPLETED back to UPCOMING → Schedule new jobs
+		if (statusChanged && newStatus === EventStatus.UPCOMING && oldStatus !== EventStatus.UPCOMING) {
+			await this.scheduleEventJobs(updatedEvent);
+			return;
+		}
+
+		// Case 5: Time changed for UPCOMING event → Reschedule jobs
+		if (timeChanged && newStatus === EventStatus.UPCOMING) {
+			await this.agendaService.rescheduleEventJobs(
+				updatedEvent._id,
+				updatedEvent.eventStartAt,
+				updatedEvent.eventEndAt,
+			);
+			return;
+		}
+
+		// Case 6: Time changed for ONGOING event → Reschedule EVENT_END
+		if (timeChanged && newStatus === EventStatus.ONGOING && input.eventEndAt) {
+			await this.agendaService.cancelEventJobs(updatedEvent._id);
+			if (new Date(updatedEvent.eventEndAt) > now) {
+				await this.agendaService.scheduleEventEnd(updatedEvent._id, updatedEvent.eventEndAt);
+			}
+			return;
+		}
+
+		// Case 7: Event status unchanged, no job-related changes → No action needed
 	}
 }

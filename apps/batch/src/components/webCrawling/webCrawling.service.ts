@@ -10,6 +10,7 @@ import { IEventScraper, CrawledEvent } from '@app/api/src/libs/dto/event/eventCr
 import { LLMService } from '../llm/llm.service';
 import { EventStatus, EventType } from '@app/api/src/libs/enums/event.enum';
 import { EventInput } from '@app/api/src/libs/dto/event/event.input';
+import { AgendaService } from '../../agenda/agenda.service';
 
 @Injectable()
 export class WebCrawlingService {
@@ -17,6 +18,7 @@ export class WebCrawlingService {
 
 	constructor(
 		@InjectModel('Event') private readonly eventModel: Model<Event>,
+		private readonly agendaService: AgendaService,
 		private readonly meetupScraper: MeetupScraper,
 		private readonly lumaScraper: LumaScraper,
 
@@ -190,7 +192,15 @@ export class WebCrawlingService {
 
 					if (hasChanges) {
 						// Update the event if there are changes
-						await this.eventModel.findByIdAndUpdate(existingEvent._id, eventData);
+						const updatedEvent = await this.eventModel.findByIdAndUpdate(existingEvent._id, eventData, {
+							new: true,
+						});
+
+						// Handle job rescheduling for updated events
+						if (updatedEvent) {
+							await this.handleEventJobsAfterImport(existingEvent, updatedEvent);
+						}
+
 						updated++;
 						console.log(`Updated: "${event.eventName}" (${event.externalId || 'no-id'})`);
 					} else {
@@ -199,7 +209,11 @@ export class WebCrawlingService {
 					}
 				} else {
 					// Create new event if it doesn't exist
-					await this.eventModel.create(eventData);
+					const newEvent = await this.eventModel.create(eventData);
+
+					// Schedule jobs for newly created events
+					await this.scheduleEventJobs(newEvent);
+
 					created++;
 					console.log(`Created: "${event.eventName}" (${event.externalId || 'no-id'})`);
 				}
@@ -354,5 +368,94 @@ export class WebCrawlingService {
 
 		// Return true if any check indicates a change
 		return checks.some((hasChange) => hasChange);
+	}
+
+	/**
+	 * Schedule event jobs based on event status and timing
+	 * - UPCOMING: Schedule both EVENT_START and EVENT_END
+	 * - ONGOING: Schedule only EVENT_END
+	 * - COMPLETED/CANCELLED/DELETED: No jobs
+	 */
+	private async scheduleEventJobs(event: any): Promise<void> {
+		const now = new Date();
+		const startTime = new Date(event.eventStartAt);
+		const endTime = new Date(event.eventEndAt);
+
+		// Handle UPCOMING events
+		if (event.eventStatus === EventStatus.UPCOMING) {
+			// Schedule start job if event hasn't started yet
+			if (startTime > now) {
+				await this.agendaService.scheduleEventStart(event._id.toString(), startTime);
+			}
+
+			// Schedule end job if event hasn't ended yet
+			if (endTime > now) {
+				await this.agendaService.scheduleEventEnd(event._id.toString(), endTime);
+			}
+			return;
+		}
+
+		// Handle ONGOING events
+		if (event.eventStatus === EventStatus.ONGOING) {
+			// Only schedule end job if event hasn't ended yet
+			if (endTime > now) {
+				await this.agendaService.scheduleEventEnd(event._id.toString(), endTime);
+			}
+			return;
+		}
+
+		// COMPLETED, CANCELLED, DELETED events don't need jobs
+	}
+
+	/**
+	 * Handle event job scheduling when updating an imported event
+	 */
+	private async handleEventJobsAfterImport(oldEvent: any, updatedEvent: any): Promise<void> {
+		const oldStatus = oldEvent.eventStatus;
+		const newStatus = updatedEvent.eventStatus;
+		const now = new Date();
+
+		// If status or timing changed, handle accordingly
+		const timeChanged =
+			new Date(oldEvent.eventStartAt).getTime() !== new Date(updatedEvent.eventStartAt).getTime() ||
+			new Date(oldEvent.eventEndAt).getTime() !== new Date(updatedEvent.eventEndAt).getTime();
+
+		// Case 1: Status is DELETED, CANCELLED, or COMPLETED → Cancel all jobs
+		if (
+			newStatus === EventStatus.DELETED ||
+			newStatus === EventStatus.CANCELLED ||
+			newStatus === EventStatus.COMPLETED
+		) {
+			await this.agendaService.cancelEventJobs(updatedEvent._id.toString());
+			return;
+		}
+
+		// Case 2: Status is ONGOING → Keep/schedule EVENT_END
+		if (newStatus === EventStatus.ONGOING) {
+			// Cancel all existing jobs
+			await this.agendaService.cancelEventJobs(updatedEvent._id.toString());
+
+			// Schedule EVENT_END if end time is in the future
+			if (new Date(updatedEvent.eventEndAt) > now) {
+				await this.agendaService.scheduleEventEnd(updatedEvent._id.toString(), updatedEvent.eventEndAt);
+			}
+			return;
+		}
+
+		// Case 3: Event is UPCOMING and time changed → Reschedule jobs
+		if (newStatus === EventStatus.UPCOMING && timeChanged) {
+			await this.agendaService.rescheduleEventJobs(
+				updatedEvent._id.toString(),
+				updatedEvent.eventStartAt,
+				updatedEvent.eventEndAt,
+			);
+			return;
+		}
+
+		// Case 4: Status changed to UPCOMING from other status → Schedule new jobs
+		if (newStatus === EventStatus.UPCOMING && oldStatus !== EventStatus.UPCOMING) {
+			await this.scheduleEventJobs(updatedEvent);
+			return;
+		}
 	}
 }

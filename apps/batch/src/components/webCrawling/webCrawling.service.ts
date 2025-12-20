@@ -286,7 +286,10 @@ export class WebCrawlingService {
 			// ===== Basic Information =====
 			eventName: event.eventName,
 			eventDesc: event.eventDesc,
-			eventImages: event.eventImages || [],
+			// Ensure eventImages is always an array, filter out any null/undefined values
+			eventImages: Array.isArray(event.eventImages)
+				? event.eventImages.filter((img: string | null | undefined) => img != null)
+				: [],
 			eventPrice: event.eventPrice || 0,
 			eventCurrency: event.eventCurrency,
 

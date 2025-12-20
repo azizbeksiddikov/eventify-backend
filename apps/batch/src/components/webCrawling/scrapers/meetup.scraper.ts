@@ -681,7 +681,8 @@ export class MeetupScraper implements IEventScraper {
 			// ===== Basic Information =====
 			eventName: jsonEventObject.title || 'Untitled Event',
 			eventDesc: jsonEventObject.description || 'No description available',
-			eventImages: [jsonEventObject?.featuredEventPhoto?.source],
+			// Extract images: try featuredEventPhoto, then groupPhoto, then HTML extraction
+			eventImages: this.extractEventImages(jsonEventObject),
 			eventPrice: priceInfo.amount,
 			eventCurrency: priceInfo.currency as Currency,
 
@@ -717,6 +718,102 @@ export class MeetupScraper implements IEventScraper {
 			// ===== Data Storage =====
 			rawData: jsonEventObject,
 		};
+	}
+
+	/**
+	 * Extract event images from multiple sources:
+	 * 1. featuredEventPhoto (event-specific photo)
+	 * 2. group.groupPhoto (group photo as fallback)
+	 * 3. HTML content (extract from event page HTML)
+	 */
+	private extractEventImages(jsonEventObject: any): string[] {
+		const images: string[] = [];
+
+		// 1. Try featuredEventPhoto first (event-specific photo)
+		const featuredPhoto = jsonEventObject?.featuredEventPhoto?.source;
+		if (featuredPhoto) {
+			images.push(featuredPhoto);
+			return images;
+		}
+
+		// 2. Fallback to groupPhoto
+		const groupPhoto = jsonEventObject?.group?.groupPhoto?.source;
+		if (groupPhoto) {
+			images.push(groupPhoto);
+			return images;
+		}
+
+		// 3. Extract from HTML content if available
+		const htmlContent = jsonEventObject?.raw_html;
+		if (htmlContent) {
+			const htmlImages = this.extractImagesFromHtml(htmlContent);
+			if (htmlImages.length > 0) {
+				return htmlImages;
+			}
+		}
+
+		return [];
+	}
+
+	/**
+	 * Extract event images from HTML content
+	 * Looks for event images in various HTML elements
+	 */
+	private extractImagesFromHtml(htmlContent: string): string[] {
+		const images: string[] = [];
+		const $ = cheerio.load(htmlContent);
+
+		// Try multiple selectors for event images
+		const selectors = [
+			// Main event image/hero image
+			'img[data-testid="event-hero-image"]',
+			'img.event-hero-image',
+			'.event-hero img',
+			'[class*="event-hero"] img',
+			'[class*="EventHero"] img',
+			// Event photo sections
+			'[class*="event-photo"] img',
+			'[class*="EventPhoto"] img',
+			// Main content images (prioritize larger images)
+			'article img[src*="meetupstatic.com"]',
+			'[role="main"] img[src*="meetupstatic.com"]',
+			'.event-details img[src*="meetupstatic.com"]',
+			// Any meetupstatic.com images (event photos)
+			'img[src*="meetupstatic.com/photos/event"]',
+		];
+
+		for (const selector of selectors) {
+			$(selector).each((_, element) => {
+				const src = $(element).attr('src');
+				const srcset = $(element).attr('srcset');
+				const dataSrc = $(element).attr('data-src');
+
+				// Prefer high-res images
+				const imageUrl = srcset
+					? srcset.split(',').pop()?.trim().split(' ')[0] // Get highest res from srcset
+					: dataSrc || src;
+
+				if (imageUrl && imageUrl.startsWith('http') && !images.includes(imageUrl)) {
+					// Filter out small icons, avatars, and non-event images
+					if (
+						!imageUrl.includes('/classic-member/') &&
+						!imageUrl.includes('/favicon') &&
+						!imageUrl.includes('/icon') &&
+						(imageUrl.includes('/photos/event/') || imageUrl.includes('/highres_'))
+					) {
+						images.push(imageUrl);
+					}
+				}
+			});
+
+			// If we found images with this selector, return them
+			if (images.length > 0) {
+				break;
+			}
+		}
+
+		// Limit to first 3 images to avoid too many
+		return images.slice(0, 3);
 	}
 
 	/**

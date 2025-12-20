@@ -39,12 +39,23 @@ export class WebCrawlingService {
 			// Step 1: Web scraping events
 			////////////////////////////////////////////////////////////
 			console.log('Start web scraping...');
+			let currentLimit = limit;
+
 			for (const scraper of this.scrapers) {
+				// Check if we've already reached the limit before calling next scraper
+				if (currentLimit !== undefined && currentLimit <= 0) {
+					console.log(`Limit reached (${limit}), stopping scraping`);
+					break;
+				}
+
 				try {
-					const events = await scraper.scrapeEvents(limit);
+					const events = await scraper.scrapeEvents(currentLimit);
 
 					scraperResults[scraper.getName()] = { count: events.length, events: events };
 					allEvents.push(...events);
+
+					// Decrease currentLimit by the number of events scraped
+					if (currentLimit !== undefined) currentLimit -= events.length;
 				} catch (error) {
 					console.error(`Scraper ${scraper.getName()} failed: ${error.message}`, error.stack);
 					console.warn(`Continuing with other scrapers...`);
@@ -55,6 +66,9 @@ export class WebCrawlingService {
 			// Step 2: Filter events with LLM + Fill missing data
 			////////////////////////////////////////////////////////////
 			const { accepted, rejected, reasons } = await this.llmService.filterAndCompleteEvents(allEvents);
+
+			// Apply limit globally after LLM filtering to ensure we return exactly the requested number
+			const finalAccepted = limit ? accepted.slice(0, limit) : accepted;
 
 			await this.saveStepToJson('step2_llm', {
 				metadata: {
@@ -84,7 +98,7 @@ export class WebCrawlingService {
 			////////////////////////////////////////////////////////////
 			let processedCount = 0;
 			if (!testMode) {
-				processedCount = await this.importEventsToDatabase(accepted);
+				processedCount = await this.importEventsToDatabase(finalAccepted);
 
 				await this.saveStepToJson('step3_import_results', {
 					metadata: {
@@ -92,17 +106,17 @@ export class WebCrawlingService {
 						description: 'Database import results (create/update)',
 						importedAt: new Date().toISOString(),
 						totalProcessed: processedCount,
-						totalEvents: accepted.length,
+						totalEvents: finalAccepted.length,
 					},
 					summary: {
 						processedSuccessfully: processedCount,
-						totalEvents: accepted.length,
+						totalEvents: finalAccepted.length,
 						note: 'See console logs for breakdown of created/updated/skipped',
 					},
 				});
 			}
 
-			return accepted;
+			return finalAccepted;
 		} catch (error) {
 			console.error(`Error during web crawling: ${error.message}`, error.stack);
 			throw error;

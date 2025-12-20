@@ -102,7 +102,7 @@ export class EventService {
 						memberId: memberId,
 						receiverId: groupMember.memberId,
 						notificationType: NotificationType.CREATE_EVENT,
-						notificationLink: `/events?${event._id}`,
+						notificationLink: `/events/${event._id}`,
 					};
 					await this.notificationService.createNotification(newNotification);
 				});
@@ -145,8 +145,14 @@ export class EventService {
 
 		event.similarEvents = await this.eventModel
 			.aggregate([
-				{ $match: { eventCategories: { $in: event.eventCategories }, _id: { $ne: event._id } } },
-				{ $sort: { createdAt: Direction.DESC } },
+				{
+					$match: {
+						eventCategories: { $in: event.eventCategories },
+						_id: { $ne: event._id },
+						eventStatus: EventStatus.UPCOMING,
+					},
+				},
+				{ $sort: { eventStartAt: Direction.ASC } },
 				{ $limit: 5 },
 				lookupAuthMemberLiked(memberId),
 			])

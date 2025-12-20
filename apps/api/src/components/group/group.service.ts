@@ -334,7 +334,7 @@ export class GroupService {
 				memberId: memberId,
 				receiverId: group.memberId,
 				notificationType: NotificationType.JOIN_GROUP,
-				notificationLink: `/groups?${groupId}`,
+				notificationLink: `/groups/${groupId}`,
 			};
 			await this.notificationService.createNotification(newNotification);
 

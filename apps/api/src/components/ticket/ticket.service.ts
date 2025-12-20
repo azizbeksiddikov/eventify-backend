@@ -70,7 +70,7 @@ export class TicketService {
 					memberId: memberId,
 					receiverId: event.memberId,
 					notificationType: NotificationType.JOIN_EVENT,
-					notificationLink: `/events?${eventId}`,
+					notificationLink: `/events/${eventId}`,
 				};
 				await this.notificationService.createNotification(newNotification);
 			}

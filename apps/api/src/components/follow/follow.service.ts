@@ -71,7 +71,7 @@ export class FollowService {
 			};
 
 			if (targetMember.memberType === MemberType.ORGANIZER) {
-				newNotification.notificationLink = `/organizers?${followerId}`;
+				newNotification.notificationLink = `/organizers/${followerId}`;
 			}
 			await this.notificationService.createNotification(newNotification);
 

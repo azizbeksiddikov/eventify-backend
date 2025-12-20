@@ -92,7 +92,7 @@ export class CommentService {
 					await this.notificationService.createNotification({
 						...newNotification,
 						receiverId: event.memberId,
-						notificationLink: `/events?${input.commentRefId}`,
+						notificationLink: `/events/${input.commentRefId}`,
 						notificationType: NotificationType.COMMENT_EVENT,
 					});
 				}
@@ -107,7 +107,7 @@ export class CommentService {
 				await this.notificationService.createNotification({
 					...newNotification,
 					receiverId: group.memberId,
-					notificationLink: `/groups?${input.commentRefId}`,
+					notificationLink: `/groups/${input.commentRefId}`,
 					notificationType: NotificationType.COMMENT_GROUP,
 				});
 				break;

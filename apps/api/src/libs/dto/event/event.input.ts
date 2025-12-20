@@ -124,6 +124,10 @@ export class EventInput {
 	@IsOptional()
 	groupId?: ObjectId;
 
+	@Field(() => String, { nullable: true })
+	@IsOptional()
+	memberId?: ObjectId;
+
 	// ===== External Source Information =====
 	@Field(() => String, { nullable: true })
 	@IsOptional()

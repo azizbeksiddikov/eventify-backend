@@ -151,7 +151,13 @@ const EventRecurrenceSchema = new Schema(
 		// ===== Origin =====
 		origin: {
 			type: String,
-			default: 'eventify.azbek.me',
+			default: 'internal',
+		},
+
+		isRealEvent: {
+			type: Boolean,
+			required: true,
+			default: false,
 		},
 
 		// ===== Status =====

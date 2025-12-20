@@ -15,6 +15,7 @@ import { Event } from '../../libs/dto/event/event';
 import { AgendaService } from '../agenda/agenda.service';
 import { MemberService } from '../member/member.service';
 import { GroupService } from '../group/group.service';
+import { EventInput } from '../../libs/dto/event/event.input';
 
 @Injectable()
 export class EventRecurrenceService {
@@ -172,7 +173,7 @@ export class EventRecurrenceService {
 
 			if (!exists) {
 				// Create event
-				const event = await this.eventModel.create({
+				const eventInput: EventInput = {
 					eventType: EventType.RECURRING,
 					recurrenceId: recurrence._id,
 					eventName: recurrence.eventName,
@@ -194,11 +195,10 @@ export class EventRecurrenceService {
 					groupId: recurrence.groupId,
 					memberId: recurrence.memberId,
 					origin: recurrence.origin,
-					isRealEvent: false,
+					isRealEvent: recurrence.isRealEvent,
 					attendeeCount: 0,
-					eventLikes: 0,
-					eventViews: 0,
-				});
+				};
+				const event = await this.eventModel.create(eventInput);
 
 				await this.memberService.memberStatsEditor({
 					_id: recurrence.memberId,

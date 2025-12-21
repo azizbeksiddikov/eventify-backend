@@ -31,6 +31,7 @@ export class AgendaService implements OnModuleInit, OnModuleDestroy {
 	async onModuleInit() {
 		await this.initializeProcessors();
 		await this.startProcessing();
+		await this.scheduleCleanupJob();
 	}
 
 	async onModuleDestroy() {
@@ -91,6 +92,28 @@ export class AgendaService implements OnModuleInit, OnModuleDestroy {
 				}
 			} catch (error) {
 				this.logger.error(`Error processing ${EventJobStatus.EVENT_END} job for event ${eventId}:`, error);
+			}
+		});
+
+		// Define event-cleanup processor (runs every 24 hours)
+		this.agenda.define(EventJobStatus.EVENT_CLEANUP, async (job) => {
+			this.logger.log(`Processing ${EventJobStatus.EVENT_CLEANUP} job`);
+
+			try {
+				const now = new Date();
+				const result = await this.eventModel
+					.updateMany(
+						{
+							eventStatus: { $nin: [EventStatus.COMPLETED, EventStatus.CANCELLED, EventStatus.DELETED] },
+							eventEndAt: { $lt: now },
+						},
+						{ $set: { eventStatus: EventStatus.COMPLETED } },
+					)
+					.exec();
+
+				this.logger.log(`${EventJobStatus.EVENT_CLEANUP} finished. Updated ${result.modifiedCount} events.`);
+			} catch (error) {
+				this.logger.error(`Error processing ${EventJobStatus.EVENT_CLEANUP} job:`, error);
 			}
 		});
 
@@ -160,6 +183,18 @@ export class AgendaService implements OnModuleInit, OnModuleDestroy {
 		} catch (error) {
 			this.logger.error(`Failed to reschedule jobs for event ${eventId}:`, error);
 			// Don't throw - continue with event update even if rescheduling fails
+		}
+	}
+
+	/**
+	 * Schedule cleanup job to run every 24 hours
+	 */
+	private async scheduleCleanupJob(): Promise<void> {
+		try {
+			await this.agenda.every('24 hours', EventJobStatus.EVENT_CLEANUP);
+			this.logger.log(`Scheduled ${EventJobStatus.EVENT_CLEANUP} job to run every 24 hours`);
+		} catch (error) {
+			this.logger.error(`Failed to schedule ${EventJobStatus.EVENT_CLEANUP} job:`, error);
 		}
 	}
 }

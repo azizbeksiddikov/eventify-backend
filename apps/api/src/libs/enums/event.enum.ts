@@ -48,6 +48,7 @@ export enum EventCategory {
 export enum EventJobStatus {
 	EVENT_START = 'event-start',
 	EVENT_END = 'event-end',
+	EVENT_CLEANUP = 'event-cleanup',
 }
 
 // Register Event enums

@@ -422,7 +422,7 @@ export class MeetupScraper implements IEventScraper {
 		const queue: any[] = [aggregatedJsonData];
 		const visited = new Set<any>();
 		const processedIds = new Set<string>();
-		let eventTypesFound = new Set<string>();
+		const eventTypesFound = new Set<string>();
 		let objectsScanned = 0;
 
 		while (queue.length > 0) {

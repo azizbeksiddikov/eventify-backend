@@ -296,7 +296,7 @@ export class EventRecurrenceService {
 			throw new BadRequestException('recurrenceInterval is required for INTERVAL type and must be >= 1');
 		}
 		const occurrences: { startAt: Date; endAt: Date }[] = [];
-		let currentDate = new Date(recurrence.eventStartAt);
+		const currentDate = new Date(recurrence.eventStartAt);
 
 		while (currentDate <= endDate) {
 			if (currentDate >= startDate) {
@@ -320,7 +320,7 @@ export class EventRecurrenceService {
 			throw new BadRequestException('recurrenceDaysOfWeek is required for DAYS_OF_WEEK type');
 		}
 		const occurrences: { startAt: Date; endAt: Date }[] = [];
-		let currentDate = new Date(startDate);
+		const currentDate = new Date(startDate);
 		currentDate.setHours(new Date(recurrence.eventStartAt).getHours());
 		currentDate.setMinutes(new Date(recurrence.eventStartAt).getMinutes());
 
@@ -346,7 +346,7 @@ export class EventRecurrenceService {
 			throw new BadRequestException('recurrenceDayOfMonth is required for DAY_OF_MONTH type and must be >= 1');
 		}
 		const occurrences: { startAt: Date; endAt: Date }[] = [];
-		let currentDate = new Date(startDate);
+		const currentDate = new Date(startDate);
 		currentDate.setDate(1); // Start from first day of month
 
 		while (currentDate <= endDate) {

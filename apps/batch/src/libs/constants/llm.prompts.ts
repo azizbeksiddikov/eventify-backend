@@ -1,5 +1,4 @@
 import { CrawledEvent } from '@app/api/src/libs/dto/event/eventCrawling';
-import { LLM_PROMPTS } from './llm.constants';
 
 /**
  * Build safety check prompt - extremely minimal filtering

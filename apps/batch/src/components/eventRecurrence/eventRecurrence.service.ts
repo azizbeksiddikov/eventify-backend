@@ -143,7 +143,7 @@ export class EventRecurrenceService {
 	): { startAt: Date; endAt: Date }[] {
 		if (!recurrence.recurrenceInterval) throw new Error('No recurrence.recurrenceInterval');
 		const occurrences: { startAt: Date; endAt: Date }[] = [];
-		let currentDate = new Date(startDate);
+		const currentDate = new Date(startDate);
 		currentDate.setHours(new Date(recurrence.eventStartAt).getHours());
 		currentDate.setMinutes(new Date(recurrence.eventStartAt).getMinutes());
 
@@ -168,7 +168,7 @@ export class EventRecurrenceService {
 	): { startAt: Date; endAt: Date }[] {
 		if (!recurrence.recurrenceDaysOfWeek) throw new Error('recurrence.recurrenceDaysOfWeek');
 		const occurrences: { startAt: Date; endAt: Date }[] = [];
-		let currentDate = new Date(startDate);
+		const currentDate = new Date(startDate);
 		currentDate.setHours(new Date(recurrence.eventStartAt).getHours());
 		currentDate.setMinutes(new Date(recurrence.eventStartAt).getMinutes());
 
@@ -192,7 +192,7 @@ export class EventRecurrenceService {
 	): { startAt: Date; endAt: Date }[] {
 		if (!recurrence.recurrenceDayOfMonth) throw new Error('No recurrence.recurrenceDayOfMonth');
 		const occurrences: { startAt: Date; endAt: Date }[] = [];
-		let currentDate = new Date(startDate);
+		const currentDate = new Date(startDate);
 		currentDate.setDate(1); // Start from first day of month
 
 		while (currentDate <= endDate) {

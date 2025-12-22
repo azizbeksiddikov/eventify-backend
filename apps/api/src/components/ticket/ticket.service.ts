@@ -47,7 +47,7 @@ export class TicketService {
 			throw new BadRequestException(Message.EVENT_FULL);
 
 		// Check if the member has enough points
-		let totalPrice = event.eventPrice * ticketQuantity;
+		const totalPrice = event.eventPrice * ticketQuantity;
 		const memberPoints = await this.memberService.getMemberPoints(memberId);
 		if (memberPoints < totalPrice) throw new BadRequestException(Message.INSUFFICIENT_POINTS);
 

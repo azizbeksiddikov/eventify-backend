@@ -5,5 +5,6 @@ import { WebCrawlingModule } from './webCrawling/webCrawling.module';
 
 @Module({
 	imports: [MemberModule, EventRecurrenceModule, WebCrawlingModule],
+	exports: [MemberModule, EventRecurrenceModule, WebCrawlingModule],
 })
 export class ComponentsModule {}

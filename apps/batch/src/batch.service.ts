@@ -3,15 +3,18 @@ import { Cron, Timeout } from '@nestjs/schedule';
 import { EventRecurrenceService } from './components/eventRecurrence/eventRecurrence.service';
 import { WebCrawlingService } from './components/webCrawling/webCrawling.service';
 import { MemberService } from './components/member/member.service';
+import { EventStatusCleanupService } from './components/eventStatusCleanup/eventStatusCleanup.service';
 import {
 	BATCH_ROLLBACK,
 	BATCH_TOP_ORGANIZERS,
 	BATCH_RECURRING_EVENTS,
 	BATCH_WEB_CRAWLING,
+	BATCH_EVENT_STATUS_CLEANUP,
 	CRON_RECURRING_EVENTS,
 	CRON_WEB_CRAWLING,
 	CRON_MEMBER_ROLLBACK,
 	CRON_TOP_ORGANIZERS,
+	CRON_EVENT_STATUS_CLEANUP,
 } from './libs/constants';
 import { SCRAPER_DEFAULTS } from './libs/config';
 
@@ -23,6 +26,7 @@ export class BatchService {
 		private readonly eventRecurrenceService: EventRecurrenceService,
 		private readonly webCrawlingService: WebCrawlingService,
 		private readonly memberService: MemberService,
+		private readonly eventStatusCleanupService: EventStatusCleanupService,
 	) {}
 
 	@Timeout(1000)
@@ -72,6 +76,17 @@ export class BatchService {
 			this.logger.log('Finished: batchTopOrganizers');
 		} catch (err) {
 			this.logger.error('Error in batchTopOrganizers:', err);
+		}
+	}
+
+	@Cron(CRON_EVENT_STATUS_CLEANUP, { name: BATCH_EVENT_STATUS_CLEANUP, timeZone: SCRAPER_DEFAULTS.DEFAULT_TIMEZONE })
+	async handleEventStatusCleanup() {
+		this.logger.log('Started: handleEventStatusCleanup');
+		try {
+			await this.eventStatusCleanupService.cleanupEventStatuses();
+			this.logger.log('Finished: handleEventStatusCleanup');
+		} catch (error) {
+			this.logger.error('Error in handleEventStatusCleanup:', error);
 		}
 	}
 

@@ -13,6 +13,7 @@ import {
 	CRON_MEMBER_ROLLBACK,
 	CRON_TOP_ORGANIZERS,
 } from './libs/constants';
+import { SCRAPER_DEFAULTS } from './libs/config';
 
 @Injectable()
 export class BatchService {
@@ -29,7 +30,7 @@ export class BatchService {
 		this.logger.debug('BATCH SERVER READY!');
 	}
 
-	@Cron(CRON_RECURRING_EVENTS, { name: BATCH_RECURRING_EVENTS })
+	@Cron(CRON_RECURRING_EVENTS, { name: BATCH_RECURRING_EVENTS, timeZone: SCRAPER_DEFAULTS.DEFAULT_TIMEZONE })
 	async handleRecurringEventsGeneration() {
 		this.logger.log('Started: handleRecurringEventsGeneration');
 		try {
@@ -40,7 +41,7 @@ export class BatchService {
 		}
 	}
 
-	@Cron(CRON_WEB_CRAWLING, { name: BATCH_WEB_CRAWLING })
+	@Cron(CRON_WEB_CRAWLING, { name: BATCH_WEB_CRAWLING, timeZone: SCRAPER_DEFAULTS.DEFAULT_TIMEZONE })
 	async handleWebCrawling() {
 		this.logger.log('Started: handleWebCrawling');
 		try {
@@ -52,7 +53,7 @@ export class BatchService {
 		}
 	}
 
-	@Cron(CRON_MEMBER_ROLLBACK, { name: BATCH_ROLLBACK })
+	@Cron(CRON_MEMBER_ROLLBACK, { name: BATCH_ROLLBACK, timeZone: SCRAPER_DEFAULTS.DEFAULT_TIMEZONE })
 	public async batchRollback() {
 		this.logger.log('Started: batchRollback');
 		try {
@@ -63,7 +64,7 @@ export class BatchService {
 		}
 	}
 
-	@Cron(CRON_TOP_ORGANIZERS, { name: BATCH_TOP_ORGANIZERS })
+	@Cron(CRON_TOP_ORGANIZERS, { name: BATCH_TOP_ORGANIZERS, timeZone: SCRAPER_DEFAULTS.DEFAULT_TIMEZONE })
 	public async batchTopOrganizers() {
 		this.logger.log('Started: batchTopOrganizers');
 		try {

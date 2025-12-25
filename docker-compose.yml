@@ -1,10 +1,8 @@
-version: "3.8"
-
 services:
   api:
     container_name: api
     restart: always
-    image: node:24.11.1
+    build: .
     ports:
       - 4001:3007
     volumes:
@@ -19,7 +17,7 @@ services:
   batch:
     container_name: batch
     restart: unless-stopped
-    image: node:24.11.1
+    build: .
     ports:
       - 4002:3008
     volumes:

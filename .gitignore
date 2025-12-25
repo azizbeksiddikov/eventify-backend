@@ -116,3 +116,8 @@ rollup.config.js
 
 # MongoDB
 data/db
+
+# pnpm
+.pnpm-store
+.pnpm
+node_modules/.pnpm

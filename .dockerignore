@@ -62,3 +62,8 @@ jsons/*.json
 # Uploads (will be mounted as volume)
 uploads/*
 
+# pnpm
+.pnpm-store
+.pnpm
+node_modules/.pnpm
+

@@ -179,6 +179,52 @@ export class EventService {
 		if (eventStartDay) match.eventStartAt = { $gte: new Date(eventStartDay) };
 		if (eventEndDay) match.eventEndAt = { $lte: new Date(eventEndDay) };
 
+		// Build aggregation pipeline
+		const pipeline: any[] = [{ $match: match }];
+
+		// For UPCOMING events, limit recurring events to next 2 occurrences
+		const isUpcomingFilter = eventStatus === EventStatus.UPCOMING;
+
+		if (isUpcomingFilter) {
+			// First, sort by eventStartAt ascending to get the next occurrences
+			pipeline.push({ $sort: { eventStartAt: 1 } });
+
+			// Group by recurrenceId to handle recurring events
+			// For one-time events (recurrenceId is null), use _id to keep them separate
+			pipeline.push({
+				$group: {
+					_id: {
+						recurrenceId: '$recurrenceId',
+						eventId: { $cond: [{ $eq: ['$recurrenceId', null] }, '$_id', null] },
+					},
+					events: { $push: '$$ROOT' },
+					isRecurring: { $first: { $ne: ['$recurrenceId', null] } },
+				},
+			});
+
+			// For recurring events, limit to next 2; for one-time events, keep all
+			pipeline.push({
+				$project: {
+					events: {
+						$cond: {
+							if: '$isRecurring',
+							then: { $slice: ['$events', 2] }, // Limit to next 2 for recurring events
+							else: '$events', // Keep all for one-time events
+						},
+					},
+				},
+			});
+
+			// Unwind the events array back to individual documents
+			pipeline.push({ $unwind: '$events' });
+
+			// Replace root with the event document
+			pipeline.push({ $replaceRoot: { newRoot: '$events' } });
+		}
+
+		// Apply user's requested sort
+		pipeline.push({ $sort: sort });
+
 		let aggList: any[] = [];
 		if (!input.limit) {
 			aggList = [lookupAuthMemberLiked(memberId)];
@@ -187,18 +233,14 @@ export class EventService {
 			aggList = [{ $skip: skip }, { $limit: input.limit }, lookupAuthMemberLiked(memberId)];
 		}
 
-		const result = await this.eventModel
-			.aggregate([
-				{ $match: match },
-				{ $sort: sort },
-				{
-					$facet: {
-						list: aggList,
-						metaCounter: [{ $count: 'total' }],
-					},
-				},
-			])
-			.exec();
+		pipeline.push({
+			$facet: {
+				list: aggList,
+				metaCounter: [{ $count: 'total' }],
+			},
+		});
+
+		const result = await this.eventModel.aggregate(pipeline).exec();
 		return result[0];
 	}
 

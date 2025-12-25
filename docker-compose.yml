@@ -1,8 +1,10 @@
+version: "3.8"
+
 services:
   api:
     container_name: api
     restart: always
-    image: node:20.18.1
+    image: node:24.11.1
     ports:
       - 4001:3007
     volumes:
@@ -13,11 +15,11 @@ services:
       - monorepo-network
 
     # FOR PRODUCTION
-    command: bash -c "rm -rf dist && rm -rf node_modules && npm install && npm run build && npm run start:prod"
+    command: bash -c "rm -rf dist && rm -rf node_modules && pnpm install && pnpm run build && pnpm run start:prod"
   batch:
     container_name: batch
     restart: unless-stopped
-    image: node:20.18.1
+    image: node:24.11.1
     ports:
       - 4002:3008
     volumes:
@@ -28,7 +30,7 @@ services:
       - monorepo-network
 
     # FOR PRODUCTION
-    command: bash -c "npm install && npm run build && npm run start:prod:batch"
+    command: bash -c "pnpm install && pnpm run build && pnpm run start:prod:batch"
 
 networks:
   monorepo-network:

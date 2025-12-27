@@ -318,8 +318,8 @@ mutation CreateEvent($input: CreateEventInput!) {
 
 ### Docker Services
 
-- **api** - Main API server (port 4001 → 3007)
-- **batch** - Batch processing server (port 4002 → 3008)
+- **eventify-api** - Main API server (port 4001 → 3007)
+- **eventify-batch** - Batch processing server (port 4002 → 3008)
 
 Both services use the `monorepo-network` bridge network for communication.
 

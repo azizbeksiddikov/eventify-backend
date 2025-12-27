@@ -1,34 +1,39 @@
 services:
   api:
-    container_name: api
-    restart: always
+    container_name: eventify-api
+    restart: unless-stopped
     build: .
     ports:
       - 4001:3007
     volumes:
       - ./:/usr/src/eventify
+      - shared_node_modules:/usr/src/eventify/node_modules
     working_dir: /usr/src/eventify
 
     networks:
       - monorepo-network
 
     # FOR PRODUCTION
-    command: bash -c "rm -rf dist && rm -rf node_modules && pnpm install && pnpm run build && pnpm run start:prod"
+    command: bash -c "pnpm install && pnpm run build && pnpm run start:prod"
   batch:
-    container_name: batch
+    container_name: eventify-batch
     restart: unless-stopped
     build: .
     ports:
       - 4002:3008
     volumes:
       - ./:/usr/src/eventify
+      - shared_node_modules:/usr/src/eventify/node_modules
     working_dir: /usr/src/eventify
 
     networks:
       - monorepo-network
 
     # FOR PRODUCTION
-    command: bash -c "pnpm install && pnpm run build && pnpm run start:prod:batch"
+    command: bash -c "while [ ! -d node_modules/.pnpm ]; do sleep 2; done && pnpm run build && pnpm run start:prod:batch"
+
+volumes:
+  shared_node_modules:
 
 networks:
   monorepo-network:

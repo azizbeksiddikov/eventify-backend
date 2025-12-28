@@ -1,4 +1,15 @@
 services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: eventify-ollama-dev
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - monorepo-network
+
   api:
     container_name: eventify-api-dev
     restart: unless-stopped
@@ -34,14 +45,15 @@ services:
     networks:
       - monorepo-network
 
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    depends_on:
+      - ollama
 
     # FOR DEVELOPMENT
     command: bash -c "while [ ! -d node_modules/.pnpm ]; do sleep 2; done && pnpm run dev:batch"
 
 volumes:
   shared_node_modules:
+  ollama_data:
 
 networks:
   monorepo-network:

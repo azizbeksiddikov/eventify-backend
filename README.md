@@ -138,7 +138,7 @@ SECRET_TOKEN=your-secret-token-here
 
 # AI/LLM Configuration (Optional)
 LLM_ENABLED=true
-OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_BASE_URL=http://ollama:11434
 OLLAMA_MODEL=qwen2.5:0.5b
 ```
 
@@ -161,9 +161,57 @@ SECRET_TOKEN=your-secure-production-token
 
 # AI/LLM Configuration (Optional)
 LLM_ENABLED=true
-OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_BASE_URL=http://ollama:11434
 OLLAMA_MODEL=qwen2.5:0.5b
 ```
+
+## 🐳 Docker Deployment
+
+### Quick Start with Docker
+
+**Development:**
+
+```bash
+./deploy_dev.sh
+```
+
+**Production:**
+
+```bash
+./deploy_prod.sh
+```
+
+### Ollama Setup (AI Features)
+
+The Ollama service runs automatically as a Docker container. To pull the required model:
+
+**1. Check if Ollama container is running:**
+
+```bash
+docker ps | grep ollama
+```
+
+**2. Pull the model (first time only):**
+
+```bash
+docker exec -it eventify-ollama-prod ollama pull qwen2.5:0.5b
+```
+
+**3. Verify the model is available:**
+
+```bash
+docker exec -it eventify-ollama-prod ollama list
+```
+
+**4. Test Ollama connection:**
+
+```bash
+docker exec -it eventify-batch-prod curl http://ollama:11434/api/version
+```
+
+You should see: `{"version":"x.x.x"}`
+
+---
 
 ## 🏃 Running the Project
 

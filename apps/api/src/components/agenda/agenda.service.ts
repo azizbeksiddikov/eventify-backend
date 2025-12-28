@@ -9,10 +9,8 @@ export class AgendaService {
 	private agenda: Agenda;
 
 	constructor() {
-		const mongoUri = process.env.NODE_ENV === 'production' ? process.env.MONGO_PROD : process.env.MONGO_DEV;
-
 		this.agenda = new Agenda({
-			db: { address: mongoUri as string },
+			db: { address: process.env.MONGODB_URI as string },
 		});
 
 		this.logger.log('AgendaJS initialized for job scheduling');

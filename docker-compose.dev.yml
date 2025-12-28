@@ -1,6 +1,6 @@
 services:
   api:
-    container_name: eventify-api
+    container_name: eventify-api-dev
     restart: unless-stopped
     build: .
     ports:
@@ -9,14 +9,17 @@ services:
       - ./:/usr/src/eventify
       - shared_node_modules:/usr/src/eventify/node_modules
     working_dir: /usr/src/eventify
+    env_file:
+      - .env.dev
 
     networks:
       - monorepo-network
 
-    # FOR PRODUCTION
-    command: bash -c "pnpm install && pnpm run build && pnpm run start:prod"
+    # FOR DEVELOPMENT
+    command: bash -c "pnpm install && pnpm run dev"
+
   batch:
-    container_name: eventify-batch
+    container_name: eventify-batch-dev
     restart: unless-stopped
     build: .
     ports:
@@ -25,12 +28,17 @@ services:
       - ./:/usr/src/eventify
       - shared_node_modules:/usr/src/eventify/node_modules
     working_dir: /usr/src/eventify
+    env_file:
+      - .env.dev
 
     networks:
       - monorepo-network
 
-    # FOR PRODUCTION
-    command: bash -c "while [ ! -d node_modules/.pnpm ]; do sleep 2; done && pnpm run build && pnpm run start:prod:batch"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # FOR DEVELOPMENT
+    command: bash -c "while [ ! -d node_modules/.pnpm ]; do sleep 2; done && pnpm run dev:batch"
 
 volumes:
   shared_node_modules:

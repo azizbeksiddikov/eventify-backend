@@ -118,6 +118,7 @@ export class MeetupScraper implements IEventScraper {
 		try {
 			browser = await puppeteer.launch({
 				headless: BATCH_CONFIG.HEADLESS,
+				executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
 				args: [
 					'--no-sandbox',
 					'--disable-setuid-sandbox',
@@ -483,6 +484,7 @@ export class MeetupScraper implements IEventScraper {
 		try {
 			browser = await puppeteer.launch({
 				headless: BATCH_CONFIG.HEADLESS,
+				executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
 				args: [
 					'--no-sandbox',
 					'--disable-setuid-sandbox',

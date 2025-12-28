@@ -106,56 +106,64 @@ Before you begin, ensure you have the following installed:
    pnpm install
    ```
 
-3. **Set up environment variables**
-
-   ```bash
-   cp env.example .env
-   ```
-
-   Edit `.env` with your configuration (see [Configuration](#-configuration))
-
----
-
 ## ⚙️ Configuration
 
-Create a `.env` file in the root directory with the following variables:
+### Environment Files
+
+The project supports two separate environments:
+
+- **`.env`** - Production environment configuration
+- **`.env.dev`** - Development environment configuration
+
+**For Development:**
+
+### Configuration Variables
+
+**Development (`.env.dev`) example:**
 
 ```env
 # Application Configuration
 DOMAIN_NAME=http://localhost
+NODE_ENV=development
 
 # Ports
 PORT_API=3007
 PORT_BATCH=3008
 
-# MongoDB Configuration
-MONGO_DEV=mongodb://admin:password@localhost:27017/eventify_dev
-MONGO_PROD=mongodb://admin:password@localhost:27017/eventify_prod
+# MongoDB Configuration - Development Database
+MONGODB_URI=mongodb://admin:password@dev-server:27017/eventify?authSource=admin
 
 # JWT Secret
 SECRET_TOKEN=your-secret-token-here
 
 # AI/LLM Configuration (Optional)
 LLM_ENABLED=true
-OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_BASE_URL=http://host.docker.internal:11434
 OLLAMA_MODEL=qwen2.5:0.5b
 ```
 
-### Environment Variables Explained
+**Production (`.env`) example:**
 
-| Variable          | Description                             | Required |
-| ----------------- | --------------------------------------- | -------- |
-| `DOMAIN_NAME`     | Base URL for the application            | ✅       |
-| `PORT_API`        | Port for the API server                 | ✅       |
-| `PORT_BATCH`      | Port for the batch server               | ✅       |
-| `MONGO_DEV`       | MongoDB connection string (development) | ✅       |
-| `MONGO_PROD`      | MongoDB connection string (production)  | ✅       |
-| `SECRET_TOKEN`    | JWT secret key                          | ✅       |
-| `LLM_ENABLED`     | Enable/disable AI features              | ❌       |
-| `OLLAMA_BASE_URL` | Ollama server URL                       | ❌       |
-| `OLLAMA_MODEL`    | Ollama model name                       | ❌       |
+```env
+# Application Configuration
+DOMAIN_NAME=https://eventify.azbek.me
+NODE_ENV=production
 
----
+# Ports
+PORT_API=3007
+PORT_BATCH=3008
+
+# MongoDB Configuration - Production Database
+MONGODB_URI=mongodb://admin:password@prod-server:27017/eventify?authSource=admin
+
+# JWT Secret
+SECRET_TOKEN=your-secure-production-token
+
+# AI/LLM Configuration (Optional)
+LLM_ENABLED=true
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_MODEL=qwen2.5:0.5b
+```
 
 ## 🏃 Running the Project
 
@@ -237,7 +245,6 @@ backend/
 │   ├── group/                   # Group images
 │   └── member/                 # Member avatars
 │
-├── docker-compose.yml          # Docker configuration
 ├── package.json                # Dependencies
 └── README.md                   # This file
 ```
@@ -297,35 +304,103 @@ mutation CreateEvent($input: CreateEventInput!) {
 
 ## 🐳 Docker Deployment
 
-### Using Docker Compose
+The project supports two separate deployment environments with dedicated scripts and configurations.
 
-1. **Build and start containers:**
+### Development Deployment
 
-   ```bash
-   docker-compose up -d
-   ```
+Deploy to development environment with MongoDB development server and hot-reload:
 
-2. **View logs:**
+```bash
+./deploy_dev.sh
+```
 
-   ```bash
-   docker-compose logs -f
-   ```
+This will:
 
-3. **Stop containers:**
-   ```bash
-   docker-compose down
-   ```
+- Use `.env.dev` configuration file
+- Connect to MongoDB development server
+- Run with `pnpm run dev` (hot-reload enabled)
+- Start containers: `eventify-api-dev` and `eventify-batch-dev`
+
+### Production Deployment
+
+Deploy to production environment with MongoDB production server:
+
+```bash
+./deploy_prod.sh
+```
+
+This will:
+
+- Use `.env` configuration file
+- Connect to MongoDB production server
+- Build and run with `pnpm run start:prod`
+- Start containers: `eventify-api-prod` and `eventify-batch-prod`
+
+### Manual Docker Commands
+
+**Development:**
+
+```bash
+# Start
+docker compose -f docker-compose.dev.yml up -d
+
+# View logs
+docker compose -f docker-compose.dev.yml logs -f
+
+# Stop
+docker compose -f docker-compose.dev.yml down
+```
+
+**Production:**
+
+```bash
+# Start
+docker compose -f docker-compose.prod.yml up -d
+
+# View logs
+docker compose -f docker-compose.prod.yml logs -f
+
+# Stop
+docker compose -f docker-compose.prod.yml down
+```
 
 ### Docker Services
 
-- **eventify-api** - Main API server (port 4001 → 3007)
-- **eventify-batch** - Batch processing server (port 4002 → 3008)
+**Development:**
 
-Both services use the `monorepo-network` bridge network for communication.
+- **eventify-api-dev** - API server with hot-reload (port 4001 → 3007)
+- **eventify-batch-dev** - Batch server with hot-reload (port 4002 → 3008)
+
+**Production:**
+
+- **eventify-api-prod** - API server optimized build (port 4001 → 3007)
+- **eventify-batch-prod** - Batch server optimized build (port 4002 → 3008)
+
+Both environments use the `monorepo-network` bridge network for communication.
+
+### Environment Differences
+
+| Feature                 | Development                | Production                 |
+| ----------------------- | -------------------------- | -------------------------- |
+| **Database**            | MongoDB Development Server | MongoDB Production Server  |
+| **Build Mode**          | Watch mode (hot-reload)    | Optimized production build |
+| **Environment File**    | `.env.dev`                 | `.env`                     |
+| **Docker Compose File** | `docker-compose.dev.yml`   | `docker-compose.prod.yml`  |
+| **Container Names**     | `*-dev`                    | `*-prod`                   |
+| **Run Command**         | `pnpm run dev`             | `pnpm run start:prod`      |
 
 ---
 
 ## 📜 Scripts
+
+### Deployment Scripts
+
+| Script             | Description                       |
+| ------------------ | --------------------------------- |
+| `./deploy_dev.sh`  | Deploy to development environment |
+| `./deploy_prod.sh` | Deploy to production environment  |
+
+### NPM Scripts
 
 | Script                      | Description                           |
 | --------------------------- | ------------------------------------- |

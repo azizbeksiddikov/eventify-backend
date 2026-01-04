@@ -364,7 +364,7 @@ export class EventService {
 				memberId: memberId,
 				receiverId: event.memberId,
 				notificationType: NotificationType.LIKE_EVENT,
-				notificationLink: `/events?${likeRefId}`,
+				notificationLink: `/events/${likeRefId}`,
 			};
 		}
 		const modifier = await this.likeService.toggleLike(input, newNotification);

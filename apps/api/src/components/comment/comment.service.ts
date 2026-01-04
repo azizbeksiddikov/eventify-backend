@@ -69,7 +69,7 @@ export class CommentService {
 			memberId: memberId,
 			notificationType: NotificationType.COMMENT_MEMBER,
 			receiverId: input.commentRefId,
-			notificationLink: `/organizers?${input.commentRefId}`,
+			notificationLink: `/organizers/${input.commentRefId.toString()}`,
 		};
 
 		switch (input.commentGroup) {

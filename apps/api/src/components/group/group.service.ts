@@ -297,7 +297,7 @@ export class GroupService {
 			memberId: memberId,
 			receiverId: targetGroup.memberId,
 			notificationType: NotificationType.LIKE_GROUP,
-			notificationLink: `/groups?${groupId}`,
+			notificationLink: `/groups/${groupId}`,
 		};
 
 		const modifier = await this.likeService.toggleLike(input, newNotification);

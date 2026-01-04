@@ -290,7 +290,7 @@ export class MemberService {
 		};
 
 		if (authMember.memberType === MemberType.ORGANIZER) {
-			newNotification.notificationLink = `/organizers?${authMember._id}`;
+			newNotification.notificationLink = `/organizers/${authMember._id}`;
 		}
 
 		const modifier = await this.likeService.toggleLike(input, newNotification);

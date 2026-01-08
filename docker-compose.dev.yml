@@ -30,7 +30,7 @@ services:
       - monorepo-network
 
     # FOR DEVELOPMENT
-    command: bash -c "npm install && npm run dev"
+    command: sh -c "npm install && npm run dev"
 
   batch:
     container_name: eventify-batch-dev
@@ -55,7 +55,7 @@ services:
       - ollama
 
     # FOR DEVELOPMENT
-    command: bash -c "while [ ! -d node_modules ]; do sleep 2; done && npm run dev:batch"
+    command: sh -c "while [ ! -d node_modules ]; do sleep 2; done && npm run dev:batch"
 
 volumes:
   ollama_data:

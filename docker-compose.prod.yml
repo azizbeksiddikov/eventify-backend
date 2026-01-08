@@ -13,12 +13,13 @@ services:
   api:
     container_name: eventify-api-prod
     restart: unless-stopped
-    build: .
+    build:
+      context: .
+      target: production
     ports:
       - 4001:3007
     volumes:
-      - ./:/usr/src/eventify
-      - shared_node_modules:/usr/src/eventify/node_modules
+      - ./uploads:/usr/src/eventify/uploads
     working_dir: /usr/src/eventify
     env_file:
       - .env
@@ -27,18 +28,18 @@ services:
       - monorepo-network
 
     # FOR PRODUCTION
-    command: bash -c "pnpm install && pnpm run build && pnpm run start:prod"
+    command: node dist/apps/api/main
 
   batch:
     container_name: eventify-batch-prod
     restart: unless-stopped
-    build: .
+    build:
+      context: .
+      target: production
     ports:
       - 4002:3008
     volumes:
-      - ./:/usr/src/eventify
-      - shared_node_modules:/usr/src/eventify/node_modules
-    working_dir: /usr/src/eventify
+      - ./uploads:/usr/src/eventify/uploads
     env_file:
       - .env
 
@@ -49,10 +50,9 @@ services:
       - ollama
 
     # FOR PRODUCTION
-    command: bash -c "while [ ! -d node_modules/.pnpm ]; do sleep 2; done && pnpm run build && pnpm run start:prod:batch"
+    command: node dist/apps/batch/main
 
 volumes:
-  shared_node_modules:
   ollama_data:
 
 networks:

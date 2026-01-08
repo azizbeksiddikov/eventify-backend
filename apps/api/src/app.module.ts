@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config'; // for env vars
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { GraphQLError } from 'graphql';
 
 import { ComponentsModule } from './components/components.module';
 import { DatabaseModule } from './database/database.module';
@@ -11,7 +12,6 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ApolloDriver } from '@nestjs/apollo';
 import { AppResolver } from './app.resolver';
-import { T } from './libs/types/common';
 
 @Module({
 	imports: [
@@ -27,13 +27,16 @@ import { T } from './libs/types/common';
 		// graphql
 		GraphQLModule.forRoot({
 			driver: ApolloDriver,
-			playground: true,
 			uploads: false,
 			autoSchemaFile: true,
-			formatError: (error: T) => {
+			formatError: (error: GraphQLError) => {
+				const extensions = error.extensions as Record<string, unknown>;
+				const response = extensions?.response as { message?: string | string[] } | undefined;
+				const message = Array.isArray(response?.message) ? response.message[0] : response?.message || error.message;
+
 				const graphqlFormattedError = {
-					code: error?.extensions.code,
-					message: error?.extensions?.response?.message || error?.extensions?.response?.message || error?.message,
+					code: extensions?.code as string | undefined,
+					message: message,
 				};
 
 				console.log('GraphQL global Error:', graphqlFormattedError);

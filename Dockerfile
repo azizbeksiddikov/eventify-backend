@@ -1,30 +1,43 @@
-FROM node:24.11.1-slim
+FROM node:24-alpine AS base
 
 # Install system dependencies for Puppeteer/Chrome
-RUN apt-get update && apt-get install -y \
-    wget \
-    gnupg \
-    ca-certificates \
-    libnss3 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
-    libpangocairo-1.0-0 \
-    libxshmfence1 \
-    curl \
+RUN apk add --no-cache \
     chromium \
-    --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    git
 
-RUN corepack enable \
- && corepack prepare pnpm@10.26.2 --activate
+# Set Puppeteer to use installed Chromium
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 WORKDIR /usr/src/eventify
+
+FROM base AS dependencies
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+FROM dependencies AS development
+COPY . .
+CMD ["npm", "run", "dev"]
+
+FROM dependencies AS build
+COPY . .
+RUN npm run build
+RUN npm prune --production
+
+FROM base AS production
+COPY --from=build /usr/src/eventify/dist ./dist
+COPY --from=build /usr/src/eventify/node_modules ./node_modules
+COPY --from=build /usr/src/eventify/package.json ./
+
+# Create uploads directory
+RUN mkdir -p uploads && chown -R node:node uploads
+
+# Set NODE_ENV (can be overridden by docker-compose)
+ENV NODE_ENV=production
+
+CMD ["node", "dist/apps/api/main"]

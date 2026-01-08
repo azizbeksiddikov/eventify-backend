@@ -1,8 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { CrawledEvent } from '@app/api/src/libs/dto/event/eventCrawling';
-import { LLM_DEFAULTS } from '../../libs/constants/llm.constants';
 import { buildSafetyCheckPrompt, fillEventDataPrompt } from '../../libs/constants/llm.prompts';
 import { EventCategory } from '@app/api/src/libs/enums/event.enum';
+
+interface OllamaResponse {
+	response: string;
+}
+
+interface EventCategorizationResponse {
+	categories?: string[];
+	tags?: string[];
+}
+
+interface SafetyCheckResponse {
+	safe: boolean;
+	reason: string;
+}
 
 @Injectable()
 export class LLMService {
@@ -40,37 +53,44 @@ export class LLMService {
 		const rejected: CrawledEvent[] = [];
 		const reasons = new Map<string, string>();
 
-		// for each crawled event
+		// Process events sequentially with delay to prevent CPU overload
 		for (let i = 0; i < events.length; i++) {
 			const event = events[i];
-			console.log(`Processing event ${i + 1}/${events.length} \n`);
+			console.log(`Processing event ${i + 1}/${events.length}`);
 
 			////////////////////////////////////////////////////////////
 			// Step 1: Filter Events for sexual content and drugs
 			////////////////////////////////////////////////////////////
 			try {
-				// Check for safety issues (sexual/drug content)
+				// Safety check
 				const safetyCheck = await this.checkEventSafety(event);
 
 				if (!safetyCheck.isSafe) {
 					rejected.push(event);
 					reasons.set(event.externalId || event.eventName, safetyCheck.reason);
-					continue; // Skip to next event
+					continue;
 				}
 
 				////////////////////////////////////////////////////////////
-				// Step 2: Fill missing data based on raw data
+				// Step 2: Fill missing event data
 				////////////////////////////////////////////////////////////
-				console.log(`🔍 Filling missing data for: "${event.eventName}"`);
+				// Add 2 second delay between requests to prevent CPU spike
+				await new Promise((resolve) => setTimeout(resolve, 2000));
+
+				// Fill missing data
 				const completedEvent = await this.fillMissingEventData(event);
 				safeEvents.push(completedEvent);
+
+				// Add another delay after completion
+				await new Promise((resolve) => setTimeout(resolve, 1000));
 			} catch (error) {
-				console.warn(`Processing error for "${event.eventName}": ${error.message}`);
-				safeEvents.push(event); // Accept event with original data on error
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				console.warn(`Processing error for "${event.eventName}": ${errorMessage}`);
+				safeEvents.push(event);
 			}
 		}
 
-		console.log(`✅ AI filtering complete: ${safeEvents.length} accepted, ${rejected.length} rejected`);
+		console.log(`AI filtering complete: ${safeEvents.length} accepted, ${rejected.length} rejected`);
 		return { accepted: safeEvents, rejected, reasons };
 	}
 
@@ -95,19 +115,21 @@ export class LLMService {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					model: this.ollamaModel,
+					model: this.ollamaModel, // Model name (e.g., "llama3")
 					prompt: prompt,
-					stream: false,
+					stream: false, // Return complete response (no streaming)
 					options: {
-						temperature: 0.1,
-						num_predict: 700, // Categories + tags with raw_html + structured data
+						temperature: 0.1, // Low = more deterministic output
+						num_predict: 100, // Max tokens to generate
+						num_ctx: 512, // Context window size
+						num_thread: 1, // CPU threads for inference
 					},
 				}),
 			});
 
 			if (!response.ok) throw new Error(`Ollama API error: ${response.statusText}`);
 
-			const data = await response.json();
+			const data = (await response.json()) as OllamaResponse;
 			const aiResponse = data.response;
 
 			// LOG AI RESPONSE for debugging
@@ -118,10 +140,10 @@ export class LLMService {
 			console.log(`${'='.repeat(80)}\n`);
 
 			// Try to extract JSON from response
-			let parsedData;
+			let parsedData: EventCategorizationResponse;
 			try {
 				// Try parsing the entire response first (if it's pure JSON)
-				parsedData = JSON.parse(aiResponse.trim());
+				parsedData = JSON.parse(aiResponse.trim()) as EventCategorizationResponse;
 			} catch {
 				// If that fails, try multiple extraction patterns
 				let jsonStr: string | null = null;
@@ -153,10 +175,11 @@ export class LLMService {
 
 				if (jsonStr) {
 					try {
-						parsedData = JSON.parse(jsonStr.trim());
+						parsedData = JSON.parse(jsonStr.trim()) as EventCategorizationResponse;
 					} catch (e) {
+						const error = e as Error;
 						console.error('Failed to parse extracted JSON:', jsonStr.substring(0, 200));
-						throw new Error(`JSON parse error: ${e.message}`);
+						throw new Error(`JSON parse error: ${error.message}`);
 					}
 				} else {
 					console.error('No JSON pattern found in response');
@@ -168,7 +191,8 @@ export class LLMService {
 			const sanitizedCategories = this.validateAndSanitizeCategories(parsedData.categories || [], event.eventName);
 
 			// Sanitize tags (lowercase, no special chars except hyphen)
-			const sanitizedTags = parsedData.tags?.length > 0 ? this.sanitizeTags(parsedData.tags) : event.eventTags;
+			const sanitizedTags =
+				parsedData.tags && parsedData.tags.length > 0 ? this.sanitizeTags(parsedData.tags) : event.eventTags;
 
 			const completedEvent: CrawledEvent = {
 				...event,
@@ -182,7 +206,8 @@ export class LLMService {
 
 			return completedEvent;
 		} catch (error) {
-			console.warn(`   ⚠️  Failed to complete event data: ${error.message}`);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			console.warn(`   Failed to complete event data: ${errorMessage}`);
 			// Return original event on error
 			return event;
 		}
@@ -200,14 +225,16 @@ export class LLMService {
 					prompt: prompt,
 					stream: false,
 					options: {
-						temperature: 0.1, // Very consistent for safety checks
-						num_predict: LLM_DEFAULTS.MAX_TOKENS_FILTER,
+						temperature: 0.1,
+						num_predict: 50,
+						num_ctx: 512,
+						num_thread: 1,
 					},
 				}),
 			});
 
 			if (!response.ok) throw new Error(`Ollama API error: ${response.statusText}`);
-			const data = await response.json();
+			const data = (await response.json()) as OllamaResponse;
 			const aiResponse = data.response;
 
 			// Extract JSON from response (it may contain additional text)
@@ -217,10 +244,11 @@ export class LLMService {
 				return { isSafe: true, reason: 'JSON parsing failed' };
 			}
 
-			const parsedResponse = JSON.parse(jsonMatch[1]);
+			const parsedResponse = JSON.parse(jsonMatch[1]) as SafetyCheckResponse;
 			return { isSafe: parsedResponse.safe, reason: parsedResponse.reason || 'Safe' };
 		} catch (error) {
-			console.error(`Ollama error: ${error.message}`);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			console.error(`Ollama error: ${errorMessage}`);
 			return { isSafe: true, reason: 'LLM unavailable - accepting' };
 		}
 	}

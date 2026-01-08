@@ -8,6 +8,7 @@ import { MeetupScraper } from './scrapers/meetup.scraper';
 import { LumaScraper } from './scrapers/luma.scraper';
 import { IEventScraper, CrawledEvent } from '@app/api/src/libs/dto/event/eventCrawling';
 import { LLMService } from '../llm/llm.service';
+import { OllamaService } from '../ollama/ollama.service';
 import { EventStatus, EventType } from '@app/api/src/libs/enums/event.enum';
 import { EventInput } from '@app/api/src/libs/dto/event/event.input';
 import { AgendaService } from '../../agenda/agenda.service';
@@ -21,8 +22,8 @@ export class WebCrawlingService {
 		private readonly agendaService: AgendaService,
 		private readonly meetupScraper: MeetupScraper,
 		private readonly lumaScraper: LumaScraper,
-
 		private readonly llmService: LLMService,
+		private readonly ollamaService: OllamaService,
 	) {
 		// Initialize scrapers
 		this.scrapers = [this.meetupScraper, this.lumaScraper];
@@ -35,6 +36,11 @@ export class WebCrawlingService {
 		const scraperResults: { [key: string]: { count: number; events: CrawledEvent[] } } = {};
 
 		try {
+			////////////////////////////////////////////////////////////
+			// Step 0: Start Ollama if needed
+			////////////////////////////////////////////////////////////
+			await this.ollamaService.startOllama();
+
 			////////////////////////////////////////////////////////////
 			// Step 1: Web scraping events
 			////////////////////////////////////////////////////////////
@@ -57,7 +63,9 @@ export class WebCrawlingService {
 					// Decrease currentLimit by the number of events scraped
 					if (currentLimit !== undefined) currentLimit -= events.length;
 				} catch (error) {
-					console.error(`Scraper ${scraper.getName()} failed: ${error.message}`, error.stack);
+					const errorMessage = error instanceof Error ? error.message : String(error);
+					const errorStack = error instanceof Error ? error.stack : undefined;
+					console.error(`Scraper ${scraper.getName()} failed: ${errorMessage}`, errorStack);
 					console.warn(`Continuing with other scrapers...`);
 				}
 			}
@@ -70,7 +78,7 @@ export class WebCrawlingService {
 			// Apply limit globally after LLM filtering to ensure we return exactly the requested number
 			const finalAccepted = limit ? accepted.slice(0, limit) : accepted;
 
-			await this.saveStepToJson('step2_llm', {
+			this.saveStepToJson('step2_llm', {
 				metadata: {
 					step: 2,
 					description: 'Events after LLM processing',
@@ -81,7 +89,8 @@ export class WebCrawlingService {
 					llmEnabled: process.env.LLM_ENABLED === 'true',
 				},
 				acceptedEvents: accepted.map((event) => {
-					const { rawData, ...eventWithoutRawData } = event;
+					// eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-assignment
+					const { rawData: _rawData, ...eventWithoutRawData } = event;
 					return eventWithoutRawData;
 				}),
 				rejectedEvents: rejected.map((event) => ({
@@ -91,7 +100,7 @@ export class WebCrawlingService {
 					reason: reasons.get(event.externalId || event.eventName) || 'Unknown',
 				})),
 			});
-			await this.saveAllEventsToJson(allEvents, accepted, rejected, reasons, scraperResults);
+			this.saveAllEventsToJson(allEvents, accepted, rejected, reasons, scraperResults);
 
 			////////////////////////////////////////////////////////////
 			// Step 3: Import accepted events to database
@@ -100,7 +109,7 @@ export class WebCrawlingService {
 			if (!testMode) {
 				processedCount = await this.importEventsToDatabase(finalAccepted);
 
-				await this.saveStepToJson('step3_import_results', {
+				this.saveStepToJson('step3_import_results', {
 					metadata: {
 						step: 3,
 						description: 'Database import results (create/update)',
@@ -118,12 +127,17 @@ export class WebCrawlingService {
 
 			return finalAccepted;
 		} catch (error) {
-			console.error(`Error during web crawling: ${error.message}`, error.stack);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorStack = error instanceof Error ? error.stack : undefined;
+			console.error(`Error during web crawling: ${errorMessage}`, errorStack);
 			throw error;
+		} finally {
+			// Always stop Ollama to free resources, even if error occurred
+			await this.ollamaService.stopOllama();
 		}
 	}
 
-	private async saveStepToJson(filename: string, data: any): Promise<void> {
+	private saveStepToJson(filename: string, data: unknown): void {
 		try {
 			const jsonsDir = path.join(process.cwd(), 'jsons');
 			if (!fs.existsSync(jsonsDir)) fs.mkdirSync(jsonsDir, { recursive: true });
@@ -133,17 +147,18 @@ export class WebCrawlingService {
 
 			console.log(`Saved step to jsons/${filename}.json`);
 		} catch (error) {
-			console.warn(`Failed to save step JSON file: ${error.message}`);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			console.warn(`Failed to save step JSON file: ${errorMessage}`);
 		}
 	}
 
-	private async saveAllEventsToJson(
+	private saveAllEventsToJson(
 		rawEvents: CrawledEvent[],
 		acceptedEvents: CrawledEvent[],
 		rejectedEvents: CrawledEvent[],
 		rejectionReasons: Map<string, string>,
 		scraperResults: { [key: string]: { count: number; events: CrawledEvent[] } },
-	): Promise<void> {
+	): void {
 		try {
 			const jsonsDir = path.join(process.cwd(), 'jsons');
 			if (!fs.existsSync(jsonsDir)) fs.mkdirSync(jsonsDir, { recursive: true });
@@ -169,7 +184,8 @@ export class WebCrawlingService {
 					},
 				},
 				acceptedEvents: acceptedEvents.map((event) => {
-					const { rawData, ...eventWithoutRawData } = event;
+					// eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-assignment
+					const { rawData: _rawData, ...eventWithoutRawData } = event;
 					return eventWithoutRawData;
 				}),
 				rejectedEvents: rejectedEvents.map((event) => ({
@@ -183,7 +199,8 @@ export class WebCrawlingService {
 			const filePath = path.join(jsonsDir, 'all_events.json');
 			fs.writeFileSync(filePath, JSON.stringify(dataToSave, null, 2), 'utf-8');
 		} catch (error) {
-			console.warn(`Failed to save JSON file: ${error.message}`);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			console.warn(`Failed to save JSON file: ${errorMessage}`);
 		}
 	}
 
@@ -232,7 +249,8 @@ export class WebCrawlingService {
 					console.log(`Created: "${event.eventName}" (${event.externalId || 'no-id'})`);
 				}
 			} catch (error) {
-				console.warn(`Failed to process "${event.eventName}": ${error.message}`);
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				console.warn(`Failed to process "${event.eventName}": ${errorMessage}`);
 			}
 		}
 
@@ -246,7 +264,7 @@ export class WebCrawlingService {
 	 * 2. External URL (if available)
 	 * 3. Event name + start time (for events without external IDs)
 	 */
-	private async findExistingEvent(event: CrawledEvent): Promise<any> {
+	private async findExistingEvent(event: CrawledEvent): Promise<Event | null> {
 		const conditions: any[] = [];
 
 		// Check by external ID
@@ -326,7 +344,7 @@ export class WebCrawlingService {
 	 * Compare existing event with scraped event data to detect changes
 	 * Returns true if there are meaningful differences
 	 */
-	private hasEventChanges(existingEvent: any, newEventData: EventInput): boolean {
+	private hasEventChanges(existingEvent: Event, newEventData: EventInput): boolean {
 		// Helper to normalize strings for comparison
 		const normalize = (str: string | undefined | null): string => {
 			return (str || '').trim().toLowerCase();
@@ -342,7 +360,7 @@ export class WebCrawlingService {
 		};
 
 		// Helper to compare arrays
-		const isSameArray = (arr1: any[] | undefined, arr2: any[] | undefined): boolean => {
+		const isSameArray = (arr1: unknown[] | undefined, arr2: unknown[] | undefined): boolean => {
 			if (!arr1 && !arr2) return true;
 			if (!arr1 || !arr2) return false;
 			if (arr1.length !== arr2.length) return false;
@@ -393,7 +411,7 @@ export class WebCrawlingService {
 	 * - ONGOING: Schedule only EVENT_END
 	 * - COMPLETED/CANCELLED/DELETED: No jobs
 	 */
-	private async scheduleEventJobs(event: any): Promise<void> {
+	private async scheduleEventJobs(event: Event & { _id: { toString: () => string } }): Promise<void> {
 		const now = new Date();
 		const startTime = new Date(event.eventStartAt);
 		const endTime = new Date(event.eventEndAt);
@@ -427,7 +445,10 @@ export class WebCrawlingService {
 	/**
 	 * Handle event job scheduling when updating an imported event
 	 */
-	private async handleEventJobsAfterImport(oldEvent: any, updatedEvent: any): Promise<void> {
+	private async handleEventJobsAfterImport(
+		oldEvent: Event & { _id: { toString: () => string } },
+		updatedEvent: Event & { _id: { toString: () => string } },
+	): Promise<void> {
 		const oldStatus = oldEvent.eventStatus;
 		const newStatus = updatedEvent.eventStatus;
 		const now = new Date();

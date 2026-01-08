@@ -1,17 +1,6 @@
 # Dependencies
 node_modules
 npm-debug.log
-pnpm-debug.log
-yarn-debug.log
-yarn-error.log
-
-# Build outputs
-dist
-build
-*.tsbuildinfo
-
-# Environment files
-.env*
 
 # Git
 .git
@@ -24,46 +13,49 @@ build
 *.swp
 *.swo
 *~
-
-# OS
 .DS_Store
-Thumbs.db
-
-# Logs
-logs
-*.log
 
 # Testing
 coverage
 .nyc_output
 
+# Build artifacts
+dist
+build
+*.log
+
+# Environment files (will be mounted)
+.env
+.env.dev
+
 # Documentation
 *.md
-!README.md
+docs
+
+# CI/CD
+.github
+.gitlab-ci.yml
 
 # Docker
 Dockerfile*
 docker-compose*.yml
 .dockerignore
 
-# CI/CD
-.github
-.gitlab-ci.yml
+# Uploads (will be mounted)
+uploads
 
-# Temporary files
-*.tmp
-*.temp
-.tmp
-.temp
+# JSON debug files
+jsons
 
-# JSON data files (if not needed in production)
-jsons/*.json
+# Deployment scripts
+deploy_*.sh
 
-# Uploads (will be mounted as volume)
-uploads/*
+# Linting
+.eslintrc
+.prettierrc
+eslint.config.mjs
 
-# pnpm
-.pnpm-store
-.pnpm
-node_modules/.pnpm
-
+# Other
+*.conf
+README.md
+LICENSE

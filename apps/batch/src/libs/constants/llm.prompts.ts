@@ -32,24 +32,18 @@ Default to safe=true unless CLEARLY inappropriate.`;
 }
 
 export function fillEventDataPrompt(event: CrawledEvent): string {
-	// Extract raw HTML from scraper
-	const rawHtml = event.rawData?.raw_html || '';
+	const desc = event.eventDesc || 'N/A';
+	const name = event.eventName || 'N/A';
 
-	// Create a clean version of raw data without the large HTML field
-	const rawDataClean = event.rawData ? { ...event.rawData } : {};
-	delete rawDataClean.raw_html;
+	return `Categorize this event. Return ONLY JSON.
 
-	return `You are a precise event categorization system. Your task is to assign EXACTLY the right categories and tags.
+EVENT: ${name}
 
-=== EVENT DATA ===
+DESCRIPTION: ${desc}
 
-NAME: ${event.eventName}
+CATEGORIES: TECHNOLOGY, BUSINESS, SPORTS, ART, EDUCATION, FOOD, HEALTH, ENTERTAINMENT, TRAVEL, POLITICS, RELIGION, OTHER
 
-DESCRIPTION: ${event.eventDesc?.substring(0, 600) || 'N/A'}
-
-HTML CONTENT: ${rawHtml ? String(rawHtml).substring(0, 1000) : 'N/A'}
-
-METADATA: ${JSON.stringify(rawDataClean, null, 2).substring(0, 1200)}
+Pick 1-2 categories. Add 3-5 tags.
 
 === CATEGORIZATION RULES ===
 
@@ -117,5 +111,8 @@ OTHER - Anything that doesn't clearly fit above categories
 Return ONLY valid JSON with this exact structure:
 {"categories":["CATEGORY1"],"tags":["tag1","tag2","tag3","tag4","tag5"]}
 
-NO markdown, NO explanations, ONLY the JSON object.`;
+NO markdown, NO explanations, ONLY the JSON object.
+
+OUTPUT (JSON only):
+{"categories":["CATEGORY"],"tags":["tag1","tag2","tag3"]}`;
 }

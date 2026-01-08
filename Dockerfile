@@ -1,6 +1,6 @@
 FROM node:24-alpine AS base
 
-# Install system dependencies for Puppeteer/Chrome
+# Install system dependencies for Puppeteer/Chrome and Docker CLI
 RUN apk add --no-cache \
     chromium \
     nss \
@@ -8,7 +8,7 @@ RUN apk add --no-cache \
     harfbuzz \
     ca-certificates \
     ttf-freefont \
-    git
+    docker-cli
 
 # Set Puppeteer to use installed Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
@@ -18,26 +18,42 @@ WORKDIR /usr/src/eventify
 
 FROM base AS dependencies
 COPY package.json package-lock.json* ./
+# Install with production flags and clean cache
+RUN npm ci --only=production --ignore-scripts && \
+    npm cache clean --force
+
+FROM dependencies AS development-deps
+COPY package.json package-lock.json* ./
 RUN npm ci
 
-FROM dependencies AS development
+FROM development-deps AS development
 COPY . .
 CMD ["npm", "run", "dev"]
 
-FROM dependencies AS build
+FROM development-deps AS build
 COPY . .
-RUN npm run build
-RUN npm prune --production
+RUN npm run build && \
+    npm prune --production && \
+    npm cache clean --force && \
+    rm -rf /tmp/* /root/.npm /root/.cache
 
 FROM base AS production
+# Copy only production dependencies
+COPY --from=dependencies /usr/src/eventify/node_modules ./node_modules
+# Copy built application
 COPY --from=build /usr/src/eventify/dist ./dist
-COPY --from=build /usr/src/eventify/node_modules ./node_modules
 COPY --from=build /usr/src/eventify/package.json ./
 
-# Create uploads directory
-RUN mkdir -p uploads && chown -R node:node uploads
+# Create uploads directory and set permissions
+RUN mkdir -p uploads && \
+    chown -R node:node uploads && \
+    # Clean up unnecessary files
+    rm -rf /tmp/* /root/.npm /root/.cache
 
-# Set NODE_ENV (can be overridden by docker-compose)
+# Use non-root user for security
+USER node
+
+# Set NODE_ENV
 ENV NODE_ENV=production
 
 CMD ["node", "dist/apps/api/main"]

@@ -2,13 +2,6 @@
  * LLM Configuration Constants
  */
 
-// Model configuration
-export const LLM_DEFAULTS = {
-	TEMPERATURE: 0.1, // Lower = more lenient
-	MAX_TOKENS_FILTER: 100, // Short responses for filtering
-	MAX_TOKENS_CATEGORIZE: 50, // Very short for categorization
-} as const;
-
 // Prompt templates
 export const LLM_PROMPTS = {
 	DESCRIPTION_MAX_LENGTH: 300,

@@ -14,14 +14,12 @@ services:
     environment:
       - OLLAMA_NUM_PARALLEL=1
       - OLLAMA_MAX_LOADED_MODELS=1
+    # Resource limits to prevent memory issues
     deploy:
       resources:
         limits:
-          memory: 800M
+          memory: 1G
           cpus: "1.0"
-        reservations:
-          memory: 400M
-          cpus: "0.5"
 
   api:
     container_name: eventify-api-prod
@@ -36,16 +34,14 @@ services:
     working_dir: /usr/src/eventify
     env_file:
       - .env
-    networks:
-      - monorepo-network
+    # Resource limits for production (3.8GB server)
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 512M
           cpus: "0.5"
-        reservations:
-          memory: 128M
-          cpus: "0.25"
+    networks:
+      - monorepo-network
     command: node dist/apps/api/main
 
   batch:
@@ -61,18 +57,16 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     env_file:
       - .env
+    # Resource limits for production (3.8GB server)
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
     networks:
       - monorepo-network
     profiles:
       - batch
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.5"
-        reservations:
-          memory: 128M
-          cpus: "0.25"
     command: sh -c "apk add --no-cache docker-cli && node dist/apps/batch/main"
 
 volumes:

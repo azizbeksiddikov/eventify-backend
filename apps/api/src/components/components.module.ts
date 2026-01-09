@@ -13,6 +13,7 @@ import { CommentModule } from './comment/comment.module';
 import { FaqModule } from './faq/faq.module';
 import { NotificationModule } from './notification/notification.module';
 import { UploadModule } from './upload/upload.module';
+import { CurrencyModule } from './currency/currency.module';
 
 @Module({
 	imports: [
@@ -30,6 +31,7 @@ import { UploadModule } from './upload/upload.module';
 		TicketModule,
 		UploadModule,
 		ViewModule,
+		CurrencyModule,
 	],
 })
 export class ComponentsModule {}

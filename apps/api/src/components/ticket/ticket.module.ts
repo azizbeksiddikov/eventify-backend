@@ -9,6 +9,7 @@ import { AuthModule } from '../auth/auth.module';
 import { NotificationModule } from '../notification/notification.module';
 import { MemberModule } from '../member/member.module';
 import { EventModule } from '../event/event.module';
+import { CurrencyModule } from '../currency/currency.module';
 
 // ===== Ticket Components =====
 import { TicketService } from './ticket.service';
@@ -21,6 +22,7 @@ import { TicketResolver } from './ticket.resolver';
 		NotificationModule,
 		MemberModule,
 		EventModule,
+		CurrencyModule,
 	],
 	providers: [TicketService, TicketResolver],
 	exports: [TicketService],

@@ -22,6 +22,7 @@ import { NotificationType } from '../../libs/enums/notification.enum';
 import { NotificationService } from '../notification/notification.service';
 import { MemberService } from '../member/member.service';
 import { EventService } from '../event/event.service';
+import { CurrencyService } from '../currency/currency.service';
 
 @Injectable()
 export class TicketService {
@@ -30,6 +31,7 @@ export class TicketService {
 		private readonly notificationService: NotificationService,
 		private readonly memberService: MemberService,
 		private readonly eventService: EventService,
+		private readonly currencyService: CurrencyService,
 	) {}
 
 	public async createTicket(memberId: ObjectId, ticket: TicketInput): Promise<Ticket> {
@@ -47,9 +49,11 @@ export class TicketService {
 			throw new BadRequestException(Message.EVENT_FULL);
 
 		// Check if the member has enough points
-		const totalPrice = event.eventPrice * ticketQuantity;
+		if (!event.eventCurrency) throw new BadRequestException('Event currency is not defined');
+		const rate = await this.currencyService.getCurrencyRate(event.eventCurrency);
+		const requiredPoints = event.eventPrice * ticketQuantity * rate;
 		const memberPoints = await this.memberService.getMemberPoints(memberId);
-		if (memberPoints < totalPrice) throw new BadRequestException(Message.INSUFFICIENT_POINTS);
+		if (memberPoints < requiredPoints) throw new BadRequestException(Message.INSUFFICIENT_POINTS);
 
 		// Create a new ticket
 		try {
@@ -60,7 +64,7 @@ export class TicketService {
 				ticketPrice: event.eventPrice,
 				ticketCurrency: event.eventCurrency,
 				ticketQuantity: ticketQuantity,
-				totalPrice: totalPrice,
+				totalPrice: requiredPoints, // Store the calculated points as totalPrice
 			};
 			const newTicket: Ticket = (await this.ticketModel.create(newTicketInput)) as Ticket;
 
@@ -77,6 +81,11 @@ export class TicketService {
 
 			// update member stats
 			await this.memberService.memberStatsEditor({ _id: memberId, targetKey: 'memberEvents', modifier: 1 });
+			await this.memberService.memberStatsEditor({
+				_id: memberId,
+				targetKey: 'memberPoints',
+				modifier: -requiredPoints,
+			});
 
 			// update event stats
 			newTicket.event = await this.eventService.eventStatsEditor({

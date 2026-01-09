@@ -11,7 +11,6 @@ import { Roles } from '../auth/decorators/roles.decorator';
 
 // ===== Enums =====
 import { MemberType } from '../../libs/enums/member.enum';
-import { Message } from '../../libs/enums/common.enum';
 
 // ===== DTOs =====
 import { Member, Members } from '../../libs/dto/member/member';
@@ -23,10 +22,15 @@ import { shapeIntoMongoObjectId } from '../../libs/config';
 
 // ===== Services =====
 import { MemberService } from './member.service';
+import { CurrencyService } from '../currency/currency.service';
+import { Currency } from '../../libs/enums/common.enum';
 
 @Resolver()
 export class MemberResolver {
-	constructor(private readonly memberService: MemberService) {}
+	constructor(
+		private readonly memberService: MemberService,
+		private readonly currencyService: CurrencyService,
+	) {}
 
 	// ============== Authentication Methods ==============
 	@Mutation(() => Member)
@@ -75,6 +79,18 @@ export class MemberResolver {
 	public async checkAuthRoles(@AuthMember() authMember: Member): Promise<string> {
 		console.log('Query: checkAuthRoles');
 		return `Hi ${authMember.username}, you are ${authMember.memberType} and id: ${authMember._id}`;
+	}
+
+	@UseGuards(AuthGuard)
+	@Query(() => Number)
+	public async getMemberPointsInCurrency(
+		@Args('currencyCode') currencyCode: String,
+		@AuthMember() authMember: Member,
+	): Promise<number> {
+		const rate = await this.currencyService.getCurrencyRate(currencyCode as any);
+		// Logic: If 1 USD = 100 Points. User has 1000 Points. Result = 10 USD.
+		// Formula: Points / Rate.
+		return (authMember?.memberPoints || 0) / rate;
 	}
 
 	// ============== Member Interaction Methods ==============

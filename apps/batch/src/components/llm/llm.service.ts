@@ -24,7 +24,7 @@ export class LLMService {
 	private readonly ollamaBaseUrl: string;
 
 	constructor() {
-		this.llmEnabled = process.env.LLM_ENABLED === 'true';
+		this.llmEnabled = true;
 
 		const ollamaModel = process.env.OLLAMA_MODEL;
 		const ollamaBaseUrl = process.env.OLLAMA_BASE_URL;
@@ -34,9 +34,9 @@ export class LLMService {
 		this.ollamaBaseUrl = ollamaBaseUrl;
 
 		if (this.llmEnabled) {
-			console.log(`🤖 LLM enabled: ${this.ollamaModel} at ${this.ollamaBaseUrl}`);
+			console.log(`LLM enabled: ${this.ollamaModel} at ${this.ollamaBaseUrl}`);
 		} else {
-			console.warn('⚠️  LLM is disabled. Set LLM_ENABLED=true to enable AI filtering.');
+			console.warn('LLM is disabled.');
 		}
 	}
 
@@ -94,11 +94,7 @@ export class LLMService {
 		return { accepted: safeEvents, rejected, reasons };
 	}
 
-	////////////////////////////////////////////////////////////
-	// Helper Functions
-	////////////////////////////////////////////////////////////
-
-	private async fillMissingEventData(event: CrawledEvent): Promise<CrawledEvent> {
+	async fillMissingEventData(event: CrawledEvent): Promise<CrawledEvent> {
 		// Check if event needs completion (missing categories or tags)
 		const needsCategories = !event.eventCategories || event.eventCategories.length === 0;
 		const needsTags = !event.eventTags || event.eventTags.length === 0;
@@ -213,7 +209,7 @@ export class LLMService {
 		}
 	}
 
-	private async checkEventSafety(event: CrawledEvent): Promise<{ isSafe: boolean; reason: string }> {
+	async checkEventSafety(event: CrawledEvent): Promise<{ isSafe: boolean; reason: string }> {
 		const prompt = buildSafetyCheckPrompt(event);
 
 		try {

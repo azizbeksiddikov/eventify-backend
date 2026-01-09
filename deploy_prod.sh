@@ -23,20 +23,25 @@ if [ ! -f .env ]; then
 fi
 
 # Read from .env
-LLM_ENABLED=$(grep -E "^LLM_ENABLED=" .env | cut -d '=' -f2 | tr -d ' ')
-OLLAMA_MODEL=$(grep -E "^OLLAMA_MODEL=" .env | cut -d '=' -f2 | tr -d ' ')
+OLLAMA_MODEL=$(grep -E "^OLLAMA_MODEL=" .env | cut -d '=' -f2 | tr -d '[:space:]')
 
-# Build profiles string
-PROFILES="--profile batch"
-if [ "$LLM_ENABLED" = "true" ]; then
-    PROFILES="$PROFILES --profile llm"
-fi
+# Always use llm profile for web scraping
+PROFILES="--profile llm"
 
 echo "Stopping existing containers..."
 docker compose -f docker-compose.prod.yml down
 
+echo "Checking for base image (node:24-alpine)..."
+if ! docker image inspect node:24-alpine > /dev/null 2>&1; then
+    echo "Base image not found. Pulling node:24-alpine..."
+    docker pull node:24-alpine
+    echo "Base image pulled successfully."
+else
+    echo "Base image already exists."
+fi
+
 echo "Building containers..."
-docker compose -f docker-compose.prod.yml build --no-cache $PROFILES
+docker compose -f docker-compose.prod.yml build --no-cache
 
 echo "Starting containers..."
 docker compose -f docker-compose.prod.yml $PROFILES up -d
@@ -44,20 +49,20 @@ docker compose -f docker-compose.prod.yml $PROFILES up -d
 echo "Waiting for containers to be ready..."
 sleep 5
 
-if [ "$LLM_ENABLED" = "true" ]; then
-    echo "Waiting for Ollama..."
-    for i in {1..30}; do
-        if docker exec eventify-ollama curl -s http://localhost:11434/api/version > /dev/null 2>&1; then
-            break
-        fi
-        sleep 2
-    done
-    
-    echo "Checking model ($OLLAMA_MODEL)..."
-    if ! docker exec eventify-ollama ollama list 2>/dev/null | grep -q "$OLLAMA_MODEL"; then
-        echo "Pulling model..."
-        docker exec eventify-ollama ollama pull "$OLLAMA_MODEL"
+echo "Waiting for Ollama..."
+for i in {1..30}; do
+    if docker exec eventify-ollama curl -s http://localhost:11434/api/version > /dev/null 2>&1; then
+        break
     fi
+    sleep 2
+done
+
+echo "Checking model ($OLLAMA_MODEL)..."
+if ! docker exec eventify-ollama ollama list 2>/dev/null | grep -q "$OLLAMA_MODEL"; then
+    echo "Model not found. Pulling model..."
+    docker exec eventify-ollama ollama pull "$OLLAMA_MODEL"
+else
+    echo "Model $OLLAMA_MODEL already exists."
 fi
 
 echo ""
@@ -67,5 +72,5 @@ echo ""
 echo "Following logs (Ctrl+C to exit)..."
 echo ""
 
-docker compose -f docker-compose.prod.yml logs -f
+docker compose -f docker-compose.prod.yml $PROFILES logs -f
 

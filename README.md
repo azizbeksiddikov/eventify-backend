@@ -114,7 +114,6 @@ MONGODB_URI=mongodb://admin:password@dev-server:27017/eventify?authSource=admin
 SECRET_TOKEN=your-secret-token-here
 
 # AI/LLM Configuration (Optional)
-LLM_ENABLED=true
 OLLAMA_BASE_URL=http://ollama:11434
 OLLAMA_MODEL=qwen2.5:0.5b
 ```

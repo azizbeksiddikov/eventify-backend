@@ -44,14 +44,10 @@ COPY --from=dependencies /usr/src/eventify/node_modules ./node_modules
 COPY --from=build /usr/src/eventify/dist ./dist
 COPY --from=build /usr/src/eventify/package.json ./
 
-# Create uploads directory and set permissions
-RUN mkdir -p uploads && \
-    chown -R node:node uploads && \
+RUN mkdir -p uploads jsons && \
     # Clean up unnecessary files
     rm -rf /tmp/* /root/.npm /root/.cache
 
-# Use non-root user for security
-USER node
 
 # Set NODE_ENV
 ENV NODE_ENV=production

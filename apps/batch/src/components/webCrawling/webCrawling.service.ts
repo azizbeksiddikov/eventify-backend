@@ -12,10 +12,12 @@ import { OllamaService } from '../ollama/ollama.service';
 import { EventStatus, EventType } from '@app/api/src/libs/enums/event.enum';
 import { EventInput } from '@app/api/src/libs/dto/event/event.input';
 import { AgendaService } from '../../agenda/agenda.service';
+import { logger } from '../../libs/logger';
 
 @Injectable()
 export class WebCrawlingService {
 	private readonly scrapers: IEventScraper[] = [];
+	private readonly context = 'WebCrawlingService';
 
 	constructor(
 		@InjectModel('Event') private readonly eventModel: Model<Event>,
@@ -25,258 +27,204 @@ export class WebCrawlingService {
 		private readonly llmService: LLMService,
 		private readonly ollamaService: OllamaService,
 	) {
-		// Initialize scrapers
 		this.scrapers = [this.meetupScraper, this.lumaScraper];
-		// this.scrapers = [this.meetupScraper];
-		// this.scrapers = [this.lumaScraper];
 	}
 
-	async getEventCrawling(limit?: number, testMode?: boolean): Promise<CrawledEvent[]> {
-		const allEvents: CrawledEvent[] = [];
-		const scraperResults: { [key: string]: { count: number; events: CrawledEvent[] } } = {};
+	/**
+	 * Sequential per-event processing to minimize memory usage.
+	 * 
+	 * @param limit - Optional limit on number of events to process
+	 * @param testMode - If true, events are processed but not saved to DB
+	 * @returns Number of events successfully processed and saved
+	 */
+	async getEventCrawling(limit?: number, testMode?: boolean): Promise<number> {
+		let totalProcessed = 0;
+		const stats = {
+			scraped: 0,
+			accepted: 0,
+			rejected: 0,
+			saved: 0,
+		};
+
+		const logMemory = (label: string) => {
+			logger.logMemory(this.context, label);
+		};
 
 		try {
-			////////////////////////////////////////////////////////////
-			// Step 0: Start Ollama if needed
-			////////////////////////////////////////////////////////////
-			await this.ollamaService.startOllama();
+			logMemory('START');
 
-			////////////////////////////////////////////////////////////
-			// Step 1: Web scraping events
-			////////////////////////////////////////////////////////////
-			console.log('Start web scraping...');
-			let currentLimit = limit;
+			logger.info(this.context, '🔵 Starting Ollama service...');
+			await this.ollamaService.startOllama();
+			logger.info(this.context, '🔵 Ollama service initialization complete');
+			logMemory('AFTER Ollama Start');
 
 			for (const scraper of this.scrapers) {
-				// Check if we've already reached the limit before calling next scraper
-				if (currentLimit !== undefined && currentLimit <= 0) {
-					console.log(`Limit reached (${limit}), stopping scraping`);
-					break;
-				}
+				logger.info(this.context, `${'='.repeat(80)}`);
+				logger.info(this.context, `Processing ${scraper.getName()}...`);
+				logger.info(this.context, `${'='.repeat(80)}`);
 
-				try {
-					const events = await scraper.scrapeEvents(currentLimit);
+				const scraperStats = await this.processScraperSequentially(
+					scraper,
+					limit,
+					testMode || false,
+					logMemory,
+				);
 
-					scraperResults[scraper.getName()] = { count: events.length, events: events };
-					allEvents.push(...events);
+				stats.scraped += scraperStats.scraped;
+				stats.accepted += scraperStats.accepted;
+				stats.rejected += scraperStats.rejected;
+				stats.saved += scraperStats.saved;
 
-					// Decrease currentLimit by the number of events scraped
-					if (currentLimit !== undefined) currentLimit -= events.length;
-				} catch (error) {
-					const errorMessage = error instanceof Error ? error.message : String(error);
-					const errorStack = error instanceof Error ? error.stack : undefined;
-					console.error(`Scraper ${scraper.getName()} failed: ${errorMessage}`, errorStack);
-					console.warn(`Continuing with other scrapers...`);
-				}
+				logger.info(this.context, `Finished ${scraper.getName()}`);
+				logger.info(this.context, `   Scraped: ${scraperStats.scraped}`);
+				logger.info(this.context, `   Accepted: ${scraperStats.accepted}`);
+				logger.info(this.context, `   Rejected: ${scraperStats.rejected}`);
+				logger.info(this.context, `   Saved to DB: ${scraperStats.saved}`);
+
+				logMemory(`AFTER ${scraper.getName()}`);
 			}
 
-			////////////////////////////////////////////////////////////
-			// Step 2: Filter events with LLM + Fill missing data
-			////////////////////////////////////////////////////////////
-			const { accepted, rejected, reasons } = await this.llmService.filterAndCompleteEvents(allEvents);
+			this.saveFinalSummary(stats);
 
-			// Apply limit globally after LLM filtering to ensure we return exactly the requested number
-			const finalAccepted = limit ? accepted.slice(0, limit) : accepted;
-
-			this.saveStepToJson('step2_llm', {
-				metadata: {
-					step: 2,
-					description: 'Events after LLM processing',
-					processedAt: new Date().toISOString(),
-					totalAccepted: accepted.length,
-					totalRejected: rejected.length,
-					acceptanceRate: allEvents.length > 0 ? `${((accepted.length / allEvents.length) * 100).toFixed(1)}%` : 'N/A',
-					llmEnabled: process.env.LLM_ENABLED === 'true',
-				},
-				acceptedEvents: accepted.map((event) => {
-					// eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-assignment
-					const { rawData: _rawData, ...eventWithoutRawData } = event;
-					return eventWithoutRawData;
-				}),
-				rejectedEvents: rejected.map((event) => ({
-					eventName: event.eventName,
-					externalUrl: event.externalUrl,
-					origin: event.origin,
-					reason: reasons.get(event.externalId || event.eventName) || 'Unknown',
-				})),
-			});
-			this.saveAllEventsToJson(allEvents, accepted, rejected, reasons, scraperResults);
-
-			////////////////////////////////////////////////////////////
-			// Step 3: Import accepted events to database
-			////////////////////////////////////////////////////////////
-			let processedCount = 0;
-			if (!testMode) {
-				processedCount = await this.importEventsToDatabase(finalAccepted);
-
-				this.saveStepToJson('step3_import_results', {
-					metadata: {
-						step: 3,
-						description: 'Database import results (create/update)',
-						importedAt: new Date().toISOString(),
-						totalProcessed: processedCount,
-						totalEvents: finalAccepted.length,
-					},
-					summary: {
-						processedSuccessfully: processedCount,
-						totalEvents: finalAccepted.length,
-						note: 'See console logs for breakdown of created/updated/skipped',
-					},
-				});
-			}
-
-			return finalAccepted;
+			logMemory('END');
+			return stats.saved;
 		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : String(error);
-			const errorStack = error instanceof Error ? error.stack : undefined;
-			console.error(`Error during web crawling: ${errorMessage}`, errorStack);
+			logger.error(this.context, 'Error during web crawling', error);
 			throw error;
 		} finally {
-			// Always stop Ollama to free resources, even if error occurred
 			await this.ollamaService.stopOllama();
+			logMemory('FINAL - After Cleanup');
 		}
 	}
 
-	private saveStepToJson(filename: string, data: unknown): void {
+	/**
+	 * Process one scraper with sequential event processing.
+	 */
+	private async processScraperSequentially(
+		scraper: IEventScraper,
+		limit: number | undefined,
+		testMode: boolean,
+		logMemory: (label: string) => void,
+	): Promise<{ scraped: number; accepted: number; rejected: number; saved: number }> {
+		const stats = {
+			scraped: 0,
+			accepted: 0,
+			rejected: 0,
+			saved: 0,
+		};
+
+		logger.info(this.context, `Phase 1: Scraping events from ${scraper.getName()}...`);
+
 		try {
-			const jsonsDir = path.join(process.cwd(), 'jsons');
-			if (!fs.existsSync(jsonsDir)) fs.mkdirSync(jsonsDir, { recursive: true });
+			const scrapedEvents = await scraper.scrapeEvents(limit);
+			stats.scraped = scrapedEvents.length;
 
-			const filePath = path.join(jsonsDir, `${filename}.json`);
-			fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+			logger.info(this.context, `Scraped ${scrapedEvents.length} events`);
+			logMemory('AFTER Scraping');
 
-			console.log(`Saved step to jsons/${filename}.json`);
+			logger.info(this.context, `Phase 2: Processing events sequentially...`);
+
+			for (let i = 0; i < scrapedEvents.length; i++) {
+				const event = scrapedEvents[i];
+
+				try {
+					logger.info(this.context, `  [${i + 1}/${scrapedEvents.length}] Processing: ${event.eventName?.substring(0, 50)}...`);
+
+					const safetyCheck = await this.llmService.checkEventSafety(event);
+					if (!safetyCheck.isSafe) {
+						stats.rejected++;
+						logger.info(this.context, `    Rejected: ${safetyCheck.reason}`);
+						continue;
+					}
+
+					const completed = await this.llmService.fillMissingEventData(event);
+					stats.accepted++;
+
+					if (!testMode) {
+						await this.importEventToDatabase(completed);
+						stats.saved++;
+						logger.info(this.context, `    Saved to DB`);
+					} else {
+						logger.info(this.context, `    Processed (test mode - not saved)`);
+					}
+				} catch (error) {
+					logger.warn(this.context, `    Failed: ${error instanceof Error ? error.message : String(error)}`);
+				}
+
+				if ((i + 1) % 10 === 0) {
+					logMemory(`After ${i + 1} events`);
+				}
+			}
+
+			return stats;
 		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : String(error);
-			console.warn(`Failed to save step JSON file: ${errorMessage}`);
+			logger.error(this.context, `Error processing ${scraper.getName()}`, error);
+			throw error;
 		}
 	}
 
-	private saveAllEventsToJson(
-		rawEvents: CrawledEvent[],
-		acceptedEvents: CrawledEvent[],
-		rejectedEvents: CrawledEvent[],
-		rejectionReasons: Map<string, string>,
-		scraperResults: { [key: string]: { count: number; events: CrawledEvent[] } },
-	): void {
+	private async importEventToDatabase(event: CrawledEvent): Promise<void> {
 		try {
-			const jsonsDir = path.join(process.cwd(), 'jsons');
-			if (!fs.existsSync(jsonsDir)) fs.mkdirSync(jsonsDir, { recursive: true });
-
-			const llmEnabled = process.env.LLM_ENABLED === 'true';
-
-			// Prepare combined data with metadata
-			const dataToSave = {
-				metadata: {
-					scrapedAt: new Date().toISOString(),
-					totalScraped: rawEvents.length,
-					totalAccepted: acceptedEvents.length,
-					totalRejected: rejectedEvents.length,
-					acceptanceRate:
-						rawEvents.length > 0 ? `${((acceptedEvents.length / rawEvents.length) * 100).toFixed(1)}%` : 'N/A',
-					sources: Object.keys(scraperResults).map((source) => ({
-						name: source,
-						eventCount: scraperResults[source].count,
-					})),
-					llm: {
-						enabled: llmEnabled,
-						model: process.env.OLLAMA_MODEL,
-					},
-				},
-				acceptedEvents: acceptedEvents.map((event) => {
-					// eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-assignment
-					const { rawData: _rawData, ...eventWithoutRawData } = event;
-					return eventWithoutRawData;
-				}),
-				rejectedEvents: rejectedEvents.map((event) => ({
-					eventName: event.eventName,
-					externalUrl: event.externalUrl,
-					origin: event.origin,
-					reason: rejectionReasons.get(event.externalId || event.eventName) || 'Unknown',
-				})),
-			};
-
-			const filePath = path.join(jsonsDir, 'all_events.json');
-			fs.writeFileSync(filePath, JSON.stringify(dataToSave, null, 2), 'utf-8');
-		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : String(error);
-			console.warn(`Failed to save JSON file: ${errorMessage}`);
-		}
-	}
-
-	private async importEventsToDatabase(events: CrawledEvent[]): Promise<number> {
-		let created = 0;
-		let updated = 0;
-		let skipped = 0;
-
-		for (const event of events) {
-			try {
-				// Check if event already exists using multiple criteria
 				const existingEvent = await this.findExistingEvent(event);
-
-				// Map CrawledEvent to Event data
 				const eventData: EventInput = this.mapCrawledEventToInput(event);
 
 				if (existingEvent) {
-					// Compare existing event with scraped event
 					const hasChanges = this.hasEventChanges(existingEvent, eventData);
 
 					if (hasChanges) {
-						// Update the event if there are changes
 						const updatedEvent = await this.eventModel.findByIdAndUpdate(existingEvent._id, eventData, {
 							new: true,
 						});
 
-						// Handle job rescheduling for updated events
 						if (updatedEvent) {
 							await this.handleEventJobsAfterImport(existingEvent, updatedEvent);
 						}
-
-						updated++;
-						console.log(`Updated: "${event.eventName}" (${event.externalId || 'no-id'})`);
-					} else {
-						// Skip if no changes
-						skipped++;
 					}
 				} else {
-					// Create new event if it doesn't exist
 					const newEvent = await this.eventModel.create(eventData);
-
-					// Schedule jobs for newly created events
 					await this.scheduleEventJobs(newEvent);
-
-					created++;
-					console.log(`Created: "${event.eventName}" (${event.externalId || 'no-id'})`);
 				}
 			} catch (error) {
-				const errorMessage = error instanceof Error ? error.message : String(error);
-				console.warn(`Failed to process "${event.eventName}": ${errorMessage}`);
+				logger.warn(this.context, `Failed to import "${event.eventName}"`, error);
+				throw error;
 			}
-		}
-
-		console.log(`Database import complete: ${created} created, ${updated} updated, ${skipped} skipped (no changes)`);
-		return created + updated;
 	}
 
-	/**
-	 * Find existing event by multiple criteria:
-	 * 1. External ID (if available)
-	 * 2. External URL (if available)
-	 * 3. Event name + start time (for events without external IDs)
-	 */
+	private saveFinalSummary(stats: { scraped: number; accepted: number; rejected: number; saved: number }): void {
+		try {
+			const jsonsDir = path.join(process.cwd(), 'jsons');
+			if (!fs.existsSync(jsonsDir)) fs.mkdirSync(jsonsDir, { recursive: true });
+
+			const summary = {
+				metadata: {
+					timestamp: new Date().toISOString(),
+					mode: 'optimized_sequential',
+				},
+				stats,
+			};
+
+			const filePath = path.join(jsonsDir, 'crawling_summary.json');
+			fs.writeFileSync(filePath, JSON.stringify(summary, null, 2), 'utf-8');
+
+			logger.info(this.context, `📊 Final Summary:`);
+			logger.info(this.context, `   Total Scraped: ${stats.scraped}`);
+			logger.info(this.context, `   Accepted: ${stats.accepted}`);
+			logger.info(this.context, `   Rejected: ${stats.rejected}`);
+			logger.info(this.context, `   Saved to DB: ${stats.saved}`);
+		} catch (error) {
+			logger.warn(this.context, 'Failed to save summary', error);
+		}
+	}
+
+
 	private async findExistingEvent(event: CrawledEvent): Promise<Event | null> {
 		const conditions: any[] = [];
 
-		// Check by external ID
 		if (event.externalId) conditions.push({ externalId: event.externalId });
-
-		// Check by external URL
 		if (event.externalUrl) conditions.push({ externalUrl: event.externalUrl });
 
-		// Check by name + start time (fuzzy match to catch similar events)
 		if (event.eventName && event.eventStartAt) {
 			const startDate = new Date(event.eventStartAt);
-			// Allow 1 hour time difference for matching
 			const startWindow = {
 				$gte: new Date(startDate.getTime() - 60 * 60 * 1000),
 				$lte: new Date(startDate.getTime() + 60 * 60 * 1000),
@@ -293,73 +241,47 @@ export class WebCrawlingService {
 		return await this.eventModel.findOne({ $or: conditions });
 	}
 
-	/**
-	 * Map CrawledEvent to EventInput
-	 */
 	private mapCrawledEventToInput(event: CrawledEvent): EventInput {
 		return {
-			// ===== Event Type =====
-			eventType: EventType.ONCE, // Default to one-time event
-
-			// ===== Basic Information =====
+			eventType: EventType.ONCE,
 			eventName: event.eventName,
 			eventDesc: event.eventDesc,
-			// Ensure eventImages is always an array, filter out any null/undefined values
 			eventImages: Array.isArray(event.eventImages)
 				? event.eventImages.filter((img: string | null | undefined) => img != null)
 				: [],
 			eventPrice: event.eventPrice || 0,
 			eventCurrency: event.eventCurrency,
-
-			// ===== Event Timestamps =====
 			eventStartAt: new Date(event.eventStartAt),
 			eventEndAt: new Date(event.eventEndAt),
-
-			// ===== Location Details =====
 			locationType: event.locationType,
 			eventCity: event.eventCity,
 			eventAddress: event.eventAddress,
-			// Coordinates
 			coordinateLatitude: event.coordinateLatitude,
 			coordinateLongitude: event.coordinateLongitude,
-
-			// ===== Type and Status =====
 			eventStatus: EventStatus.UPCOMING,
 			eventCategories: event.eventCategories,
 			eventTags: event.eventTags || [],
 			isRealEvent: true,
-
-			// ===== External Source Information =====
 			origin: event.origin || 'external',
 			externalId: event.externalId,
 			externalUrl: event.externalUrl,
-
-			// ===== Event Attendees =====
 			attendeeCount: event.attendeeCount || undefined,
 			eventCapacity: event.eventCapacity || undefined,
 		};
 	}
 
-	/**
-	 * Compare existing event with scraped event data to detect changes
-	 * Returns true if there are meaningful differences
-	 */
 	private hasEventChanges(existingEvent: Event, newEventData: EventInput): boolean {
-		// Helper to normalize strings for comparison
 		const normalize = (str: string | undefined | null): string => {
 			return (str || '').trim().toLowerCase();
 		};
 
-		// Helper to compare dates (ignore milliseconds)
 		const isSameDate = (date1: Date | string | undefined, date2: Date | string | undefined): boolean => {
 			if (!date1 || !date2) return date1 === date2;
 			const d1 = new Date(date1).getTime();
 			const d2 = new Date(date2).getTime();
-			// Allow 1 second difference
 			return Math.abs(d1 - d2) < 1000;
 		};
 
-		// Helper to compare arrays
 		const isSameArray = (arr1: unknown[] | undefined, arr2: unknown[] | undefined): boolean => {
 			if (!arr1 && !arr2) return true;
 			if (!arr1 || !arr2) return false;
@@ -369,82 +291,53 @@ export class WebCrawlingService {
 			return sorted1.every((val, idx) => val === sorted2[idx]);
 		};
 
-		// Check for changes in key fields
 		const checks = [
-			// Basic information
 			normalize(existingEvent.eventName) !== normalize(newEventData.eventName),
 			normalize(existingEvent.eventDesc) !== normalize(newEventData.eventDesc),
 			!isSameArray(existingEvent.eventImages, newEventData.eventImages),
-
-			// Timestamps
 			!isSameDate(existingEvent.eventStartAt, newEventData.eventStartAt),
 			!isSameDate(existingEvent.eventEndAt, newEventData.eventEndAt),
-
-			// Location
 			existingEvent.locationType !== newEventData.locationType,
 			normalize(existingEvent.eventCity) !== normalize(newEventData.eventCity),
 			normalize(existingEvent.eventAddress) !== normalize(newEventData.eventAddress),
 			existingEvent.coordinateLatitude !== newEventData.coordinateLatitude,
 			existingEvent.coordinateLongitude !== newEventData.coordinateLongitude,
-
-			// Price and capacity
 			existingEvent.eventPrice !== newEventData.eventPrice,
 			existingEvent.eventCurrency !== newEventData.eventCurrency,
 			existingEvent.eventCapacity !== newEventData.eventCapacity,
 			existingEvent.attendeeCount !== newEventData.attendeeCount,
-
-			// Categories and tags
 			!isSameArray(existingEvent.eventCategories, newEventData.eventCategories),
 			!isSameArray(existingEvent.eventTags, newEventData.eventTags),
-
-			// External info
 			normalize(existingEvent.externalUrl) !== normalize(newEventData.externalUrl),
 		];
 
-		// Return true if any check indicates a change
 		return checks.some((hasChange) => hasChange);
 	}
 
-	/**
-	 * Schedule event jobs based on event status and timing
-	 * - UPCOMING: Schedule both EVENT_START and EVENT_END
-	 * - ONGOING: Schedule only EVENT_END
-	 * - COMPLETED/CANCELLED/DELETED: No jobs
-	 */
 	private async scheduleEventJobs(event: Event & { _id: { toString: () => string } }): Promise<void> {
 		const now = new Date();
 		const startTime = new Date(event.eventStartAt);
 		const endTime = new Date(event.eventEndAt);
 
-		// Handle UPCOMING events
 		if (event.eventStatus === EventStatus.UPCOMING) {
-			// Schedule start job if event hasn't started yet
 			if (startTime > now) {
 				await this.agendaService.scheduleEventStart(event._id.toString(), startTime);
 			}
 
-			// Schedule end job if event hasn't ended yet
 			if (endTime > now) {
 				await this.agendaService.scheduleEventEnd(event._id.toString(), endTime);
 			}
 			return;
 		}
 
-		// Handle ONGOING events
 		if (event.eventStatus === EventStatus.ONGOING) {
-			// Only schedule end job if event hasn't ended yet
 			if (endTime > now) {
 				await this.agendaService.scheduleEventEnd(event._id.toString(), endTime);
 			}
 			return;
 		}
-
-		// COMPLETED, CANCELLED, DELETED events don't need jobs
 	}
 
-	/**
-	 * Handle event job scheduling when updating an imported event
-	 */
 	private async handleEventJobsAfterImport(
 		oldEvent: Event & { _id: { toString: () => string } },
 		updatedEvent: Event & { _id: { toString: () => string } },
@@ -453,12 +346,10 @@ export class WebCrawlingService {
 		const newStatus = updatedEvent.eventStatus;
 		const now = new Date();
 
-		// If status or timing changed, handle accordingly
 		const timeChanged =
 			new Date(oldEvent.eventStartAt).getTime() !== new Date(updatedEvent.eventStartAt).getTime() ||
 			new Date(oldEvent.eventEndAt).getTime() !== new Date(updatedEvent.eventEndAt).getTime();
 
-		// Case 1: Status is DELETED, CANCELLED, or COMPLETED → Cancel all jobs
 		if (
 			newStatus === EventStatus.DELETED ||
 			newStatus === EventStatus.CANCELLED ||
@@ -468,19 +359,15 @@ export class WebCrawlingService {
 			return;
 		}
 
-		// Case 2: Status is ONGOING → Keep/schedule EVENT_END
 		if (newStatus === EventStatus.ONGOING) {
-			// Cancel all existing jobs
 			await this.agendaService.cancelEventJobs(updatedEvent._id.toString());
 
-			// Schedule EVENT_END if end time is in the future
 			if (new Date(updatedEvent.eventEndAt) > now) {
 				await this.agendaService.scheduleEventEnd(updatedEvent._id.toString(), updatedEvent.eventEndAt);
 			}
 			return;
 		}
 
-		// Case 3: Event is UPCOMING and time changed → Reschedule jobs
 		if (newStatus === EventStatus.UPCOMING && timeChanged) {
 			await this.agendaService.rescheduleEventJobs(
 				updatedEvent._id.toString(),
@@ -490,7 +377,6 @@ export class WebCrawlingService {
 			return;
 		}
 
-		// Case 4: Status changed to UPCOMING from other status → Schedule new jobs
 		if (newStatus === EventStatus.UPCOMING && oldStatus !== EventStatus.UPCOMING) {
 			await this.scheduleEventJobs(updatedEvent);
 			return;

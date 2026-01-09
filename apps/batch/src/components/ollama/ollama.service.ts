@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { logger } from '../../libs/logger';
 
 const execAsync = promisify(exec);
 
@@ -8,14 +9,16 @@ const execAsync = promisify(exec);
 export class OllamaService {
 	private readonly containerName = 'eventify-ollama';
 	private readonly ollamaEnabled: boolean;
+	private readonly context = 'OllamaService';
 
 	constructor() {
-		this.ollamaEnabled = process.env.LLM_ENABLED === 'true';
+		this.ollamaEnabled = true;
+		logger.info(this.context, `🔵 Initialized: OLLAMA_BASE_URL=${process.env.OLLAMA_BASE_URL || 'NOT SET'}`);
 	}
 
 	async startOllama(): Promise<void> {
 		if (!this.ollamaEnabled) {
-			console.log('LLM disabled, skipping Ollama start');
+			logger.info(this.context, 'LLM disabled, skipping Ollama start');
 			return;
 		}
 
@@ -24,25 +27,28 @@ export class OllamaService {
 			const { stdout } = await execAsync(`docker ps -a --filter "name=${this.containerName}" --format "{{.Status}}"`);
 
 			if (!stdout.trim()) {
-				console.log('Ollama container does not exist, skipping');
+				logger.warn(this.context, `⚠️  Ollama container (${this.containerName}) does not exist. Make sure it's started with --profile llm`);
+				logger.warn(this.context, '   Events will be processed without LLM filtering/completion');
 				return;
 			}
 
 			if (stdout.includes('Up')) {
-				console.log('Ollama already running');
+				logger.info(this.context, '✅ Ollama already running');
+				// Verify it's actually accessible
+				await this.waitForOllama();
 				return;
 			}
 
-			console.log('Starting Ollama container...');
+			logger.info(this.context, 'Starting Ollama container...');
 			await execAsync(`docker start ${this.containerName}`);
 
 			// Wait for Ollama to be ready
 			await this.waitForOllama();
-			console.log('Ollama started and ready');
+			logger.info(this.context, '✅ Ollama started and ready');
 		} catch (error) {
-			const err = error as Error;
-			console.error('Failed to start Ollama:', err.message);
-			throw error;
+			logger.error(this.context, '❌ Failed to start Ollama', error);
+			logger.warn(this.context, '   Events will be processed without LLM filtering/completion');
+			// Don't throw - allow processing to continue without LLM
 		}
 	}
 
@@ -55,31 +61,43 @@ export class OllamaService {
 			const { stdout } = await execAsync(`docker ps --filter "name=${this.containerName}" --format "{{.Status}}"`);
 
 			if (!stdout.includes('Up')) {
-				console.log('Ollama already stopped');
+				logger.info(this.context, 'Ollama already stopped');
 				return;
 			}
 
-			console.log('Stopping Ollama container to free resources...');
+			logger.info(this.context, 'Stopping Ollama container to free resources...');
 			await execAsync(`docker stop ${this.containerName}`);
-			console.log('Ollama stopped');
+			logger.info(this.context, 'Ollama stopped');
 		} catch (error) {
-			const err = error as Error;
-			console.error('Failed to stop Ollama:', err.message);
+			logger.error(this.context, 'Failed to stop Ollama', error);
 		}
 	}
 
 	private async waitForOllama(): Promise<void> {
 		const maxAttempts = 30;
-		const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+		const ollamaUrl = process.env.OLLAMA_BASE_URL;
+		if (!ollamaUrl) {
+			throw new Error('OLLAMA_BASE_URL is not set in environment variables');
+		}
 
+		logger.info(this.context, `Waiting for Ollama at ${ollamaUrl}...`);
 		for (let i = 0; i < maxAttempts; i++) {
 			try {
-				const response = await fetch(`${ollamaUrl}/api/version`);
+				const response = await fetch(`${ollamaUrl}/api/version`, {
+					signal: AbortSignal.timeout(5000), // 5 second timeout
+				});
 				if (response.ok) {
+					logger.info(this.context, `✅ Ollama is accessible at ${ollamaUrl}`);
 					return;
 				}
-			} catch {
-				// Ollama not ready yet
+			} catch (error) {
+				const err = error as Error;
+				if (i === maxAttempts - 1) {
+					// Last attempt - show error
+					logger.error(this.context, `❌ Cannot connect to Ollama at ${ollamaUrl}`, error);
+					throw new Error(`Ollama did not start in time: ${err.message}`);
+				}
+				// Wait before retry
 			}
 			await new Promise((resolve) => setTimeout(resolve, 2000));
 		}

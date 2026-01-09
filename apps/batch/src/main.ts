@@ -2,7 +2,24 @@ import { NestFactory } from '@nestjs/core';
 import { BatchModule } from './batch.module';
 
 async function bootstrap() {
-	const app = await NestFactory.create(BatchModule);
+	const app = await NestFactory.create(BatchModule, {
+		logger: ['log', 'error', 'warn', 'debug', 'verbose'],
+	});
+
+	// Override console methods to include timestamps
+	const originalLog = console.log;
+	const originalError = console.error;
+	const originalWarn = console.warn;
+	const originalInfo = console.info;
+	const originalDebug = console.debug;
+
+	const timestamp = () => `[${new Date().toISOString()}]`;
+
+	console.log = (...args: any[]) => originalLog(timestamp(), ...args);
+	console.error = (...args: any[]) => originalError(timestamp(), ...args);
+	console.warn = (...args: any[]) => originalWarn(timestamp(), ...args);
+	console.info = (...args: any[]) => originalInfo(timestamp(), ...args);
+	console.debug = (...args: any[]) => originalDebug(timestamp(), ...args);
 
 	const port_number = process.env.PORT_BATCH;
 	if (!port_number) {

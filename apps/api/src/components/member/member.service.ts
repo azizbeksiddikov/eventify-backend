@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
 
@@ -12,7 +12,7 @@ import { ViewGroup } from '../../libs/enums/view.enum';
 import { Member, Members } from '../../libs/dto/member/member';
 import { StatisticModifier, T } from '../../libs/types/common';
 import { LoginInput, MemberInput, MembersInquiry, OrganizersInquiry } from '../../libs/dto/member/member.input';
-import { MemberUpdateInput, PasswordUpdateInput } from '../../libs/dto/member/member.update';
+import { MemberUpdateInput } from '../../libs/dto/member/member.update';
 import { Follower, Following, MeFollowed } from '../../libs/dto/follow/follow';
 import { LikeInput } from '../../libs/dto/like/like.input';
 import { ViewInput } from '../../libs/dto/view/view.input';
@@ -20,7 +20,7 @@ import { NotificationInput } from '../../libs/dto/notification/notification.inpu
 import { NotificationType } from '../../libs/enums/notification.enum';
 
 // ===== Config =====
-import { lookupAuthMemberFollowed, lookupAuthMemberLiked } from '../../libs/config';
+import { lookupAuthMemberFollowed, lookupAuthMemberLiked, shapeObjectIdToString } from '../../libs/config';
 
 // ===== Services =====
 import { AuthService } from '../auth/auth.service';
@@ -55,8 +55,11 @@ export class MemberService {
 			newMember.accessToken = await this.authService.createToken(newMember);
 
 			return newMember;
-		} catch (err) {
-			console.error('Error in signup:', err.message);
+		} catch (err: unknown) {
+			if (err instanceof Error) {
+				console.error('Error in signup:', err.message);
+			}
+			console.error('Error in signup:', 'Unknown error');
 			throw new BadRequestException(Message.USED_MEMBER_NICK_OR_PHONE);
 		}
 	}
@@ -113,6 +116,7 @@ export class MemberService {
 
 	// ============== Profile Management Methods ==============
 	public async updateMember(memberId: ObjectId, input: MemberUpdateInput): Promise<Member> {
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		const { _id, emailVerified, memberStatus, ...otherInput } = input;
 
 		const result: Member | null = await this.memberModel
@@ -135,7 +139,7 @@ export class MemberService {
 	// ============== Member Interaction Methods ==============
 	public async getMember(memberId: ObjectId | null, targetId: ObjectId): Promise<Member> {
 		// Only fetch memberPoints if the user is viewing their own profile
-		const isOwnProfile = memberId?.toString() === targetId.toString();
+		const isOwnProfile = memberId !== null && shapeObjectIdToString(memberId) === shapeObjectIdToString(targetId);
 		const selectFields = isOwnProfile ? '+memberPoints' : '';
 
 		const targetMember: Member | null = await this.memberModel.findById(targetId).select(selectFields).lean().exec();
@@ -195,7 +199,7 @@ export class MemberService {
 
 		if (!result.length) throw new BadRequestException(Message.NO_DATA_FOUND);
 
-		return result[0];
+		return result[0] as Members;
 	}
 
 	public async getOrganizer(memberId: ObjectId | null, targetId: ObjectId): Promise<Member> {
@@ -255,7 +259,7 @@ export class MemberService {
 			.exec();
 
 		if (!result.length) throw new NotFoundException(Message.MEMBER_NOT_FOUND);
-		const member = result[0];
+		const member = result[0] as Member;
 
 		if (memberId) {
 			const viewInput: ViewInput = {
@@ -290,7 +294,7 @@ export class MemberService {
 		};
 
 		if (authMember.memberType === MemberType.ORGANIZER) {
-			newNotification.notificationLink = `/organizers/${authMember._id}`;
+			newNotification.notificationLink = `/organizers/${shapeObjectIdToString(authMember._id)}`;
 		}
 
 		const modifier = await this.likeService.toggleLike(input, newNotification);
@@ -333,7 +337,7 @@ export class MemberService {
 
 		if (!result.length) throw new BadRequestException(Message.NO_DATA_FOUND);
 
-		return result[0];
+		return result[0] as Members;
 	}
 
 	public async updateMemberByAdmin(input: MemberUpdateInput): Promise<Member> {

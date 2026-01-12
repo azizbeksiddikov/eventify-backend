@@ -22,6 +22,7 @@ import {
 	lookupAuthMemberLiked,
 	lookupFollowerData,
 	lookupFollowingData,
+	shapeObjectIdToString,
 } from '../../libs/config';
 
 // ===== Services =====
@@ -39,7 +40,9 @@ export class FollowService {
 	// ============== Follow Management Methods ==============
 	public async subscribe(followerId: ObjectId, followingId: ObjectId): Promise<Member> {
 		// check self subscription
-		if (followerId.toString() === followingId.toString()) {
+		const followerIdStr = shapeObjectIdToString(followerId);
+		const followingIdStr = shapeObjectIdToString(followingId);
+		if (followerIdStr === followingIdStr) {
 			throw new InternalServerErrorException(Message.SELF_SUBSRIPTION_DENIED);
 		}
 
@@ -71,7 +74,7 @@ export class FollowService {
 			};
 
 			if (targetMember.memberType === MemberType.ORGANIZER) {
-				newNotification.notificationLink = `/organizers/${followerId.toString()}`;
+				newNotification.notificationLink = `/organizers/${shapeObjectIdToString(followerId)}`;
 			}
 			await this.notificationService.createNotification(newNotification);
 
@@ -109,7 +112,7 @@ export class FollowService {
 		const match: T = { followerId: search?.followerId };
 
 		const result = await this.followModel
-			.aggregate([
+			.aggregate<Followings>([
 				{ $match: match },
 				{ $sort: { created: Direction.DESC } },
 				{
@@ -127,7 +130,7 @@ export class FollowService {
 				},
 			])
 			.exec();
-		if (!result) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
+		if (!result || result.length === 0) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
 
 		return result[0];
 	}
@@ -139,7 +142,7 @@ export class FollowService {
 		const match: T = { followingId: search?.followingId };
 
 		const result = await this.followModel
-			.aggregate([
+			.aggregate<Followers>([
 				{ $match: match },
 				{ $sort: { created: Direction.DESC } },
 				{
@@ -157,14 +160,14 @@ export class FollowService {
 				},
 			])
 			.exec();
-		if (!result) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
+		if (!result || result.length === 0) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
 
 		return result[0];
 	}
 
 	public async getMemberFollowingsList(memberId: ObjectId): Promise<Member[]> {
 		const result = await this.followModel
-			.aggregate([
+			.aggregate<Member>([
 				{ $match: { followerId: memberId } },
 				{ $sort: { created: Direction.DESC } },
 				{ $lookup: { from: 'members', localField: 'followingId', foreignField: '_id', as: 'followingData' } },
@@ -190,7 +193,7 @@ export class FollowService {
 
 	public async getMemberFollowersList(memberId: ObjectId): Promise<Member[]> {
 		const result = await this.followModel
-			.aggregate([
+			.aggregate<Member>([
 				{ $match: { followingId: memberId } },
 				{ $sort: { created: Direction.DESC } },
 				{ $lookup: { from: 'members', localField: 'followerId', foreignField: '_id', as: 'followerData' } },

@@ -6,12 +6,12 @@ import {
 	IsArray,
 	IsEnum,
 	Min,
-	MaxLength,
 	IsString,
 	IsBoolean,
+	ValidateIf,
 } from 'class-validator';
 import { EventStatus, EventCategory, EventType, EventLocationType } from '../../enums/event.enum';
-import { Currency, Direction } from '../../enums/common.enum';
+import { Direction } from '../../enums/common.enum';
 import type { ObjectId } from 'mongoose';
 
 // ============== Event Creation Input ==============
@@ -91,10 +91,11 @@ export class EventInput {
 	@Min(0)
 	eventPrice?: number;
 
-	@Field(() => Currency, { nullable: true })
-	@IsOptional()
-	@IsEnum(Currency)
-	eventCurrency?: Currency;
+	@Field(() => String, { nullable: true })
+	@ValidateIf((o: EventInput) => o.eventPrice !== undefined && o.eventPrice > 0)
+	@IsNotEmpty({ message: 'Currency is required when event has a price' })
+	@IsString()
+	eventCurrency?: string;
 
 	// ===== Type and Status =====
 	@Field(() => String, { nullable: true })

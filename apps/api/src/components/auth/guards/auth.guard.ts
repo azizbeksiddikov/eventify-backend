@@ -1,22 +1,32 @@
 import { BadRequestException, CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { GqlContextType, GqlExecutionContext } from '@nestjs/graphql';
 import { AuthService } from '../auth.service';
 import { Message } from '../../../libs/enums/common.enum';
+import { GraphQLRequest, HttpRequest, GraphQLContext } from '../../../libs/types/common';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
 	constructor(private authService: AuthService) {}
 
-	async canActivate(context: ExecutionContext | any): Promise<boolean> {
+	async canActivate(context: ExecutionContext): Promise<boolean> {
 		console.info('--- @guard() Authentication [AuthGuard] ---');
 
-		let request: any;
-		if (context.contextType === 'graphql') {
-			request = context.getArgByIndex(2).req;
-		} else if (context.contextType === 'http') {
-			request = context.switchToHttp().getRequest();
+		let request: GraphQLRequest | HttpRequest;
+		if (context.getType<GqlContextType>() === 'graphql') {
+			const gqlContext = GqlExecutionContext.create(context);
+			const gqlCtx = gqlContext.getContext<GraphQLContext>();
+			const graphqlRequest = gqlCtx?.req;
+
+			if (!graphqlRequest) {
+				throw new BadRequestException(Message.TOKEN_NOT_EXIST);
+			}
+
+			request = graphqlRequest;
+		} else if (context.getType() === 'http') {
+			request = context.switchToHttp().getRequest<HttpRequest>();
 		} else return false;
 
-		const bearerToken = request.headers.authorization;
+		const bearerToken = request.headers?.authorization;
 		if (!bearerToken) {
 			console.error('No bearer token provided');
 			throw new BadRequestException(Message.TOKEN_NOT_EXIST);
@@ -44,7 +54,8 @@ export class AuthGuard implements CanActivate {
 			request.body.authMember = authMember;
 			return true;
 		} catch (error) {
-			console.error('Authentication error:', error.message);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			console.error('Authentication error:', errorMessage);
 			throw new UnauthorizedException(Message.NOT_AUTHENTICATED);
 		}
 	}

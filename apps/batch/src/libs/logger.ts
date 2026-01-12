@@ -15,28 +15,51 @@ class AppLogger {
 		return new Date().toISOString();
 	}
 
-	private formatMessage(level: LogLevel, context: string, message: string, ...args: any[]): string {
+	private formatArg(arg: unknown): string {
+		if (arg === null || arg === undefined) return String(arg);
+		// Check for object type (but not null, which we already handled)
+		if (typeof arg === 'object') {
+			try {
+				return JSON.stringify(arg);
+			} catch {
+				return '[object Object]';
+			}
+		}
+		// At this point, arg is a primitive type (string, number, boolean, symbol, bigint)
+		// Use explicit type narrowing to avoid no-base-to-string error
+		if (typeof arg === 'string') return arg;
+		if (typeof arg === 'number') return String(arg);
+		if (typeof arg === 'boolean') return String(arg);
+		// For symbol and bigint, convert explicitly
+		if (typeof arg === 'symbol') return arg.toString();
+		if (typeof arg === 'bigint') return arg.toString();
+		// This should never be reached, but TypeScript needs exhaustive handling
+		// eslint-disable-next-line @typescript-eslint/no-base-to-string
+		return String(arg);
+	}
+
+	private formatMessage(level: LogLevel, context: string, message: string, ...args: unknown[]): string {
 		const timestamp = this.getTimestamp();
 		const contextStr = context ? `[${context}]` : '';
 		const levelStr = `[${level}]`;
-		const argsStr = args.length > 0 ? ` ${args.map((arg) => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg))).join(' ')}` : '';
+		const argsStr = args.length > 0 ? ` ${args.map((arg) => this.formatArg(arg)).join(' ')}` : '';
 		return `${timestamp} ${levelStr} ${contextStr} ${message}${argsStr}`;
 	}
 
-	debug(context: string, message: string, ...args: any[]): void {
+	debug(context: string, message: string, ...args: unknown[]): void {
 		console.debug(this.formatMessage(LogLevel.DEBUG, context, message, ...args));
 	}
 
-	info(context: string, message: string, ...args: any[]): void {
+	info(context: string, message: string, ...args: unknown[]): void {
 		console.log(this.formatMessage(LogLevel.INFO, context, message, ...args));
 	}
 
-	warn(context: string, message: string, ...args: any[]): void {
+	warn(context: string, message: string, ...args: unknown[]): void {
 		console.warn(this.formatMessage(LogLevel.WARN, context, message, ...args));
 	}
 
-	error(context: string, message: string, error?: Error | unknown, ...args: any[]): void {
-		const errorMsg = error instanceof Error ? error.message : String(error);
+	error(context: string, message: string, error?: Error, ...args: unknown[]): void {
+		const errorMsg = error instanceof Error ? error.message : String(error ?? '');
 		const errorStack = error instanceof Error ? error.stack : undefined;
 		console.error(this.formatMessage(LogLevel.ERROR, context, message, errorMsg, ...args));
 		if (errorStack) {

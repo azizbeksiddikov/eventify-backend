@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as cheerio from 'cheerio';
-import puppeteer from 'puppeteer';
+import puppeteer, { Browser, Page } from 'puppeteer';
 
 import { EventType, EventLocationType } from '@app/api/src/libs/enums/event.enum';
 import { CrawledEvent, IEventScraper, ScraperConfig } from '@app/api/src/libs/dto/event/eventCrawling';
@@ -13,7 +13,7 @@ import {
 	PUPPETEER_CONFIG,
 	BATCH_CONFIG,
 } from '@app/batch/src/libs/config';
-import { Currency } from '@app/api/src/libs/enums/common.enum';
+import type { MeetupEvent, MeetupTopic } from './meetup.types';
 
 @Injectable()
 export class MeetupScraper implements IEventScraper {
@@ -37,32 +37,32 @@ export class MeetupScraper implements IEventScraper {
 			// ═══════════════════════════════════════════════════════════
 			// PHASE 1: Discover Events (Search Page)
 			// ═══════════════════════════════════════════════════════════
-			this.logger.log(`\n📋 PHASE 1: Discovering events from search page...`);
+			this.logger.log(`\nPHASE 1: Discovering events from search page...`);
 			const htmlContent = await this.fetchPageWithPuppeteer(this.config.searchUrl, limit);
 			const cheerioInstance = cheerio.load(htmlContent);
 			const eventList = this.extractEventIdsAndUrls(cheerioInstance);
 
 			// Apply limit if specified
 			const eventsToFetch = limit ? eventList.slice(0, limit) : eventList;
-			this.logger.log(`✅ Found ${eventList.length} unique events, will fetch ${eventsToFetch.length}`);
+			this.logger.log(`Found ${eventList.length} unique events, will fetch ${eventsToFetch.length}`);
 
 			// DEBUG: Save HTML if no events found (to diagnose blocking)
 			if (eventList.length === 0) {
-				this.logger.warn('⚠️ No events found - saving HTML for inspection');
-				await saveToJsonFile('jsons/meetup-debug.html', htmlContent);
+				this.logger.warn('No events found - saving HTML for inspection');
+				saveToJsonFile('jsons/meetup-debug.html', htmlContent);
 			}
 
 			// ═══════════════════════════════════════════════════════════
 			// PHASE 2: Fetch Complete Data (Detail Pages) with Retry
 			// Fetch detailed data with exponential backoff on failures
 			// ═══════════════════════════════════════════════════════════
-			this.logger.log(`\n📄 PHASE 2: Fetching complete data for each event (with retry)...`);
+			this.logger.log(`\nPHASE 2: Fetching complete data for each event (with retry)...`);
 			const detailedRawData = await this.fetchEventDetailsWithRetry(eventsToFetch);
 
 			// ═══════════════════════════════════════════════════════════
 			// PHASE 3: Save Raw Data
 			// ═══════════════════════════════════════════════════════════
-			this.logger.log(`\n💾 PHASE 3: Saving raw data...`);
+			this.logger.log(`\nPHASE 3: Saving raw data...`);
 			const rawDataFile = {
 				metadata: {
 					source: this.config.name,
@@ -73,17 +73,17 @@ export class MeetupScraper implements IEventScraper {
 				},
 				events: detailedRawData,
 			};
-			await saveToJsonFile(`jsons/${this.config.name}-raw.json`, rawDataFile);
-			this.logger.log(`✅ Saved ${detailedRawData.length} detailed events to raw JSON`);
+			saveToJsonFile(`jsons/${this.config.name}-raw.json`, rawDataFile);
+			this.logger.log(`Saved ${detailedRawData.length} detailed events to raw JSON`);
 
 			// ═══════════════════════════════════════════════════════════
 			// PHASE 4: Extract Structured Data
 			// Transform raw data into CrawledEvent format
 			// ═══════════════════════════════════════════════════════════
-			this.logger.log(`\n🔄 PHASE 4: Extracting structured data...`);
+			this.logger.log(`\nPHASE 4: Extracting structured data...`);
 			const extractedEvents = detailedRawData.map((rawEvent) => this.extractEventFromJsonObject(rawEvent));
 
-			// 🧹 Save CLEANED extracted events (CrawledEvent format)
+			// Save CLEANED extracted events (CrawledEvent format)
 			const cleanedDataFile = {
 				metadata: {
 					source: this.config.name,
@@ -95,12 +95,14 @@ export class MeetupScraper implements IEventScraper {
 				},
 				events: extractedEvents,
 			};
-			await saveToJsonFile(`jsons/${this.config.name}.json`, cleanedDataFile);
-			this.logger.log(`✅ Saved ${extractedEvents.length} cleaned events to JSON`);
+			saveToJsonFile(`jsons/${this.config.name}.json`, cleanedDataFile);
+			this.logger.log(`Saved ${extractedEvents.length} cleaned events to JSON`);
 
 			return extractedEvents;
 		} catch (error) {
-			this.logger.error(`Error during ${this.getName()} scraping: ${error.message}`, error.stack);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorStack = error instanceof Error ? error.stack : undefined;
+			this.logger.error(`Error during ${this.getName()} scraping: ${errorMessage}`, errorStack);
 			throw error;
 		}
 	}
@@ -110,10 +112,9 @@ export class MeetupScraper implements IEventScraper {
 	 * This captures ALL events loaded via API calls during scrolling
 	 */
 	private async fetchPageWithPuppeteer(url: string, limit?: number): Promise<string> {
-		let browser;
-		const apiResponses: any[] = [];
+		let browser: Browser | undefined;
+		const apiResponses: unknown[] = [];
 		const allEvents: Set<string> = new Set();
-		let shouldStopScrolling = false;
 
 		try {
 			browser = await puppeteer.launch({
@@ -132,7 +133,7 @@ export class MeetupScraper implements IEventScraper {
 				],
 			});
 
-			const page = await browser.newPage();
+			const page: Page = await browser.newPage();
 
 			// Set realistic viewport
 			await page.setViewport({
@@ -162,13 +163,18 @@ export class MeetupScraper implements IEventScraper {
 				});
 
 				// Override permissions
-				const originalQuery = window.navigator.permissions.query;
-				window.navigator.permissions.query = (parameters: any) =>
-					parameters.name === 'notifications'
-						? Promise.resolve({ state: 'denied' } as PermissionStatus)
-						: originalQuery(parameters);
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+				const originalQuery = window.navigator.permissions.query.bind(window.navigator.permissions);
+				window.navigator.permissions.query = (parameters: PermissionDescriptor) => {
+					if (parameters.name === 'notifications') {
+						return Promise.resolve({ state: 'denied' } as PermissionStatus);
+					}
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
+					return originalQuery(parameters);
+				};
 
 				// Add chrome property
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 				(window as any).chrome = {
 					runtime: {},
 				};
@@ -189,30 +195,31 @@ export class MeetupScraper implements IEventScraper {
 
 			page.on('request', (request) => {
 				// Continue all requests
-				request.continue();
+				void request.continue();
 			});
 
-			page.on('response', async (response) => {
+			page.on('response', (response) => {
 				const responseUrl = response.url();
 
 				// Capture GraphQL API responses (Meetup uses GraphQL)
 				if (responseUrl.includes('/gql') || responseUrl.includes('graphql')) {
-					try {
-						const responseData = await response.json();
-						apiResponses.push(responseData);
-						this.logger.debug(`🌐 Captured API response from: ${responseUrl.substring(0, 100)}...`);
+					void (async () => {
+						try {
+							const responseData = (await response.json()) as unknown;
+							apiResponses.push(responseData);
+							this.logger.debug(`Captured API response from: ${responseUrl.substring(0, 100)}...`);
 
-						// Early stop: Count unique events from API responses
-						if (limit) {
-							this.countEventsInResponse(responseData, allEvents);
-							if (allEvents.size >= limit) {
-								shouldStopScrolling = true;
-								this.logger.log(`Reached limit: ${allEvents.size}/${limit} events found, stopping scroll`);
+							// Early stop: Count unique events from API responses
+							if (limit) {
+								this.countEventsInResponse(responseData, allEvents);
+								if (allEvents.size >= limit) {
+									this.logger.log(`Reached limit: ${allEvents.size}/${limit} events found, stopping scroll`);
+								}
 							}
+						} catch {
+							// Not JSON or failed to parse, skip
 						}
-					} catch (error) {
-						// Not JSON or failed to parse, skip
-					}
+					})();
 				}
 			});
 
@@ -234,9 +241,9 @@ export class MeetupScraper implements IEventScraper {
 				await page.waitForSelector('script[type="application/json"]', {
 					timeout: PUPPETEER_CONFIG.TIMEOUT_MS / 4,
 				});
-				this.logger.log('✅ Found JSON script tags on page');
-			} catch (error) {
-				this.logger.warn('⚠️ No JSON script tags found - page might be blocked or changed');
+				this.logger.log('Found JSON script tags on page');
+			} catch {
+				this.logger.warn('No JSON script tags found - page might be blocked or changed');
 			}
 
 			// Scroll until no new content loads or limit reached
@@ -249,18 +256,18 @@ export class MeetupScraper implements IEventScraper {
 			const htmlContent = await page.content();
 
 			// DEBUG: Log API response count
-			this.logger.log(`📡 Captured ${apiResponses.length} API responses`);
-			this.logger.log(`📊 Total unique events found from API: ${allEvents.size}`);
+			this.logger.log(`Captured ${apiResponses.length} API responses`);
+			this.logger.log(`Total unique events found from API: ${allEvents.size}`);
 
 			// Save API responses for debugging
 			if (apiResponses.length > 0) {
-				await saveToJsonFile('jsons/meetup-api-responses-debug.json', {
+				saveToJsonFile('jsons/meetup-api-responses-debug.json', {
 					timestamp: new Date().toISOString(),
 					totalResponses: apiResponses.length,
 					totalEvents: allEvents.size,
 					responses: apiResponses,
 				});
-				this.logger.log(`💾 Saved API responses to jsons/meetup-api-responses-debug.json`);
+				this.logger.log(`Saved API responses to jsons/meetup-api-responses-debug.json`);
 			}
 
 			// Inject API responses into HTML for processing
@@ -282,12 +289,13 @@ export class MeetupScraper implements IEventScraper {
 
 			return htmlContent;
 		} catch (error) {
-			this.logger.error(`❌ Puppeteer error: ${error.message}`);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			this.logger.error(`Puppeteer error: ${errorMessage}`);
 			throw error;
 		} finally {
 			if (browser) {
 				await browser.close();
-				this.logger.log('🔒 Browser closed');
+				this.logger.log('Browser closed');
 			}
 		}
 	}
@@ -296,7 +304,7 @@ export class MeetupScraper implements IEventScraper {
 	 * Count unique events in API response for early stopping
 	 * Uses same filtering logic as extractEventIdsAndUrls()
 	 */
-	private countEventsInResponse(data: any, eventSet: Set<string>): void {
+	private countEventsInResponse(data: unknown, eventSet: Set<string>): void {
 		if (!data || typeof data !== 'object') return;
 
 		if (Array.isArray(data)) {
@@ -305,7 +313,8 @@ export class MeetupScraper implements IEventScraper {
 		}
 
 		// Skip non-event types (but NOT RecommendedEventsEdge - it contains complete events!)
-		if (data.__typename === 'LocationSearch' || data.__typename === 'ConversationConnection') {
+		const dataObj = data as Record<string, unknown>;
+		if (dataObj.__typename === 'LocationSearch' || dataObj.__typename === 'ConversationConnection') {
 			return;
 		}
 
@@ -325,7 +334,7 @@ export class MeetupScraper implements IEventScraper {
 	 * Scroll until end of content or limit reached
 	 * Keeps scrolling as long as new content loads
 	 */
-	private async scrollUntilEnd(page: any, allEvents: Set<string>, limit?: number): Promise<void> {
+	private async scrollUntilEnd(page: Page, allEvents: Set<string>, limit?: number): Promise<void> {
 		const waitTimeMs = SCROLL_CONFIG.MEETUP.WAIT_BETWEEN_ROUNDS_MS;
 		const NO_EVENTS_THRESHOLD = 5; // Stop after 5 consecutive scrolls with no new events
 		let scrollAttempt = 0;
@@ -338,7 +347,7 @@ export class MeetupScraper implements IEventScraper {
 			const beforeHeight = await page.evaluate(() => document.body.scrollHeight);
 			const beforeEventCount = allEvents.size;
 
-			this.logger.log(`📜 Scroll ${scrollAttempt}: ${beforeEventCount} events, height: ${beforeHeight}px`);
+			this.logger.log(`Scroll ${scrollAttempt}: ${beforeEventCount} events, height: ${beforeHeight}px`);
 
 			// Scroll to bottom (human-like smooth scrolling)
 			await page.evaluate(() => {
@@ -364,25 +373,25 @@ export class MeetupScraper implements IEventScraper {
 			const heightIncreased = afterHeight > beforeHeight;
 
 			if (newEvents > 0) {
-				this.logger.log(`✅ New content: +${newEvents} events, height: ${beforeHeight}px → ${afterHeight}px`);
+				this.logger.log(`New content: +${newEvents} events, height: ${beforeHeight}px → ${afterHeight}px`);
 				consecutiveNoEvents = 0; // Reset counter when new events found
 			} else if (heightIncreased) {
-				this.logger.log(`⚠️ Height increased but no new events: ${beforeHeight}px → ${afterHeight}px`);
+				this.logger.log(`Height increased but no new events: ${beforeHeight}px → ${afterHeight}px`);
 				consecutiveNoEvents++;
 			} else {
-				this.logger.log(`⛔ No new content detected, reached end of page`);
+				this.logger.log(`No new content detected, reached end of page`);
 				break;
 			}
 
 			// Stop if no new events after threshold
 			if (consecutiveNoEvents >= NO_EVENTS_THRESHOLD) {
-				this.logger.warn(`🛑 Stopping: No new events found after ${NO_EVENTS_THRESHOLD} consecutive scrolls`);
+				this.logger.warn(`Stopping: No new events found after ${NO_EVENTS_THRESHOLD} consecutive scrolls`);
 				break;
 			}
 
 			// Early stop if limit reached
 			if (limit && allEvents.size >= limit) {
-				this.logger.log(`🎯 Limit reached: ${allEvents.size}/${limit} events`);
+				this.logger.log(`Limit reached: ${allEvents.size}/${limit} events`);
 				break;
 			}
 		}
@@ -403,25 +412,25 @@ export class MeetupScraper implements IEventScraper {
 				const jsonText = cheerioInstance(scriptElement).html();
 				if (jsonText) {
 					scriptTagCount++;
-					const parsedJsonData = JSON.parse(jsonText);
+					const parsedJsonData = JSON.parse(jsonText) as unknown;
 					aggregatedJsonData = aggregatedJsonData ? mergeJsonData(aggregatedJsonData, parsedJsonData) : parsedJsonData;
 				}
-			} catch (error) {
+			} catch {
 				// Skip invalid JSON
 			}
 		});
 
-		this.logger.log(`🔍 Found ${scriptTagCount} JSON script tags`);
+		this.logger.log(`Found ${scriptTagCount} JSON script tags`);
 
 		if (!aggregatedJsonData) {
-			this.logger.warn('⚠️ No JSON data found in page - likely blocked or page structure changed');
+			this.logger.warn('No JSON data found in page - likely blocked or page structure changed');
 			return [];
 		}
 
 		// Find all events (BFS)
 		const eventList: Array<{ id: string; url: string; title?: string }> = [];
-		const queue: any[] = [aggregatedJsonData];
-		const visited = new Set<any>();
+		const queue: unknown[] = [aggregatedJsonData];
+		const visited = new Set<unknown>();
 		const processedIds = new Set<string>();
 		const eventTypesFound = new Set<string>();
 		let objectsScanned = 0;
@@ -433,21 +442,21 @@ export class MeetupScraper implements IEventScraper {
 			objectsScanned++;
 
 			// Track what types we're seeing
-			if (current.__typename) {
-				eventTypesFound.add(current.__typename);
+			const currentObj = current as Record<string, unknown>;
+			if (currentObj.__typename && typeof currentObj.__typename === 'string') {
+				eventTypesFound.add(currentObj.__typename);
 			}
 
 			// Skip non-event types (but NOT RecommendedEventsEdge - it contains complete events!)
-			if (current.__typename === 'LocationSearch' || current.__typename === 'ConversationConnection') {
+			if (currentObj.__typename === 'LocationSearch' || currentObj.__typename === 'ConversationConnection') {
 				continue;
 			}
 
 			// Check if this is an Event with ID and URL
 			if (this.isCompleteEvent(current)) {
 				const eventId = current.id;
-				const eventUrl = current.eventUrl || `${this.config.baseUrl}/events/${eventId}`;
-
 				if (eventId && !processedIds.has(eventId)) {
+					const eventUrl = current.eventUrl || `${this.config.baseUrl}/events/${eventId}`;
 					processedIds.add(eventId);
 					eventList.push({
 						id: eventId,
@@ -459,14 +468,14 @@ export class MeetupScraper implements IEventScraper {
 
 			// Add nested objects/arrays to queue
 			if (Array.isArray(current)) {
-				queue.push(...current);
-			} else if (typeof current === 'object') {
-				queue.push(...Object.values(current));
+				queue.push(...(current as unknown[]));
+			} else if (typeof current === 'object' && current !== null) {
+				queue.push(...(Object.values(current) as unknown[]));
 			}
 		}
 
-		this.logger.log(`🔍 Scanned ${objectsScanned} objects, found types: ${Array.from(eventTypesFound).join(', ')}`);
-		this.logger.log(`📊 Extracted ${eventList.length} events`);
+		this.logger.log(`Scanned ${objectsScanned} objects, found types: ${Array.from(eventTypesFound).join(', ')}`);
+		this.logger.log(`Extracted ${eventList.length} events`);
 
 		return eventList;
 	}
@@ -475,9 +484,11 @@ export class MeetupScraper implements IEventScraper {
 	 * PHASE 2: Fetch complete data with retry logic
 	 * Designed for batch processing with delays and error handling
 	 */
-	async fetchEventDetailsWithRetry(eventList: Array<{ id: string; url: string; title?: string }>): Promise<any[]> {
-		let browser;
-		const detailedRawData: any[] = [];
+	async fetchEventDetailsWithRetry(
+		eventList: Array<{ id: string; url: string; title?: string }>,
+	): Promise<MeetupEvent[]> {
+		let browser: Browser | undefined;
+		const detailedRawData: MeetupEvent[] = [];
 		let successCount = 0;
 		let failedCount = 0;
 
@@ -495,11 +506,11 @@ export class MeetupScraper implements IEventScraper {
 			});
 
 			let page = await browser.newPage();
-			await page.setUserAgent(this.config.userAgent);
+			await page.setUserAgent(this.config.userAgent || SCRAPER_DEFAULTS.USER_AGENT);
 
 			for (let i = 0; i < eventList.length; i++) {
 				const eventInfo = eventList[i];
-				let eventData: any = null;
+				let eventData: MeetupEvent | null = null;
 				let attempts = 0;
 				let needsNewPage = false;
 
@@ -512,24 +523,24 @@ export class MeetupScraper implements IEventScraper {
 						if (needsNewPage) {
 							try {
 								await page.close();
-							} catch (e) {
+							} catch {
 								// Ignore close errors
 							}
 							page = await browser.newPage();
-							await page.setUserAgent(this.config.userAgent);
+							await page.setUserAgent(this.config.userAgent || SCRAPER_DEFAULTS.USER_AGENT);
 							needsNewPage = false;
-							this.logger.debug(`   🔄 Created new page for retry`);
+							this.logger.debug(`   Created new page for retry`);
 						}
 
 						if (attempts > 1) {
 							const retryDelay =
 								BATCH_CONFIG.BASE_DELAY_MS * Math.pow(BATCH_CONFIG.RETRY_BACKOFF_MULTIPLIER, attempts - 1);
-							this.logger.log(`   🔄 Retry ${attempts}/${BATCH_CONFIG.MAX_RETRIES} after ${retryDelay}ms delay...`);
+							this.logger.log(`   Retry ${attempts}/${BATCH_CONFIG.MAX_RETRIES} after ${retryDelay}ms delay...`);
 							await randomDelay(retryDelay, retryDelay * 1.5);
 						}
 
 						this.logger.log(
-							`📄 [${i + 1}/${eventList.length}] ${eventInfo.title?.substring(0, 50) || eventInfo.id}${attempts > 1 ? ` (attempt ${attempts})` : ''}`,
+							`[${i + 1}/${eventList.length}] ${eventInfo.title?.substring(0, 50) || eventInfo.id}${attempts > 1 ? ` (attempt ${attempts})` : ''}`,
 						);
 
 						// Navigate to event detail page
@@ -553,15 +564,15 @@ export class MeetupScraper implements IEventScraper {
 						const htmlContent = await page.content();
 						const $ = cheerio.load(htmlContent);
 
-						let eventDetailData: any = null;
+						let eventDetailData: unknown = null;
 						$('script[type="application/json"]').each((_, scriptElement) => {
 							try {
 								const jsonText = $(scriptElement).html();
 								if (jsonText) {
-									const parsedData = JSON.parse(jsonText);
+									const parsedData = JSON.parse(jsonText) as unknown;
 									eventDetailData = eventDetailData ? deepMerge(eventDetailData, parsedData) : parsedData;
 								}
-							} catch (error) {
+							} catch {
 								// Skip invalid JSON
 							}
 						});
@@ -576,14 +587,15 @@ export class MeetupScraper implements IEventScraper {
 
 								eventData = detailedEvent;
 								successCount++;
-								this.logger.log(`   ✅ Success (endTime: ${detailedEvent.endTime ? '✓' : '✗'})`);
+								this.logger.log(`   Success (endTime: ${detailedEvent.endTime ? 'yes' : 'no'})`);
 							}
 						}
 					} catch (error) {
-						this.logger.warn(`   ⚠️ Attempt ${attempts} failed: ${error.message}`);
+						const errorMessage = error instanceof Error ? error.message : String(error);
+						this.logger.warn(`   Attempt ${attempts} failed: ${errorMessage}`);
 
 						// If it's a detached frame error, we need a new page
-						if (error.message.includes('detached Frame')) {
+						if (errorMessage.includes('detached Frame')) {
 							needsNewPage = true;
 						}
 
@@ -598,7 +610,7 @@ export class MeetupScraper implements IEventScraper {
 					detailedRawData.push(eventData);
 				} else {
 					failedCount++;
-					this.logger.error(`   ❌ Failed to get data for ${eventInfo.id} after ${BATCH_CONFIG.MAX_RETRIES} retries`);
+					this.logger.error(`   Failed to get data for ${eventInfo.id} after ${BATCH_CONFIG.MAX_RETRIES} retries`);
 				}
 
 				// Random delay between requests to avoid rate limiting
@@ -607,18 +619,19 @@ export class MeetupScraper implements IEventScraper {
 				}
 			}
 
-			this.logger.log(`\n📊 Results: ✅ ${successCount} success, ❌ ${failedCount} failed`);
+			this.logger.log(`\nResults: ${successCount} success, ${failedCount} failed`);
 
 			// Close the page
 			try {
 				await page.close();
-			} catch (e) {
+			} catch {
 				// Ignore close errors
 			}
 
 			return detailedRawData;
 		} catch (error) {
-			this.logger.error(`❌ Error fetching event details: ${error.message}`);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			this.logger.error(`Error fetching event details: ${errorMessage}`);
 			return detailedRawData;
 		} finally {
 			if (browser) {
@@ -630,9 +643,9 @@ export class MeetupScraper implements IEventScraper {
 	/**
 	 * Find event detail by ID in the page JSON data
 	 */
-	private findEventDetailById(jsonData: any, eventId: string): any {
-		const queue: any[] = [jsonData];
-		const visited = new Set<any>();
+	private findEventDetailById(jsonData: unknown, eventId: string): MeetupEvent | null {
+		const queue: unknown[] = [jsonData];
+		const visited = new Set<unknown>();
 
 		while (queue.length > 0) {
 			const current = queue.shift();
@@ -640,15 +653,16 @@ export class MeetupScraper implements IEventScraper {
 			visited.add(current);
 
 			// Check if this is the event we're looking for
-			if (current.__typename === 'Event' && current.id === eventId) {
-				return current;
+			const currentObj = current as Record<string, unknown>;
+			if (currentObj.__typename === 'Event' && currentObj.id === eventId) {
+				return current as MeetupEvent;
 			}
 
 			// Add nested objects/arrays to queue
 			if (Array.isArray(current)) {
-				queue.push(...current);
-			} else if (typeof current === 'object') {
-				queue.push(...Object.values(current));
+				queue.push(...(current as unknown[]));
+			} else if (typeof current === 'object' && current !== null) {
+				queue.push(...(Object.values(current) as unknown[]));
 			}
 		}
 
@@ -658,11 +672,13 @@ export class MeetupScraper implements IEventScraper {
 	/**
 	 * Check if object is a complete Meetup event (not a stub)
 	 */
-	private isCompleteEvent(obj: any): boolean {
-		return obj?.__typename === 'Event' && obj.title?.trim() && (obj.description || obj.eventUrl);
+	private isCompleteEvent(obj: unknown): obj is MeetupEvent {
+		if (!obj || typeof obj !== 'object') return false;
+		const eventObj = obj as MeetupEvent;
+		return eventObj.__typename === 'Event' && !!eventObj.title?.trim() && !!(eventObj.description || eventObj.eventUrl);
 	}
 
-	private extractEventFromJsonObject(jsonEventObject: any): CrawledEvent {
+	private extractEventFromJsonObject(jsonEventObject: MeetupEvent): CrawledEvent {
 		const startDateTime = new Date(jsonEventObject.dateTime || '');
 		const endDateTime = new Date(jsonEventObject.endTime || '');
 
@@ -671,8 +687,11 @@ export class MeetupScraper implements IEventScraper {
 
 		const locationData = this.extractLocation(jsonEventObject);
 
-		let eventCapacity: number | undefined = Number(jsonEventObject.maxTickets);
-		if (eventCapacity == 0) eventCapacity = undefined;
+		const maxTickets = jsonEventObject.maxTickets;
+		let eventCapacity: number | undefined = maxTickets !== undefined ? Number(maxTickets) : undefined;
+		if (eventCapacity === undefined || eventCapacity === 0 || isNaN(eventCapacity)) {
+			eventCapacity = undefined;
+		}
 
 		const priceInfo = this.extractPrice(jsonEventObject);
 
@@ -686,7 +705,7 @@ export class MeetupScraper implements IEventScraper {
 			// Extract images: try featuredEventPhoto, then groupPhoto, then HTML extraction
 			eventImages: this.extractEventImages(jsonEventObject),
 			eventPrice: priceInfo.amount,
-			eventCurrency: priceInfo.currency as Currency,
+			eventCurrency: priceInfo.currency,
 
 			// ===== Event Timestamps =====
 			eventStartAt: startDateTime,
@@ -728,26 +747,32 @@ export class MeetupScraper implements IEventScraper {
 	 * 2. group.groupPhoto (group photo as fallback)
 	 * 3. HTML content (extract from event page HTML)
 	 */
-	private extractEventImages(jsonEventObject: any): string[] {
+	private extractEventImages(jsonEventObject: MeetupEvent): string[] {
 		const images: string[] = [];
 
 		// 1. Try featuredEventPhoto first (event-specific photo)
-		const featuredPhoto = jsonEventObject?.featuredEventPhoto?.source;
-		if (featuredPhoto) {
-			images.push(featuredPhoto);
-			return images;
+		const featuredEventPhoto = jsonEventObject?.featuredEventPhoto;
+		if (featuredEventPhoto) {
+			const featuredPhoto = typeof featuredEventPhoto === 'string' ? featuredEventPhoto : featuredEventPhoto.source;
+			if (featuredPhoto) {
+				images.push(featuredPhoto);
+				return images;
+			}
 		}
 
 		// 2. Fallback to groupPhoto
-		const groupPhoto = jsonEventObject?.group?.groupPhoto?.source;
-		if (groupPhoto) {
-			images.push(groupPhoto);
-			return images;
+		const groupPhotoObj = jsonEventObject?.group?.groupPhoto;
+		if (groupPhotoObj) {
+			const groupPhoto = typeof groupPhotoObj === 'string' ? groupPhotoObj : groupPhotoObj.source;
+			if (groupPhoto) {
+				images.push(groupPhoto);
+				return images;
+			}
 		}
 
 		// 3. Extract from HTML content if available
 		const htmlContent = jsonEventObject?.raw_html;
-		if (htmlContent) {
+		if (htmlContent && typeof htmlContent === 'string') {
 			const htmlImages = this.extractImagesFromHtml(htmlContent);
 			if (htmlImages.length > 0) {
 				return htmlImages;
@@ -822,13 +847,13 @@ export class MeetupScraper implements IEventScraper {
 	 * Extract tags from Meetup's group topics
 	 * Only extracts topic names from group.topics array
 	 */
-	private extractTags(eventObject: any): string[] {
+	private extractTags(eventObject: MeetupEvent): string[] {
 		const tags: string[] = [];
 
 		// Extract from group's topics array
 		const topics = eventObject.group?.topics || eventObject.topics || [];
-		topics.forEach((topic: any) => {
-			const topicName = topic?.name;
+		topics.forEach((topic: MeetupTopic | string) => {
+			const topicName = typeof topic === 'string' ? topic : topic.name;
 			if (topicName) tags.push(topicName);
 		});
 
@@ -838,7 +863,7 @@ export class MeetupScraper implements IEventScraper {
 	/**
 	 * Extract price information from Meetup event
 	 */
-	private extractPrice(eventObject: any): { amount: number | undefined; currency?: string } {
+	private extractPrice(eventObject: MeetupEvent): { amount: number | undefined; currency?: string } {
 		const feeSettings = eventObject?.feeSettings;
 		if (!feeSettings) return { amount: 0, currency: undefined };
 
@@ -847,15 +872,16 @@ export class MeetupScraper implements IEventScraper {
 		// special case (<1 KRW)
 
 		if (amount !== undefined && amount !== null) {
-			if (amount < 1000 && currency === 'KRW') return { amount: 0, currency: undefined };
-			return { amount: parseFloat(amount), currency };
+			const amountNum = typeof amount === 'number' ? amount : parseFloat(String(amount));
+			if (amountNum < 1000 && currency === 'KRW') return { amount: 0, currency: undefined };
+			return { amount: amountNum, currency };
 		}
 
 		// default to free
 		return { amount: 0, currency: undefined };
 	}
 
-	private extractLocation(eventObject: any): {
+	private extractLocation(eventObject: MeetupEvent): {
 		type: EventLocationType;
 		city?: string;
 		address?: string;
@@ -865,8 +891,10 @@ export class MeetupScraper implements IEventScraper {
 		const isOnlineEvent =
 			eventObject.eventType === 'ONLINE' ||
 			eventObject.eventType === 'VIRTUAL' ||
-			eventObject.isOnline ||
-			(eventObject.eventType === 'PHYSICAL') === false;
+			eventObject.isOnline === true ||
+			eventObject.eventType === 'PHYSICAL'
+				? false
+				: true;
 
 		const venueAddress = eventObject.venue?.address || eventObject.venue?.name;
 
@@ -877,8 +905,8 @@ export class MeetupScraper implements IEventScraper {
 			type: isOnlineEvent ? EventLocationType.ONLINE : EventLocationType.OFFLINE,
 			city: isOnlineEvent ? undefined : eventObject.venue?.city,
 			address: venueAddress,
-			latitude: latitude ? parseFloat(latitude) : undefined,
-			longitude: longitude ? parseFloat(longitude) : undefined,
+			latitude: latitude !== undefined ? parseFloat(String(latitude)) : undefined,
+			longitude: longitude !== undefined ? parseFloat(String(longitude)) : undefined,
 		};
 	}
 }

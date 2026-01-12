@@ -1,6 +1,5 @@
 import { Field, Int, ObjectType } from '@nestjs/graphql';
 import { EventStatus, EventCategory, RecurrenceType, EventLocationType } from '../../enums/event.enum';
-import { Currency } from '../../enums/common.enum';
 import type { ObjectId } from 'mongoose';
 
 @ObjectType()
@@ -57,8 +56,8 @@ export class EventRecurrence {
 	@Field(() => Number)
 	eventPrice: number;
 
-	@Field(() => Currency, { nullable: true })
-	eventCurrency?: Currency;
+	@Field(() => String, { nullable: true })
+	eventCurrency?: string;
 
 	@Field(() => [EventCategory])
 	eventCategories: EventCategory[];

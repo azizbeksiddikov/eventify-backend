@@ -1,6 +1,5 @@
 import { Schema } from 'mongoose';
 import { EventCategory, EventStatus, RecurrenceType, EventLocationType } from '../libs/enums/event.enum';
-import { Currency } from '../libs/enums/common.enum';
 
 const EventRecurrenceSchema = new Schema(
 	{
@@ -78,9 +77,10 @@ const EventRecurrenceSchema = new Schema(
 
 		eventCurrency: {
 			type: String,
-			enum: Currency,
 			required: false,
 			default: null,
+			uppercase: true,
+			trim: true,
 		},
 
 		eventCategories: {

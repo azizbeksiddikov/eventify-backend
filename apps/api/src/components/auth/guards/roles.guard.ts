@@ -2,6 +2,12 @@ import { BadRequestException, CanActivate, ExecutionContext, Injectable, Forbidd
 import { Reflector } from '@nestjs/core';
 import { AuthService } from '../auth.service';
 import { Message } from '../../../libs/enums/common.enum';
+import { GraphQLRequest } from '../../../libs/types/common';
+
+interface GraphQLExecutionContext {
+	contextType?: string;
+	getArgByIndex: (index: number) => { req?: GraphQLRequest };
+}
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -10,15 +16,23 @@ export class RolesGuard implements CanActivate {
 		private authService: AuthService,
 	) {}
 
-	async canActivate(context: ExecutionContext | any): Promise<boolean> {
-		const roles = this.reflector.get<string[]>('roles', context.getHandler());
+	async canActivate(context: ExecutionContext): Promise<boolean> {
+		const handler = context.getHandler();
+		const roles = this.reflector.get<string[]>('roles', handler);
 		if (!roles) return true;
 
-		console.info(`--- @guard() Authentication [RolesGuard]: ${roles} ---`);
+		console.info(`--- @guard() Authentication [RolesGuard]: ${roles.join(', ')} ---`);
 
-		if (context.contextType === 'graphql') {
-			const request = context.getArgByIndex(2).req;
-			const bearerToken = request.headers.authorization;
+		const graphqlContext = context as ExecutionContext & GraphQLExecutionContext;
+		if (graphqlContext.contextType === 'graphql' && typeof graphqlContext.getArgByIndex === 'function') {
+			const graphqlArgs: { req?: GraphQLRequest } = graphqlContext.getArgByIndex(2);
+			const request: GraphQLRequest | undefined = graphqlArgs?.req;
+
+			if (!request) {
+				throw new BadRequestException(Message.TOKEN_NOT_EXIST);
+			}
+
+			const bearerToken: string | undefined = request.headers?.authorization;
 
 			if (!bearerToken) {
 				console.error('No bearer token provided');
@@ -26,7 +40,8 @@ export class RolesGuard implements CanActivate {
 			}
 
 			try {
-				const token = bearerToken.split(' ')[1];
+				const tokenParts: string[] = bearerToken.split(' ');
+				const token: string | undefined = tokenParts[1];
 				if (!token) {
 					console.error('Invalid token format');
 					throw new BadRequestException(Message.TOKEN_NOT_EXIST);
@@ -47,10 +62,16 @@ export class RolesGuard implements CanActivate {
 				}
 
 				console.log('username[roles] =>', authMember.username);
+
+				// Ensure request.body exists
+				if (!request.body) {
+					request.body = {};
+				}
 				request.body.authMember = authMember;
 				return true;
 			} catch (error) {
-				console.error('Role verification error:', error.message);
+				const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+				console.error('Role verification error:', errorMessage);
 				throw new ForbiddenException(Message.NOT_AUTHORIZED);
 			}
 		}

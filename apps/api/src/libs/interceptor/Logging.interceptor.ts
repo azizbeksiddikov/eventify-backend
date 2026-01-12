@@ -1,7 +1,8 @@
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
 import { GqlContextType, GqlExecutionContext } from '@nestjs/graphql';
-import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { Observable, throwError } from 'rxjs';
+import { tap, catchError } from 'rxjs/operators';
+import { HttpRequest, GraphQLContext } from '../types/common';
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
@@ -13,34 +14,50 @@ export class LoggingInterceptor implements NestInterceptor {
 		const requestType = context.getType<GqlContextType>(); // Determines if the request is HTTP or GraphQL.
 
 		if (requestType === 'http') {
-			const request = context.switchToHttp().getRequest();
-			this.logger.verbose(`HTTP Request: ${request.method} ${request.url}`, 'REQUEST');
+			const request = context.switchToHttp().getRequest<HttpRequest>();
+			this.logger.verbose(`HTTP Request: ${request.method ?? 'UNKNOWN'} ${request.url ?? 'UNKNOWN'}`, 'REQUEST');
 
 			return next.handle().pipe(
 				tap((response) => {
 					const responseTime = Date.now() - recordTime;
 					this.logger.verbose(`HTTP Response: ${JSON.stringify(response)} - ${responseTime}ms\n\n`, 'RESPONSE');
 				}),
+				catchError((error: Error) => {
+					const responseTime = Date.now() - recordTime;
+					this.logger.error(`HTTP Error: ${error.message} - ${responseTime}ms\n\n`, error.stack ?? '', 'ERROR');
+					return throwError(() => error);
+				}),
 			);
 		} else if (requestType === 'graphql') {
 			// (1) Print request
 			const gqlContext = GqlExecutionContext.create(context);
-			this.logger.verbose(`${this.stringify(gqlContext.getContext().req.body)}`, 'REQUEST');
+			const gqlCtx = gqlContext.getContext<GraphQLContext>();
+			if (gqlCtx?.req?.body) {
+				this.logger.verbose(`${this.stringify(gqlCtx.req.body)}`, 'REQUEST');
+			}
 
-			// (2) Errors handling  via graphql
-
+			// (2) Errors handling via graphql
 			// (3) error-free response
 			return next.handle().pipe(
-				tap((context) => {
+				tap((response) => {
 					const responseTime = Date.now() - recordTime;
-					this.logger.verbose(`${this.stringify(context)} - ${responseTime}ms \n\n`, 'RESPONSE');
+					this.logger.verbose(`${this.stringify(response)} - ${responseTime}ms \n\n`, 'RESPONSE');
+				}),
+				catchError((error: Error) => {
+					const responseTime = Date.now() - recordTime;
+					this.logger.error(`GraphQL Error: ${error.message} - ${responseTime}ms\n\n`, error.stack ?? '', 'ERROR');
+					return throwError(() => error);
 				}),
 			);
 		}
 		return next.handle();
 	}
 
-	private stringify(context: ExecutionContext): string {
-		return JSON.stringify(context).slice(0, 75);
+	private stringify(data: unknown): string {
+		try {
+			return JSON.stringify(data).slice(0, 75);
+		} catch {
+			return String(data).slice(0, 75);
+		}
 	}
 }

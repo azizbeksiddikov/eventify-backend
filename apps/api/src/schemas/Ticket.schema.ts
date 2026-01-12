@@ -1,6 +1,5 @@
 import { Schema } from 'mongoose';
 import { TicketStatus } from '../libs/enums/ticket.enum';
-import { Currency } from '../libs/enums/common.enum';
 
 const TicketSchema = new Schema(
 	{
@@ -32,9 +31,9 @@ const TicketSchema = new Schema(
 
 		ticketCurrency: {
 			type: String,
-			enum: Currency,
 			required: true,
-			default: Currency.USD,
+			uppercase: true,
+			trim: true,
 		},
 
 		ticketQuantity: {

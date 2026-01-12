@@ -16,7 +16,7 @@ import { GroupMemberInput } from '../../libs/dto/groupMembers/groupMember.input'
 import { GroupMemberUpdateInput } from '../../libs/dto/groupMembers/groupMember.update';
 import { LikeGroup } from '../../libs/enums/like.enum';
 import { LikeInput } from '../../libs/dto/like/like.input';
-import { lookupAuthMemberJoined, lookupAuthMemberLiked, lookupMember } from '../../libs/config';
+import { lookupAuthMemberJoined, lookupAuthMemberLiked, lookupMember, shapeObjectIdToString } from '../../libs/config';
 import { NotificationInput } from '../../libs/dto/notification/notification.input';
 import { ViewGroup } from '../../libs/enums/view.enum';
 import { NotificationType } from '../../libs/enums/notification.enum';
@@ -56,7 +56,7 @@ export class GroupService {
 				groupMemberRole: GroupMemberRole.OWNER,
 				joinDate: new Date(),
 			};
-			const groupMember = await this.groupMemberModel.create(newGroupMember);
+			await this.groupMemberModel.create(newGroupMember);
 			await this.memberService.memberStatsEditor({
 				_id: memberId,
 				targetKey: 'memberGroups',
@@ -162,7 +162,7 @@ export class GroupService {
 
 		// Validate group exists
 		if (!result.length) throw new NotFoundException(Message.GROUP_NOT_FOUND);
-		const group = result[0];
+		const group = result[0] as Group;
 
 		if (memberId) {
 			// update group views if new view
@@ -181,7 +181,7 @@ export class GroupService {
 
 	public async getJoinedGroups(memberId: ObjectId): Promise<Group[]> {
 		const result = await this.groupMemberModel
-			.aggregate([
+			.aggregate<Group>([
 				{ $match: { memberId: memberId } },
 				{ $sort: { joinDate: -1 } },
 				{
@@ -231,7 +231,7 @@ export class GroupService {
 		}
 
 		const result = await this.groupModel
-			.aggregate([
+			.aggregate<Groups>([
 				{ $match: match },
 				{ $sort: sort },
 				{
@@ -251,7 +251,7 @@ export class GroupService {
 			.exec();
 
 		if (!result.length) throw new BadRequestException(Message.NO_DATA_FOUND);
-		return result[0];
+		return result[0] as unknown as Groups;
 	}
 
 	public async getMyGroups(memberId: ObjectId): Promise<Group[]> {
@@ -262,7 +262,9 @@ export class GroupService {
 	public async updateGroup(memberId: ObjectId, input: GroupUpdateInput): Promise<Group> {
 		const group: Group | null = await this.groupModel.findById(input._id);
 		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
-		if (group.memberId.toString() !== memberId.toString()) {
+		const groupMemberId = shapeObjectIdToString(group.memberId);
+		const authMemberId = shapeObjectIdToString(memberId);
+		if (groupMemberId !== authMemberId) {
 			throw new BadRequestException(Message.NOT_GROUP_ADMIN);
 		}
 
@@ -275,7 +277,9 @@ export class GroupService {
 	public async deleteGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {
 		const group = await this.groupModel.findById(groupId);
 		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
-		if (group.memberId.toString() !== memberId.toString()) {
+		const groupMemberId = shapeObjectIdToString(group.memberId);
+		const authMemberId = shapeObjectIdToString(memberId);
+		if (groupMemberId !== authMemberId) {
 			throw new BadRequestException(Message.NOT_GROUP_ADMIN);
 		}
 
@@ -297,11 +301,11 @@ export class GroupService {
 			memberId: memberId,
 			receiverId: targetGroup.memberId,
 			notificationType: NotificationType.LIKE_GROUP,
-			notificationLink: `/groups/${groupId}`,
+			notificationLink: `/groups/${shapeObjectIdToString(groupId)}`,
 		};
 
 		const modifier = await this.likeService.toggleLike(input, newNotification);
-		this.groupStatsEditor({ _id: groupId, targetKey: 'groupLikes', modifier: modifier });
+		await this.groupStatsEditor({ _id: groupId, targetKey: 'groupLikes', modifier: modifier });
 
 		targetGroup.groupLikes += modifier;
 		targetGroup.meLiked = await this.likeService.checkMeLiked(input);
@@ -334,7 +338,7 @@ export class GroupService {
 				memberId: memberId,
 				receiverId: group.memberId,
 				notificationType: NotificationType.JOIN_GROUP,
-				notificationLink: `/groups/${groupId}`,
+				notificationLink: `/groups/${shapeObjectIdToString(groupId)}`,
 			};
 			await this.notificationService.createNotification(newNotification);
 
@@ -358,7 +362,9 @@ export class GroupService {
 		const groupMember: GroupMember | null = await this.groupMemberModel.findOne({ groupId, memberId }).lean().exec();
 		if (!groupMember) throw new BadRequestException(Message.NOT_JOINED);
 
-		if (group.memberId.toString() === memberId.toString()) {
+		const groupMemberId = shapeObjectIdToString(group.memberId);
+		const authMemberId = shapeObjectIdToString(memberId);
+		if (groupMemberId === authMemberId) {
 			throw new BadRequestException(Message.OWNER_CANNOT_LEAVE);
 		}
 
@@ -379,7 +385,9 @@ export class GroupService {
 		// Check if the requesting member is an organizer of the group
 		const group = await this.groupModel.findById(groupId);
 		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
-		if (group.memberId.toString() !== memberId.toString()) {
+		const groupMemberId = shapeObjectIdToString(group.memberId);
+		const authMemberId = shapeObjectIdToString(memberId);
+		if (groupMemberId !== authMemberId) {
 			throw new BadRequestException(Message.NOT_GROUP_ADMIN);
 		}
 
@@ -433,7 +441,7 @@ export class GroupService {
 			match.groupCategories = { $in: search.groupCategories };
 		}
 
-		const result = await this.groupModel.aggregate([
+		const result = await this.groupModel.aggregate<Groups>([
 			{ $match: match },
 			{ $sort: sort },
 			{
@@ -448,8 +456,7 @@ export class GroupService {
 	}
 
 	public async updateGroupByAdmin(input: GroupUpdateInput): Promise<Group> {
-		const { _id, ...otherInput } = input;
-		if (!_id) throw new BadRequestException(Message.NO_DATA_FOUND);
+		if (!input._id) throw new BadRequestException(Message.NO_DATA_FOUND);
 
 		const result: Group | null = await this.groupModel.findByIdAndUpdate(input._id, input, { new: true }).exec();
 		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);

@@ -13,7 +13,7 @@ export class OllamaService {
 
 	constructor() {
 		this.ollamaEnabled = true;
-		logger.info(this.context, `🔵 Initialized: OLLAMA_BASE_URL=${process.env.OLLAMA_BASE_URL || 'NOT SET'}`);
+		logger.info(this.context, `Initialized: OLLAMA_BASE_URL=${process.env.OLLAMA_BASE_URL || 'NOT SET'}`);
 	}
 
 	async startOllama(): Promise<void> {
@@ -27,13 +27,16 @@ export class OllamaService {
 			const { stdout } = await execAsync(`docker ps -a --filter "name=${this.containerName}" --format "{{.Status}}"`);
 
 			if (!stdout.trim()) {
-				logger.warn(this.context, `⚠️  Ollama container (${this.containerName}) does not exist. Make sure it's started with --profile llm`);
+				logger.warn(
+					this.context,
+					`Ollama container (${this.containerName}) does not exist. Make sure it's started with --profile llm`,
+				);
 				logger.warn(this.context, '   Events will be processed without LLM filtering/completion');
 				return;
 			}
 
 			if (stdout.includes('Up')) {
-				logger.info(this.context, '✅ Ollama already running');
+				logger.info(this.context, 'Ollama already running');
 				// Verify it's actually accessible
 				await this.waitForOllama();
 				return;
@@ -44,9 +47,10 @@ export class OllamaService {
 
 			// Wait for Ollama to be ready
 			await this.waitForOllama();
-			logger.info(this.context, '✅ Ollama started and ready');
+			logger.info(this.context, 'Ollama started and ready');
 		} catch (error) {
-			logger.error(this.context, '❌ Failed to start Ollama', error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			logger.error(this.context, `Failed to start Ollama: ${errorMessage}`);
 			logger.warn(this.context, '   Events will be processed without LLM filtering/completion');
 			// Don't throw - allow processing to continue without LLM
 		}
@@ -69,7 +73,8 @@ export class OllamaService {
 			await execAsync(`docker stop ${this.containerName}`);
 			logger.info(this.context, 'Ollama stopped');
 		} catch (error) {
-			logger.error(this.context, 'Failed to stop Ollama', error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			logger.error(this.context, `Failed to stop Ollama: ${errorMessage}`);
 		}
 	}
 
@@ -87,14 +92,15 @@ export class OllamaService {
 					signal: AbortSignal.timeout(5000), // 5 second timeout
 				});
 				if (response.ok) {
-					logger.info(this.context, `✅ Ollama is accessible at ${ollamaUrl}`);
+					logger.info(this.context, `Ollama is accessible at ${ollamaUrl}`);
 					return;
 				}
 			} catch (error) {
 				const err = error as Error;
 				if (i === maxAttempts - 1) {
 					// Last attempt - show error
-					logger.error(this.context, `❌ Cannot connect to Ollama at ${ollamaUrl}`, error);
+					const errorMessage = error instanceof Error ? error.message : String(error);
+					logger.error(this.context, `Cannot connect to Ollama at ${ollamaUrl}: ${errorMessage}`);
 					throw new Error(`Ollama did not start in time: ${err.message}`);
 				}
 				// Wait before retry

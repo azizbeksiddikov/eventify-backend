@@ -57,7 +57,7 @@ const MemberSchema = new Schema(
 		// ===== Statistics =====
 		memberPoints: {
 			type: Number,
-			default: 50,
+			default: 200,
 			min: 0,
 			select: false,
 		},

@@ -21,7 +21,7 @@ export class FaqService {
 		try {
 			const faq = await this.faqModel.create(input);
 			return faq;
-		} catch (error) {
+		} catch {
 			throw new InternalServerErrorException(Message.CREATE_FAILED);
 		}
 	}
@@ -36,7 +36,7 @@ export class FaqService {
 		return this.divideFaqsByGroup(faqs);
 	}
 
-	private async divideFaqsByGroup(faqs: Faq[]): Promise<FaqByGroup[]> {
+	private divideFaqsByGroup(faqs: Faq[]): FaqByGroup[] {
 		const result: FaqByGroup[] = Object.values(FaqGroup).map((group) => ({
 			faqGroup: group,
 			faqs: [],

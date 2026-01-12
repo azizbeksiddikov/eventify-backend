@@ -1,28 +1,55 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { GqlContextType, GqlExecutionContext } from '@nestjs/graphql';
 import { AuthService } from '../auth.service';
+import { GraphQLContext } from '../../../libs/types/common';
 
 @Injectable()
 export class WithoutGuard implements CanActivate {
 	constructor(private authService: AuthService) {}
 
-	async canActivate(context: ExecutionContext | any): Promise<boolean> {
+	async canActivate(context: ExecutionContext): Promise<boolean> {
 		console.info('--- @guard() Authentication [WithoutGuard] ---');
 
-		if (context.contextType === 'graphql') {
-			const request = context.getArgByIndex(2).req,
-				bearerToken = request.headers.authorization;
+		if (context.getType<GqlContextType>() === 'graphql') {
+			const gqlContext = GqlExecutionContext.create(context);
+			const gqlCtx = gqlContext.getContext<GraphQLContext>();
+			const request = gqlCtx?.req;
+
+			if (!request) return true;
+
+			const bearerToken = request.headers?.authorization;
 
 			if (bearerToken) {
 				try {
-					const token = bearerToken.split(' ')[1],
-						authMember = await this.authService.verifyToken(token);
-					request.body.authMember = authMember;
-				} catch (err) {
+					const tokenParts = bearerToken.split(' ');
+					const token = tokenParts[1];
+					if (token) {
+						const authMember = await this.authService.verifyToken(token);
+						if (!request.body) {
+							request.body = { authMember: null };
+						}
+						request.body.authMember = authMember;
+					} else {
+						if (!request.body) {
+							request.body = { authMember: null };
+						}
+						request.body.authMember = null;
+					}
+				} catch {
+					if (!request.body) {
+						request.body = { authMember: null };
+					}
 					request.body.authMember = null;
 				}
-			} else request.body.authMember = null;
+			} else {
+				if (!request.body) {
+					request.body = { authMember: null };
+				}
+				request.body.authMember = null;
+			}
 
-			console.log('username[without] =>', request.body.authMember?.username ?? 'none');
+			const authMember = request.body?.authMember;
+			console.log('username[without] =>', authMember?.username ?? 'none');
 			return true;
 		}
 

@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { InjectConnection, MongooseModule } from '@nestjs/mongoose';
-import { Connection } from 'mongoose';
+import { Connection, STATES } from 'mongoose';
 
 @Module({
 	imports: [
@@ -14,7 +14,7 @@ import { Connection } from 'mongoose';
 })
 export class DatabaseModule {
 	constructor(@InjectConnection() private readonly connection: Connection) {
-		if (connection.readyState === 1) {
+		if (connection.readyState === STATES.connected) {
 			console.log(
 				`MongoDB is connected into ${process.env.NODE_ENV === 'production' ? 'production' : 'development'} database`,
 			);

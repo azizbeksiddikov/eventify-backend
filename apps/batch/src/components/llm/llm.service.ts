@@ -197,7 +197,7 @@ export class LLMService {
 			};
 
 			console.log(
-				`   ✅ Completed: categories=${completedEvent.eventCategories?.join(', ')}, tags=${completedEvent.eventTags?.slice(0, 3).join(', ')}...`,
+				`   Completed: categories=${completedEvent.eventCategories?.join(', ')}, tags=${completedEvent.eventTags?.slice(0, 3).join(', ')}...`,
 			);
 
 			return completedEvent;

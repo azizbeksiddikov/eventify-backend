@@ -1,10 +1,50 @@
-import { ObjectId } from 'bson';
-import { ObjectId as MongooseId } from 'mongoose';
+import { Types } from 'mongoose';
+import type { ObjectId } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
+import { BadRequestException } from '@nestjs/common';
 
-export const shapeIntoMongoObjectId = (target: any) => {
-	return typeof target === 'string' ? new ObjectId(target) : target;
+export const shapeIntoMongoObjectId = (target: string | ObjectId): ObjectId => {
+	if (typeof target === 'string') {
+		try {
+			return new Types.ObjectId(target) as unknown as ObjectId;
+		} catch (error) {
+			// Check if it's a BSON error (invalid ObjectId format)
+			if (
+				error instanceof Error &&
+				(error.name === 'BSONError' || error.message?.includes('must be a 24 character hex string'))
+			) {
+				throw new BadRequestException(
+					`Invalid ObjectId format: "${target}". ObjectId must be a 24 character hex string.`,
+				);
+			}
+			// Re-throw if it's a different error
+			throw error;
+		}
+	}
+	// If it's already an ObjectId, return it
+	return target;
+};
+
+/**
+ * Convert ObjectId to string safely
+ * Handles both ObjectId instances and string values
+ */
+export const shapeObjectIdToString = (target: ObjectId | string | null | undefined): string => {
+	if (!target) return '';
+	if (typeof target === 'string') return target;
+	// Check if it's an ObjectId instance and use toHexString() for explicit conversion
+	if (target instanceof Types.ObjectId) {
+		return target.toHexString();
+	}
+	// For ObjectId type (not instance), cast to Types.ObjectId to access toHexString()
+	const objectId = target as unknown as Types.ObjectId;
+	if (objectId && typeof objectId.toHexString === 'function') {
+		return objectId.toHexString();
+	}
+	// Final fallback: ObjectId.toString() returns hex string, but linter doesn't know this
+	// eslint-disable-next-line @typescript-eslint/no-base-to-string
+	return String(target);
 };
 
 // ============== File Configuration ==============
@@ -32,7 +72,7 @@ export const lookupMember = {
 	},
 };
 
-export const lookupAuthMemberLiked = (memberId: MongooseId | null, targetRefId: string = '$_id') => {
+export const lookupAuthMemberLiked = (memberId: ObjectId | null, targetRefId: string = '$_id') => {
 	return {
 		$lookup: {
 			from: 'likes',
@@ -63,7 +103,7 @@ export const lookupAuthMemberLiked = (memberId: MongooseId | null, targetRefId: 
 	};
 };
 
-export const lookupAuthMemberJoined = (memberId: MongooseId | null, targetRefId: string = '$_id') => {
+export const lookupAuthMemberJoined = (memberId: ObjectId | null, targetRefId: string = '$_id') => {
 	return {
 		$lookup: {
 			from: 'groupMembers',
@@ -98,7 +138,7 @@ export const lookupAuthMemberJoined = (memberId: MongooseId | null, targetRefId:
 
 // ============== Lookup Configuration ==============
 interface LookupAuthMemberFollowed {
-	followerId: MongooseId | null;
+	followerId: ObjectId | null;
 	followingId: string;
 }
 

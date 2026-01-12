@@ -6,6 +6,9 @@ import { Model, ObjectId } from 'mongoose';
 import { Message } from '../../libs/enums/common.enum';
 import { EventStatus, EventType, RecurrenceType } from '../../libs/enums/event.enum';
 
+// ===== Config =====
+import { shapeObjectIdToString } from '../../libs/config';
+
 // ===== Types & DTOs =====
 import { EventRecurrence } from '../../libs/dto/eventRecurrence/eventRecurrence';
 import { EventRecurrenceInput, EventRecurrenceUpdateInput } from '../../libs/dto/eventRecurrence/eventRecurrence.input';
@@ -67,7 +70,8 @@ export class EventRecurrenceService {
 
 			return recurrence;
 		} catch (error) {
-			this.logger.error(`Failed to create recurring event: ${error.message}`);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			this.logger.error(`Failed to create recurring event: ${errorMessage}`);
 			throw new BadRequestException(Message.CREATE_FAILED);
 		}
 	}
@@ -79,13 +83,15 @@ export class EventRecurrenceService {
 		}
 
 		// Check authorization
-		if (recurrence.memberId.toString() !== memberId.toString()) {
+		const recurrenceMemberId = shapeObjectIdToString(recurrence.memberId);
+		const authMemberId = shapeObjectIdToString(memberId);
+		if (recurrenceMemberId !== authMemberId) {
 			throw new BadRequestException(Message.NOT_AUTHORIZED);
 		}
 
 		// Validate recurrence fields if changed
 		if (input.recurrenceType) {
-			this.validateRecurrenceFields(input as any);
+			this.validateRecurrenceFields(input as EventRecurrenceInput);
 		}
 
 		// If status is CANCELLED or DELETED, set isActive to false
@@ -119,7 +125,9 @@ export class EventRecurrenceService {
 		}
 
 		// Check authorization
-		if (recurrence.memberId.toString() !== memberId.toString()) {
+		const recurrenceMemberId = shapeObjectIdToString(recurrence.memberId);
+		const authMemberId = shapeObjectIdToString(memberId);
+		if (recurrenceMemberId !== authMemberId) {
 			throw new BadRequestException(Message.NOT_AUTHORIZED);
 		}
 
@@ -222,7 +230,7 @@ export class EventRecurrenceService {
 			}
 		}
 
-		this.logger.log(`Generated ${occurrences.length} events for recurrence ${recurrence._id}`);
+		this.logger.log(`Generated ${occurrences.length} events for recurrence ${shapeObjectIdToString(recurrence._id)}`);
 	}
 
 	public async generateEventsForAllActive(): Promise<void> {
@@ -441,7 +449,9 @@ export class EventRecurrenceService {
 			}
 		}
 
-		this.logger.log(`Updated ${futureEvents.length} future events for recurrence ${recurrence._id}`);
+		this.logger.log(
+			`Updated ${futureEvents.length} future events for recurrence ${shapeObjectIdToString(recurrence._id)}`,
+		);
 	}
 
 	private async deleteEventsBeyondEndDate(recurrenceId: ObjectId, endDate: Date): Promise<void> {
@@ -457,6 +467,8 @@ export class EventRecurrenceService {
 			await this.eventModel.findByIdAndDelete(event._id).exec();
 		}
 
-		this.logger.log(`Deleted ${eventsToDelete.length} events beyond end date for recurrence ${recurrenceId}`);
+		this.logger.log(
+			`Deleted ${eventsToDelete.length} events beyond end date for recurrence ${shapeObjectIdToString(recurrenceId)}`,
+		);
 	}
 }

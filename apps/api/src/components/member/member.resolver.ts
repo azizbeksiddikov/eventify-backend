@@ -11,22 +11,25 @@ import { Roles } from '../auth/decorators/roles.decorator';
 
 // ===== Enums =====
 import { MemberType } from '../../libs/enums/member.enum';
-import { Message } from '../../libs/enums/common.enum';
 
 // ===== DTOs =====
 import { Member, Members } from '../../libs/dto/member/member';
 import { LoginInput, MemberInput, MembersInquiry, OrganizersInquiry } from '../../libs/dto/member/member.input';
-import { MemberUpdateInput, PasswordUpdateInput } from '../../libs/dto/member/member.update';
+import { MemberUpdateInput } from '../../libs/dto/member/member.update';
 
 // ===== Config =====
 import { shapeIntoMongoObjectId } from '../../libs/config';
 
 // ===== Services =====
 import { MemberService } from './member.service';
+import { CurrencyService } from '../currency/currency.service';
 
 @Resolver()
 export class MemberResolver {
-	constructor(private readonly memberService: MemberService) {}
+	constructor(
+		private readonly memberService: MemberService,
+		private readonly currencyService: CurrencyService,
+	) {}
 
 	// ============== Authentication Methods ==============
 	@Mutation(() => Member)
@@ -72,9 +75,10 @@ export class MemberResolver {
 
 	@UseGuards(AuthGuard)
 	@Query(() => String)
-	public async checkAuthRoles(@AuthMember() authMember: Member): Promise<string> {
+	public checkAuthRoles(@AuthMember() authMember: Member): string {
 		console.log('Query: checkAuthRoles');
-		return `Hi ${authMember.username}, you are ${authMember.memberType} and id: ${authMember._id}`;
+		const memberId = (authMember._id as { toString(): string }).toString();
+		return `Hi ${authMember.username}, you are ${authMember.memberType} and id: ${memberId}`;
 	}
 
 	// ============== Member Interaction Methods ==============

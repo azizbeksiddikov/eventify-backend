@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as cheerio from 'cheerio';
-import puppeteer from 'puppeteer';
+import puppeteer, { type Browser, type Page } from 'puppeteer';
 
 import { EventType, EventLocationType } from '@app/api/src/libs/enums/event.enum';
 import { CrawledEvent, IEventScraper, ScraperConfig } from '@app/api/src/libs/dto/event/eventCrawling';
 import { determineStatus, saveToJsonFile, deepMerge, randomDelay } from '@app/batch/src/libs/utils';
 import { SCRAPER_URLS, SCRAPER_DEFAULTS, PUPPETEER_CONFIG, BATCH_CONFIG } from '@app/batch/src/libs/config';
-import { Currency } from '@app/api/src/libs/enums/common.enum';
+import type { LumaEvent, LumaJsonData, LumaTicketType, LumaPageProps } from './luma.types';
 
 /**
  * LUMA Scraper - Scrapes events from luma.com
@@ -33,28 +33,28 @@ export class LumaScraper implements IEventScraper {
 			// ═══════════════════════════════════════════════════════════
 			// PHASE 1: Discover Events (Search Page)
 			// ═══════════════════════════════════════════════════════════
-			this.logger.log(`\n📋 PHASE 1: Discovering events from search page...`);
-			const htmlContent = await this.fetchPageWithPuppeteer(this.config.searchUrl, limit);
+			this.logger.log(`\nPHASE 1: Discovering events from search page...`);
+			const htmlContent = await this.fetchPageWithPuppeteer(this.config.searchUrl);
 			const cheerioInstance = cheerio.load(htmlContent);
 			const eventList = this.extractEventIdsAndUrls(cheerioInstance);
 
 			// Apply limit if specified
 			const eventsToFetch = limit ? eventList.slice(0, limit) : eventList;
-			this.logger.log(`✅ Found ${eventList.length} unique events, will fetch ${eventsToFetch.length}`);
+			this.logger.log(`Found ${eventList.length} unique events, will fetch ${eventsToFetch.length}`);
 
-			if (eventList.length === 0) this.logger.warn('⚠️ No events found');
+			if (eventList.length === 0) this.logger.warn('No events found');
 
 			// ═══════════════════════════════════════════════════════════
 			// PHASE 2: Fetch Complete Data (Detail Pages) with Retry
 			// Fetch detailed data with exponential backoff on failures
 			// ═══════════════════════════════════════════════════════════
-			this.logger.log(`\n📄 PHASE 2: Fetching complete data for each event (with retry)...`);
+			this.logger.log(`\nPHASE 2: Fetching complete data for each event (with retry)...`);
 			const detailedRawData = await this.fetchEventDetailsWithRetry(eventsToFetch);
 
 			// ═══════════════════════════════════════════════════════════
 			// PHASE 3: Save Raw Data
 			// ═══════════════════════════════════════════════════════════
-			this.logger.log(`\n💾 PHASE 3: Saving raw data...`);
+			this.logger.log(`\nPHASE 3: Saving raw data...`);
 			const rawDataFile = {
 				metadata: {
 					source: this.config.name,
@@ -65,19 +65,19 @@ export class LumaScraper implements IEventScraper {
 				},
 				events: detailedRawData,
 			};
-			await saveToJsonFile(`jsons/${this.config.name}-raw.json`, rawDataFile);
-			this.logger.log(`✅ Saved ${detailedRawData.length} detailed events to raw JSON`);
+			saveToJsonFile(`jsons/${this.config.name}-raw.json`, rawDataFile);
+			this.logger.log(`Saved ${detailedRawData.length} detailed events to raw JSON`);
 
 			// ═══════════════════════════════════════════════════════════
 			// PHASE 4: Extract Structured Data
 			// Transform raw data into CrawledEvent format
 			// ═══════════════════════════════════════════════════════════
-			this.logger.log(`\n🔄 PHASE 4: Extracting structured data...`);
+			this.logger.log(`\nPHASE 4: Extracting structured data...`);
 			const extractedEvents = detailedRawData
 				.map((rawEvent) => this.mapToEventFormat(rawEvent))
 				.filter((e) => e !== null);
 
-			// 🧹 Save CLEANED extracted events (CrawledEvent format)
+			// Save CLEANED extracted events (CrawledEvent format)
 			const cleanedDataFile = {
 				metadata: {
 					source: this.config.name,
@@ -89,12 +89,14 @@ export class LumaScraper implements IEventScraper {
 				},
 				events: extractedEvents,
 			};
-			await saveToJsonFile(`jsons/${this.config.name}.json`, cleanedDataFile);
-			this.logger.log(`✅ Saved ${extractedEvents.length} cleaned events to JSON`);
+			saveToJsonFile(`jsons/${this.config.name}.json`, cleanedDataFile);
+			this.logger.log(`Saved ${extractedEvents.length} cleaned events to JSON`);
 
 			return extractedEvents;
 		} catch (error) {
-			this.logger.error(`Error during ${this.getName()} scraping: ${error.message}`, error.stack);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorStack = error instanceof Error ? error.stack : undefined;
+			this.logger.error(`Error during ${this.getName()} scraping: ${errorMessage}`, errorStack);
 			throw error;
 		}
 	}
@@ -103,8 +105,8 @@ export class LumaScraper implements IEventScraper {
 	 * Fetch page using Puppeteer
 	 * Extracts event data from JSON script tags embedded in the page
 	 */
-	private async fetchPageWithPuppeteer(url: string, limit?: number): Promise<string> {
-		let browser;
+	private async fetchPageWithPuppeteer(url: string): Promise<string> {
+		let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined;
 
 		try {
 			browser = await puppeteer.launch({
@@ -153,14 +155,18 @@ export class LumaScraper implements IEventScraper {
 				});
 
 				// Override permissions
-				const originalQuery = window.navigator.permissions.query;
-				window.navigator.permissions.query = (parameters: any) =>
-					parameters.name === 'notifications'
-						? Promise.resolve({ state: 'denied' } as PermissionStatus)
-						: originalQuery(parameters);
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+				const originalQuery = window.navigator.permissions.query.bind(window.navigator.permissions);
+				window.navigator.permissions.query = (parameters: PermissionDescriptor) => {
+					if (parameters.name === 'notifications') {
+						return Promise.resolve({ state: 'denied' } as PermissionStatus);
+					}
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
+					return originalQuery(parameters);
+				};
 
 				// Add chrome property
-				(window as any).chrome = {
+				(window as Window & { chrome?: { runtime: Record<string, unknown> } }).chrome = {
 					runtime: {},
 				};
 
@@ -193,9 +199,9 @@ export class LumaScraper implements IEventScraper {
 				await page.waitForSelector('script[type="application/json"]', {
 					timeout: PUPPETEER_CONFIG.TIMEOUT_MS / 2,
 				});
-				this.logger.log('✅ Page loaded with JSON data');
-			} catch (error) {
-				this.logger.warn('⚠️ No JSON script tags found - page might be blocked or changed');
+				this.logger.log('Page loaded with JSON data');
+			} catch {
+				this.logger.warn('No JSON script tags found - page might be blocked or changed');
 			}
 
 			// Wait for page to be fully rendered
@@ -206,12 +212,13 @@ export class LumaScraper implements IEventScraper {
 
 			return htmlContent;
 		} catch (error) {
-			this.logger.error(`❌ Puppeteer error: ${error.message}`);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			this.logger.error(`Puppeteer error: ${errorMessage}`);
 			throw error;
 		} finally {
 			if (browser) {
 				await browser.close();
-				this.logger.log('🔒 Browser closed');
+				this.logger.log('Browser closed');
 			}
 		}
 	}
@@ -227,47 +234,50 @@ export class LumaScraper implements IEventScraper {
 		const processedIds = new Set<string>();
 
 		// Extract and merge all JSON script tags
-		let aggregatedJsonData: any = null;
+		let aggregatedJsonData: LumaJsonData | null = null;
 		let scriptTagCount = 0;
-		const allScriptContents: any[] = [];
+		const allScriptContents: LumaJsonData[] = [];
 
 		cheerioInstance('script[type="application/json"]').each((_, scriptElement) => {
 			try {
 				const jsonText = cheerioInstance(scriptElement).html();
 				if (jsonText) {
 					scriptTagCount++;
-					const parsedJsonData = JSON.parse(jsonText);
+					const parsedJsonData = JSON.parse(jsonText) as LumaJsonData;
 					allScriptContents.push(parsedJsonData);
-					aggregatedJsonData = aggregatedJsonData ? deepMerge(aggregatedJsonData, parsedJsonData) : parsedJsonData;
+					aggregatedJsonData = aggregatedJsonData
+						? (deepMerge(aggregatedJsonData, parsedJsonData) as LumaJsonData)
+						: parsedJsonData;
 				}
-			} catch (error) {
+			} catch {
 				// Skip invalid JSON
 			}
 		});
 
-		this.logger.log(`🔍 Found ${scriptTagCount} JSON script tags`);
+		this.logger.log(`Found ${scriptTagCount} JSON script tags`);
 
 		if (!aggregatedJsonData) {
-			this.logger.warn('⚠️ No JSON data found in page - likely blocked or page structure changed');
+			this.logger.warn('No JSON data found in page - likely blocked or page structure changed');
 			return [];
 		}
 
-		// 🔍 SPECIAL HANDLING: Check if this is a discovery page with events array
-		const pageData = aggregatedJsonData?.props?.pageProps?.initialData?.data;
-		if (pageData?.place && pageData?.events !== undefined) {
-			const eventCount = pageData.place.event_count || 0;
+		// SPECIAL HANDLING: Check if this is a discovery page with events array
+		const pageProps = aggregatedJsonData as LumaPageProps;
+		const pageData = pageProps?.props?.pageProps?.initialData?.data;
+		if (pageData && 'place' in pageData && 'events' in pageData) {
+			const eventCount = pageData.place?.event_count || 0;
 			const eventsArray = pageData.events || [];
 			const featuredEvents = pageData.featured_events || [];
 
 			if (eventCount === 0 && eventsArray.length === 0 && featuredEvents.length === 0) {
-				this.logger.warn(`⚠️ This page has no events - try a different location`);
+				this.logger.warn(`This page has no events - try a different location`);
 			}
 
 			// If we have events in the data.events or featured_events arrays, extract them directly
-			const allPageEvents = [...eventsArray, ...featuredEvents];
+			const allPageEvents: LumaEvent[] = [...eventsArray, ...featuredEvents];
 			if (allPageEvents.length > 0) {
 				const directEvents: Array<{ id: string; url: string; title?: string }> = [];
-				allPageEvents.forEach((event: any) => {
+				allPageEvents.forEach((event: LumaEvent) => {
 					if (event?.api_id && event?.name) {
 						const eventUrl = event.url?.startsWith('http') ? event.url : `${this.config.baseUrl}/event/${event.api_id}`;
 
@@ -280,15 +290,15 @@ export class LumaScraper implements IEventScraper {
 				});
 
 				if (directEvents.length > 0) {
-					this.logger.log(`✅ Found ${directEvents.length} events in page data`);
+					this.logger.log(`Found ${directEvents.length} events in page data`);
 					return directEvents;
 				}
 			}
 		}
 
 		// Find all events (BFS) - fallback if no direct events found
-		const queue: any[] = [aggregatedJsonData];
-		const visited = new Set<any>();
+		const queue: unknown[] = [aggregatedJsonData];
+		const visited = new Set<unknown>();
 
 		while (queue.length > 0) {
 			const current = queue.shift();
@@ -296,20 +306,23 @@ export class LumaScraper implements IEventScraper {
 			visited.add(current);
 
 			// Check if this is a complete Luma event with ID and URL
-			if (this.isCompleteEvent(current)) {
-				const eventId = current.api_id || current.event_id || current.id;
+			const eventObj = current as LumaEvent;
+			if (this.isCompleteEvent(eventObj)) {
+				const eventId = eventObj.api_id || eventObj.event_id || eventObj.id;
 
 				// Build event URL
 				let eventUrl: string;
-				if (current.url?.startsWith('http')) {
-					eventUrl = current.url;
-				} else if (current.url) {
-					eventUrl = `${this.config.baseUrl}/${current.url}`;
-				} else if (current.api_id) {
+				if (eventObj.url?.startsWith('http')) {
+					eventUrl = eventObj.url;
+				} else if (eventObj.url) {
+					eventUrl = `${this.config.baseUrl}/${eventObj.url}`;
+				} else if (eventObj.api_id) {
 					// Luma event URLs are typically luma.com/event/{api_id}
-					eventUrl = `${this.config.baseUrl}/event/${current.api_id}`;
-				} else {
+					eventUrl = `${this.config.baseUrl}/event/${eventObj.api_id}`;
+				} else if (eventId) {
 					eventUrl = `${this.config.baseUrl}/${eventId}`;
+				} else {
+					continue;
 				}
 
 				if (eventId && !processedIds.has(eventId)) {
@@ -317,20 +330,20 @@ export class LumaScraper implements IEventScraper {
 					eventList.push({
 						id: eventId,
 						url: eventUrl,
-						title: current.name || current.title,
+						title: eventObj.name || eventObj.title,
 					});
 				}
 			}
 
 			// Add nested objects/arrays to queue
 			if (Array.isArray(current)) {
-				queue.push(...current);
-			} else if (typeof current === 'object') {
-				queue.push(...Object.values(current));
+				queue.push(...(current as unknown[]));
+			} else if (typeof current === 'object' && current !== null) {
+				queue.push(...(Object.values(current) as unknown[]));
 			}
 		}
 
-		this.logger.log(`📊 Extracted ${eventList.length} complete events from JSON`);
+		this.logger.log(`Extracted ${eventList.length} complete events from JSON`);
 
 		return eventList;
 	}
@@ -339,9 +352,11 @@ export class LumaScraper implements IEventScraper {
 	 * PHASE 2: Fetch complete data with retry logic
 	 * Designed for batch processing with delays and error handling
 	 */
-	async fetchEventDetailsWithRetry(eventList: Array<{ id: string; url: string; title?: string }>): Promise<any[]> {
-		let browser;
-		const detailedRawData: any[] = [];
+	async fetchEventDetailsWithRetry(
+		eventList: Array<{ id: string; url: string; title?: string }>,
+	): Promise<LumaEvent[]> {
+		let browser: Browser | undefined;
+		const detailedRawData: LumaEvent[] = [];
 		let successCount = 0;
 		let failedCount = 0;
 
@@ -358,12 +373,12 @@ export class LumaScraper implements IEventScraper {
 				],
 			});
 
-			let page = await browser.newPage();
-			await page.setUserAgent(this.config.userAgent);
+			let page: Page = await browser.newPage();
+			await page.setUserAgent(this.config.userAgent || SCRAPER_DEFAULTS.USER_AGENT);
 
 			for (let i = 0; i < eventList.length; i++) {
 				const eventInfo = eventList[i];
-				let eventData: any = null;
+				let eventData: LumaEvent | null = null;
 				let attempts = 0;
 				let needsNewPage = false;
 
@@ -376,24 +391,24 @@ export class LumaScraper implements IEventScraper {
 						if (needsNewPage) {
 							try {
 								await page.close();
-							} catch (e) {
+							} catch {
 								// Ignore close errors
 							}
 							page = await browser.newPage();
-							await page.setUserAgent(this.config.userAgent);
+							await page.setUserAgent(this.config.userAgent || SCRAPER_DEFAULTS.USER_AGENT);
 							needsNewPage = false;
-							this.logger.debug(`   🔄 Created new page for retry`);
+							this.logger.debug(`   Created new page for retry`);
 						}
 
 						if (attempts > 1) {
 							const retryDelay =
 								BATCH_CONFIG.BASE_DELAY_MS * Math.pow(BATCH_CONFIG.RETRY_BACKOFF_MULTIPLIER, attempts - 1);
-							this.logger.log(`   🔄 Retry ${attempts}/${BATCH_CONFIG.MAX_RETRIES} after ${retryDelay}ms delay...`);
+							this.logger.log(`   Retry ${attempts}/${BATCH_CONFIG.MAX_RETRIES} after ${retryDelay}ms delay...`);
 							await randomDelay(retryDelay, retryDelay * 1.5);
 						}
 
 						this.logger.log(
-							`📄 [${i + 1}/${eventList.length}] ${eventInfo.title?.substring(0, 50) || eventInfo.id}${attempts > 1 ? ` (attempt ${attempts})` : ''}`,
+							`[${i + 1}/${eventList.length}] ${eventInfo.title?.substring(0, 50) || eventInfo.id}${attempts > 1 ? ` (attempt ${attempts})` : ''}`,
 						);
 
 						// Navigate to event detail page
@@ -417,18 +432,20 @@ export class LumaScraper implements IEventScraper {
 						const htmlContent = await page.content();
 						const $ = cheerio.load(htmlContent);
 
-						let eventDetailData: any = null;
-						const eventScripts: any[] = [];
+						let eventDetailData: LumaJsonData | null = null;
+						const eventScripts: LumaJsonData[] = [];
 
 						$('script[type="application/json"]').each((_, scriptElement) => {
 							try {
 								const jsonText = $(scriptElement).html();
 								if (jsonText) {
-									const parsedData = JSON.parse(jsonText);
+									const parsedData = JSON.parse(jsonText) as LumaJsonData;
 									eventScripts.push(parsedData);
-									eventDetailData = eventDetailData ? deepMerge(eventDetailData, parsedData) : parsedData;
+									eventDetailData = eventDetailData
+										? (deepMerge(eventDetailData, parsedData) as LumaJsonData)
+										: parsedData;
 								}
-							} catch (error) {
+							} catch {
 								// Skip invalid JSON
 							}
 						});
@@ -450,9 +467,9 @@ export class LumaScraper implements IEventScraper {
 									const priceFromHTML = this.extractPriceFromHTML($);
 									if (priceFromHTML) {
 										detailedEvent.ticket_types = priceFromHTML;
-										this.logger.debug(`   💰 Added ticket prices from HTML: ${priceFromHTML.length} ticket type(s)`);
+										this.logger.debug(`   Added ticket prices from HTML: ${priceFromHTML.length} ticket type(s)`);
 									} else {
-										this.logger.debug(`   ℹ️ No price info found in JSON or HTML (might be free event)`);
+										this.logger.debug(`   No price info found in JSON or HTML (might be free event)`);
 									}
 								}
 
@@ -461,14 +478,15 @@ export class LumaScraper implements IEventScraper {
 
 								eventData = detailedEvent;
 								successCount++;
-								this.logger.log(`   ✅ Success (description: ${detailedEvent.description ? '✓' : '✗'})`);
+								this.logger.log(`   Success (description: ${detailedEvent.description ? 'yes' : 'no'})`);
 							}
 						}
 					} catch (error) {
-						this.logger.warn(`   ⚠️ Attempt ${attempts} failed: ${error.message}`);
+						const errorMessage = error instanceof Error ? error.message : String(error);
+						this.logger.warn(`   Attempt ${attempts} failed: ${errorMessage}`);
 
 						// If it's a detached frame error, we need a new page
-						if (error.message.includes('detached Frame')) {
+						if (errorMessage.includes('detached Frame')) {
 							needsNewPage = true;
 						}
 
@@ -483,7 +501,7 @@ export class LumaScraper implements IEventScraper {
 					detailedRawData.push(eventData);
 				} else {
 					failedCount++;
-					this.logger.error(`   ❌ Failed to get data for ${eventInfo.id} after ${BATCH_CONFIG.MAX_RETRIES} retries`);
+					this.logger.error(`   Failed to get data for ${eventInfo.id} after ${BATCH_CONFIG.MAX_RETRIES} retries`);
 				}
 
 				// Random delay between requests to avoid rate limiting
@@ -492,18 +510,19 @@ export class LumaScraper implements IEventScraper {
 				}
 			}
 
-			this.logger.log(`\n📊 Results: ✅ ${successCount} success, ❌ ${failedCount} failed`);
+			this.logger.log(`\nResults: ${successCount} success, ${failedCount} failed`);
 
 			// Close the page
 			try {
 				await page.close();
-			} catch (e) {
+			} catch {
 				// Ignore close errors
 			}
 
 			return detailedRawData;
 		} catch (error) {
-			this.logger.error(`❌ Error fetching event details: ${error.message}`);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			this.logger.error(`Error fetching event details: ${errorMessage}`);
 			return detailedRawData;
 		} finally {
 			if (browser) {
@@ -515,10 +534,9 @@ export class LumaScraper implements IEventScraper {
 	/**
 	 * Find event detail by ID in the page JSON data
 	 */
-	private findEventDetailById(jsonData: any, eventId: string): any {
-		const queue: any[] = [jsonData];
-		const visited = new Set<any>();
-		let foundCount = 0;
+	private findEventDetailById(jsonData: LumaJsonData, eventId: string): LumaEvent | null {
+		const queue: unknown[] = [jsonData];
+		const visited = new Set<unknown>();
 
 		while (queue.length > 0) {
 			const current = queue.shift();
@@ -526,23 +544,23 @@ export class LumaScraper implements IEventScraper {
 			visited.add(current);
 
 			// Check if this is the event we're looking for
-			const currentId = current.api_id || current.event_id || current.id;
+			const eventObj = current as LumaEvent;
+			const currentId = eventObj.api_id || eventObj.event_id || eventObj.id;
 			const matchesId =
 				currentId === eventId ||
-				current.url?.includes(eventId) ||
+				(eventObj.url?.includes(eventId) ?? false) ||
 				(typeof currentId === 'string' && typeof eventId === 'string' && currentId.includes(eventId));
 
-			if (this.isCompleteEvent(current) && matchesId) {
-				foundCount++;
+			if (this.isCompleteEvent(eventObj) && matchesId) {
 				this.logger.debug(`   Found matching event data for ${eventId}`);
-				return current;
+				return eventObj;
 			}
 
 			// Add nested objects/arrays to queue
 			if (Array.isArray(current)) {
-				queue.push(...current);
-			} else if (typeof current === 'object') {
-				queue.push(...Object.values(current));
+				queue.push(...(current as unknown[]));
+			} else if (typeof current === 'object' && current !== null) {
+				queue.push(...(Object.values(current) as unknown[]));
 			}
 		}
 
@@ -571,8 +589,8 @@ export class LumaScraper implements IEventScraper {
 	 * Extract ticket prices from HTML content
 	 * Luma displays ticket information in the page, but not always in JSON
 	 */
-	private extractPriceFromHTML(cheerioInstance: cheerio.CheerioAPI): any[] | null {
-		const tickets: any[] = [];
+	private extractPriceFromHTML(cheerioInstance: cheerio.CheerioAPI): LumaTicketType[] | null {
+		const tickets: LumaTicketType[] = [];
 
 		try {
 			// Method 1: Look for all text content and find price patterns
@@ -581,15 +599,15 @@ export class LumaScraper implements IEventScraper {
 			// Match patterns like: "Early Bird Ticket ($)" followed by price info
 			// Or "¥5,000", "$100", etc.
 			const pricePattern = /([¥$€£])\s*([\d,]+(?:\.\d{2})?)/g;
-			let match;
+			let match: RegExpExecArray | null;
 
 			while ((match = pricePattern.exec(bodyText)) !== null) {
 				const currencySymbol = match[1];
-				const amountStr = match[2].replace(/,/g, '');
+				const amountStr = match[2]?.replace(/,/g, '') ?? '0';
 				const amount = parseFloat(amountStr);
 
 				// Map currency symbols to codes
-				const currencyMap: { [key: string]: string } = {
+				const currencyMap: Record<string, string> = {
 					'¥': 'JPY',
 					$: 'USD',
 					'€': 'EUR',
@@ -611,11 +629,11 @@ export class LumaScraper implements IEventScraper {
 					const text = cheerioInstance(element).text();
 					const priceMatch = text.match(/([¥$€£])\s*([\d,]+(?:\.\d{2})?)/);
 
-					if (priceMatch) {
+					if (priceMatch && priceMatch[1] && priceMatch[2]) {
 						const currencySymbol = priceMatch[1];
 						const amount = parseFloat(priceMatch[2].replace(/,/g, ''));
 
-						const currencyMap: { [key: string]: string } = {
+						const currencyMap: Record<string, string> = {
 							'¥': 'JPY',
 							$: 'USD',
 							'€': 'EUR',
@@ -656,13 +674,14 @@ export class LumaScraper implements IEventScraper {
 
 			if (uniqueTickets.length > 0) {
 				this.logger.debug(
-					`   💰 Extracted ${uniqueTickets.length} price(s) from HTML: ${uniqueTickets.map((t) => `${t.currency} ${t.price}`).join(', ')}`,
+					`   Extracted ${uniqueTickets.length} price(s) from HTML: ${uniqueTickets.map((t) => `${t.currency} ${t.price}`).join(', ')}`,
 				);
 			}
 
 			return uniqueTickets.length > 0 ? uniqueTickets : null;
 		} catch (error) {
-			this.logger.debug(`   ⚠️ Error extracting price from HTML: ${error.message}`);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			this.logger.debug(`   Error extracting price from HTML: ${errorMessage}`);
 			return null;
 		}
 	}
@@ -671,29 +690,36 @@ export class LumaScraper implements IEventScraper {
 	 * Check if object is a complete Luma event (not a stub)
 	 * Luma events have: api_id/event_id, name, start_at
 	 */
-	private isCompleteEvent(obj: any): boolean {
+	private isCompleteEvent(obj: unknown): obj is LumaEvent {
 		if (!obj || typeof obj !== 'object') return false;
 
+		const eventObj = obj as LumaEvent;
+
 		// Must have an ID
-		const hasId = obj.api_id || obj.event_id || obj.id;
+		const hasId = eventObj.api_id || eventObj.event_id || eventObj.id;
 		if (!hasId) return false;
 
 		// Must have a name/title
-		const hasName = obj.name || obj.title;
+		const hasName = eventObj.name || eventObj.title;
 		if (!hasName) return false;
 
 		// Must have a start time
-		const hasStartTime = obj.start_at || obj.startAt || obj.start || obj.start_time;
+		const hasStartTime = eventObj.start_at || eventObj.startAt || eventObj.start || eventObj.start_time;
 		if (!hasStartTime) return false;
 
 		// Should have at least one additional field to confirm it's a real event
 		const hasAdditionalField =
-			obj.description || obj.url || obj.cover_url || obj.timezone || obj.location_type || obj.calendar;
+			eventObj.description ||
+			eventObj.url ||
+			eventObj.cover_url ||
+			eventObj.timezone ||
+			eventObj.location_type ||
+			eventObj.calendar;
 
 		return !!hasAdditionalField;
 	}
 
-	private mapToEventFormat(lumaEvent: any): CrawledEvent | null {
+	private mapToEventFormat(lumaEvent: LumaEvent): CrawledEvent | null {
 		try {
 			if (!lumaEvent?.name) {
 				this.logger.warn(`Event without name, skipping: ${JSON.stringify(lumaEvent).substring(0, 100)}`);
@@ -719,11 +745,15 @@ export class LumaScraper implements IEventScraper {
 			const eventSlug = lumaEvent.url || lumaEvent.event_url || lumaEvent.api_id;
 			const fullEventUrl = eventSlug?.startsWith('http') ? eventSlug : `${this.config.baseUrl}/${eventSlug}`;
 
-			let eventCapacity: number | undefined = Number(lumaEvent.guest_limit);
-			if (eventCapacity == 0) eventCapacity = undefined;
+			const guestLimit = lumaEvent.guest_limit;
+			let eventCapacity: number | undefined = guestLimit !== undefined ? Number(guestLimit) : undefined;
+			if (eventCapacity === undefined || eventCapacity === 0 || isNaN(eventCapacity)) {
+				eventCapacity = undefined;
+			}
 
 			// Extract attendee count
-			const attendeeCount = lumaEvent.guest_count || lumaEvent.guests_count || lumaEvent.attendee_count || 0;
+			const attendeeCountRaw = lumaEvent.guest_count || lumaEvent.guests_count || lumaEvent.attendee_count || 0;
+			const attendeeCount = typeof attendeeCountRaw === 'number' ? attendeeCountRaw : Number(attendeeCountRaw) || 0;
 
 			return {
 				// ===== Event Type =====
@@ -734,7 +764,7 @@ export class LumaScraper implements IEventScraper {
 				eventDesc: description,
 				eventImages: lumaEvent.cover_url ? [lumaEvent.cover_url] : [],
 				eventPrice: priceInfo.amount,
-				eventCurrency: priceInfo.currency as Currency,
+				eventCurrency: priceInfo.currency,
 
 				// ===== Event Timestamps =====
 				eventStartAt: startDateTime,
@@ -769,7 +799,8 @@ export class LumaScraper implements IEventScraper {
 				rawData: lumaEvent,
 			};
 		} catch (error) {
-			this.logger.warn(`Error mapping Luma event: ${error.message}`);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			this.logger.warn(`Error mapping Luma event: ${errorMessage}`);
 			return null;
 		}
 	}
@@ -778,7 +809,7 @@ export class LumaScraper implements IEventScraper {
 	 * Extract event description from Luma event object
 	 * Tries multiple sources: description, summary, geo_address_info.description
 	 */
-	private extractEventDescription(eventObject: any): string {
+	private extractEventDescription(eventObject: LumaEvent): string {
 		// Try direct description field first (this is the actual event description)
 		if (eventObject.description && eventObject.description.trim()) {
 			return eventObject.description.trim();
@@ -803,13 +834,13 @@ export class LumaScraper implements IEventScraper {
 	 * Extract tags from Luma event
 	 * Extracts from tags, topics, or categories array
 	 */
-	private extractTags(eventObject: any): string[] {
+	private extractTags(eventObject: LumaEvent): string[] {
 		const tags: string[] = [];
 
 		// Extract from tags/topics/categories array
 		const tagSources = eventObject.tags || eventObject.topics || eventObject.categories || [];
 		if (Array.isArray(tagSources)) {
-			tagSources.forEach((tag: any) => {
+			tagSources.forEach((tag: string | { name?: string }) => {
 				const tagName = typeof tag === 'string' ? tag : tag?.name;
 				if (tagName) tags.push(tagName);
 			});
@@ -822,17 +853,17 @@ export class LumaScraper implements IEventScraper {
 	 * Extract price information from Luma event
 	 * Returns the LOWEST price from all available ticket types
 	 */
-	private extractPrice(eventObject: any): { amount: number | undefined; currency?: string } {
+	private extractPrice(eventObject: LumaEvent): { amount: number | undefined; currency?: string } {
 		// Check ticket_types for pricing
 		const ticketTypes = eventObject.ticket_types || eventObject.tickets || [];
 		if (Array.isArray(ticketTypes) && ticketTypes.length > 0) {
 			// Find tickets with valid prices
 			const validTickets = ticketTypes
-				.map((ticket: any) => ({
-					price: parseFloat(ticket.price || ticket.amount || 0),
+				.map((ticket: LumaTicketType) => ({
+					price: parseFloat(String(ticket.price || ticket.amount || 0)),
 					currency: ticket.currency,
 				}))
-				.filter((ticket: any) => ticket.price > 0);
+				.filter((ticket) => ticket.price > 0);
 
 			if (validTickets.length > 0) {
 				// Find the ticket with the minimum price
@@ -847,7 +878,7 @@ export class LumaScraper implements IEventScraper {
 
 		// Check direct price field
 		if (eventObject.price !== undefined && eventObject.price !== null) {
-			const amount = parseFloat(eventObject.price);
+			const amount = parseFloat(String(eventObject.price));
 			if (amount > 0) {
 				return {
 					amount: amount,
@@ -860,7 +891,7 @@ export class LumaScraper implements IEventScraper {
 		return { amount: 0, currency: undefined };
 	}
 
-	private extractLocation(eventObject: any): {
+	private extractLocation(eventObject: LumaEvent): {
 		type: EventLocationType;
 		city?: string;
 		address?: string;
@@ -894,8 +925,8 @@ export class LumaScraper implements IEventScraper {
 			type: isOnlineEvent ? EventLocationType.ONLINE : EventLocationType.OFFLINE,
 			city: isOnlineEvent ? undefined : city,
 			address: address,
-			latitude: latitude ? parseFloat(latitude) : undefined,
-			longitude: longitude ? parseFloat(longitude) : undefined,
+			latitude: latitude ? parseFloat(String(latitude)) : undefined,
+			longitude: longitude ? parseFloat(String(longitude)) : undefined,
 		};
 	}
 }

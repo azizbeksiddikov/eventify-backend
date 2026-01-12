@@ -23,7 +23,7 @@ export class NotificationService {
 		try {
 			const notification = await this.notificationModel.create(input);
 			return notification;
-		} catch (error) {
+		} catch {
 			throw new BadRequestException(Message.CREATE_FAILED);
 		}
 	}
@@ -36,7 +36,7 @@ export class NotificationService {
 		}
 		const sort: T = { [input?.sort ?? 'createdAt']: input?.direction ?? Direction.DESC };
 
-		const result = await this.notificationModel.aggregate([
+		const result = await this.notificationModel.aggregate<Notifications>([
 			{ $match: match },
 			{ $sort: sort },
 			{

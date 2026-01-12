@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Agenda } from 'agenda';
+import { Agenda, Job } from 'agenda';
 
 // ===== DTOs =====
 import { Event } from '@app/api/src/libs/dto/event/event';
@@ -29,7 +29,7 @@ export class AgendaService implements OnModuleInit, OnModuleDestroy {
 	}
 
 	async onModuleInit() {
-		await this.initializeProcessors();
+		this.initializeProcessors();
 		await this.startProcessing();
 		await this.scheduleCleanupJob();
 	}
@@ -44,10 +44,10 @@ export class AgendaService implements OnModuleInit, OnModuleDestroy {
 		}
 	}
 
-	private async initializeProcessors(): Promise<void> {
+	private initializeProcessors(): void {
 		// Define event-start processor
-		this.agenda.define(EventJobStatus.EVENT_START, async (job) => {
-			const { eventId } = job.attrs.data;
+		this.agenda.define(EventJobStatus.EVENT_START, async (job: Job) => {
+			const { eventId } = job.attrs.data as { eventId: string };
 			this.logger.log(`Processing ${EventJobStatus.EVENT_START} job for event ${eventId}`);
 
 			try {
@@ -71,8 +71,8 @@ export class AgendaService implements OnModuleInit, OnModuleDestroy {
 		});
 
 		// Define event-end processor
-		this.agenda.define(EventJobStatus.EVENT_END, async (job) => {
-			const { eventId } = job.attrs.data;
+		this.agenda.define(EventJobStatus.EVENT_END, async (job: Job) => {
+			const { eventId } = job.attrs.data as { eventId: string };
 			this.logger.log(`Processing ${EventJobStatus.EVENT_END} job for event ${eventId}`);
 
 			try {
@@ -96,7 +96,7 @@ export class AgendaService implements OnModuleInit, OnModuleDestroy {
 		});
 
 		// Define event-cleanup processor (runs every 24 hours)
-		this.agenda.define(EventJobStatus.EVENT_CLEANUP, async (job) => {
+		this.agenda.define(EventJobStatus.EVENT_CLEANUP, async () => {
 			this.logger.log(`Processing ${EventJobStatus.EVENT_CLEANUP} job`);
 
 			try {

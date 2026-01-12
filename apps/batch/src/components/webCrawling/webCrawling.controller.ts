@@ -32,13 +32,15 @@ export class WebCrawlingController {
 					: 'Events processed and saved to database. Check console for memory usage logs.',
 			};
 		} catch (error) {
-			this.logger.error(`Error during event crawling: ${error.message}`, error.stack);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorStack = error instanceof Error ? error.stack : undefined;
+			this.logger.error(`Error during event crawling: ${errorMessage}`, errorStack);
 			throw new HttpException(
 				{
 					success: false,
 					mode: 'optimized_sequential',
 					message: 'Failed to crawl events',
-					error: error.message,
+					error: errorMessage,
 				},
 				HttpStatus.INTERNAL_SERVER_ERROR,
 			);

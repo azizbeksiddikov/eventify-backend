@@ -2,7 +2,6 @@ import { Field, InputType } from '@nestjs/graphql';
 import { IsNotEmpty, IsString, IsOptional, IsArray, IsNumber, Min, IsEnum } from 'class-validator';
 import { GroupCategory } from '../../enums/group.enum';
 import { Direction } from '../../enums/common.enum';
-import type { ObjectId } from 'mongoose';
 
 // ============== Group Creation Input ==============
 @InputType()

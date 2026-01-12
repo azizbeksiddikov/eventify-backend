@@ -4,7 +4,7 @@ import { Model, ObjectId } from 'mongoose';
 import { lookupFavorite } from '../../libs/config';
 import { LikeGroup } from '../../libs/enums/like.enum';
 import { Message } from '../../libs/enums/common.enum';
-import { Events } from '../../libs/dto/event/event';
+import { Event, Events } from '../../libs/dto/event/event';
 import { OrdinaryEventInquiry } from '../../libs/dto/event/event.input';
 import { Like, MeLiked } from '../../libs/dto/like/like';
 import { LikeInput } from '../../libs/dto/like/like.input';
@@ -41,7 +41,8 @@ export class LikeService {
 					await this.notificationService.createNotification(notificationInput);
 				}
 			} catch (err) {
-				console.log('ERROR: Service.model:', err.message);
+				const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+				console.log('ERROR: Service.model:', errorMessage);
 				throw new BadRequestException(Message.CREATE_FAILED);
 			}
 		}
@@ -71,7 +72,10 @@ export class LikeService {
 		const match: T = { likeGroup: LikeGroup.EVENT, memberId: memberId };
 
 		const data = await this.likeModel
-			.aggregate([
+			.aggregate<{
+				list: Array<{ favoriteEvent: Event }>;
+				metaCounter: Array<{ total: number }>;
+			}>([
 				{ $match: match },
 				{ $sort: { updatedAt: -1 } },
 				{
@@ -97,8 +101,8 @@ export class LikeService {
 			])
 			.exec();
 
-		const result: Events = { list: [], metaCounter: data[0].metaCounter };
-		result.list = data[0].list.map((ele) => ele.favoriteEvent);
+		const result: Events = { list: [], metaCounter: data[0]?.metaCounter ?? [] };
+		result.list = data[0]?.list.map((ele) => ele.favoriteEvent) ?? [];
 
 		return result;
 	}

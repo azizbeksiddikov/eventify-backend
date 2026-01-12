@@ -32,13 +32,11 @@ export class WebCrawlingService {
 
 	/**
 	 * Sequential per-event processing to minimize memory usage.
-	 * 
 	 * @param limit - Optional limit on number of events to process
 	 * @param testMode - If true, events are processed but not saved to DB
 	 * @returns Number of events successfully processed and saved
 	 */
 	async getEventCrawling(limit?: number, testMode?: boolean): Promise<number> {
-		let totalProcessed = 0;
 		const stats = {
 			scraped: 0,
 			accepted: 0,
@@ -63,12 +61,7 @@ export class WebCrawlingService {
 				logger.info(this.context, `Processing ${scraper.getName()}...`);
 				logger.info(this.context, `${'='.repeat(80)}`);
 
-				const scraperStats = await this.processScraperSequentially(
-					scraper,
-					limit,
-					testMode || false,
-					logMemory,
-				);
+				const scraperStats = await this.processScraperSequentially(scraper, limit, testMode || false, logMemory);
 
 				stats.scraped += scraperStats.scraped;
 				stats.accepted += scraperStats.accepted;
@@ -89,7 +82,8 @@ export class WebCrawlingService {
 			logMemory('END');
 			return stats.saved;
 		} catch (error) {
-			logger.error(this.context, 'Error during web crawling', error);
+			const errorObj = error instanceof Error ? error : undefined;
+			logger.error(this.context, 'Error during web crawling', errorObj);
 			throw error;
 		} finally {
 			await this.ollamaService.stopOllama();
@@ -128,7 +122,10 @@ export class WebCrawlingService {
 				const event = scrapedEvents[i];
 
 				try {
-					logger.info(this.context, `  [${i + 1}/${scrapedEvents.length}] Processing: ${event.eventName?.substring(0, 50)}...`);
+					logger.info(
+						this.context,
+						`  [${i + 1}/${scrapedEvents.length}] Processing: ${event.eventName?.substring(0, 50)}...`,
+					);
 
 					const safetyCheck = await this.llmService.checkEventSafety(event);
 					if (!safetyCheck.isSafe) {
@@ -158,36 +155,37 @@ export class WebCrawlingService {
 
 			return stats;
 		} catch (error) {
-			logger.error(this.context, `Error processing ${scraper.getName()}`, error);
+			const errorObj = error instanceof Error ? error : undefined;
+			logger.error(this.context, `Error processing ${scraper.getName()}`, errorObj);
 			throw error;
 		}
 	}
 
 	private async importEventToDatabase(event: CrawledEvent): Promise<void> {
 		try {
-				const existingEvent = await this.findExistingEvent(event);
-				const eventData: EventInput = this.mapCrawledEventToInput(event);
+			const existingEvent = await this.findExistingEvent(event);
+			const eventData: EventInput = this.mapCrawledEventToInput(event);
 
-				if (existingEvent) {
-					const hasChanges = this.hasEventChanges(existingEvent, eventData);
+			if (existingEvent) {
+				const hasChanges = this.hasEventChanges(existingEvent, eventData);
 
-					if (hasChanges) {
-						const updatedEvent = await this.eventModel.findByIdAndUpdate(existingEvent._id, eventData, {
-							new: true,
-						});
+				if (hasChanges) {
+					const updatedEvent = await this.eventModel.findByIdAndUpdate(existingEvent._id, eventData, {
+						new: true,
+					});
 
-						if (updatedEvent) {
-							await this.handleEventJobsAfterImport(existingEvent, updatedEvent);
-						}
+					if (updatedEvent) {
+						await this.handleEventJobsAfterImport(existingEvent, updatedEvent);
 					}
-				} else {
-					const newEvent = await this.eventModel.create(eventData);
-					await this.scheduleEventJobs(newEvent);
 				}
-			} catch (error) {
-				logger.warn(this.context, `Failed to import "${event.eventName}"`, error);
-				throw error;
+			} else {
+				const newEvent = await this.eventModel.create(eventData);
+				await this.scheduleEventJobs(newEvent);
 			}
+		} catch (error) {
+			logger.warn(this.context, `Failed to import "${event.eventName}"`, error);
+			throw error;
+		}
 	}
 
 	private saveFinalSummary(stats: { scraped: number; accepted: number; rejected: number; saved: number }): void {
@@ -215,7 +213,6 @@ export class WebCrawlingService {
 			logger.warn(this.context, 'Failed to save summary', error);
 		}
 	}
-
 
 	private async findExistingEvent(event: CrawledEvent): Promise<Event | null> {
 		const conditions: any[] = [];

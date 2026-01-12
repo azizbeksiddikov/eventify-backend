@@ -6,7 +6,7 @@ import { Message } from '../../libs/enums/common.enum';
 
 @Injectable()
 export class UploadService {
-	async uploadSingleFile(file: Express.Multer.File, target: string): Promise<string> {
+	uploadSingleFile(file: Express.Multer.File, target: string): Promise<string> {
 		if (!file) throw new BadRequestException(Message.UPLOAD_FAILED);
 
 		const validMime = validMimeTypes.includes(file.mimetype);
@@ -20,13 +20,13 @@ export class UploadService {
 
 		try {
 			writeFileSync(url, file.buffer);
-			return url;
-		} catch (error) {
+			return Promise.resolve(url);
+		} catch {
 			throw new BadRequestException(Message.UPLOAD_FAILED);
 		}
 	}
 
-	async uploadMultipleFiles(files: Express.Multer.File[], target: string): Promise<string[]> {
+	uploadMultipleFiles(files: Express.Multer.File[], target: string): Promise<string[]> {
 		if (!files || files.length === 0) {
 			throw new BadRequestException(Message.UPLOAD_FAILED);
 		}
@@ -54,6 +54,6 @@ export class UploadService {
 			}
 		}
 
-		return uploadedImages;
+		return Promise.resolve(uploadedImages);
 	}
 }

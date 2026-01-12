@@ -61,7 +61,7 @@ export function mapTagsToCategories(tags: string[]): EventCategory[] {
 }
 
 // Save to JSON file
-export async function saveToJsonFile(filepath: string, data: any): Promise<void> {
+export function saveToJsonFile(filepath: string, data: unknown): void {
 	try {
 		// Create jsons directory if it doesn't exist
 		const jsonsDir = path.dirname(filepath);
@@ -70,19 +70,24 @@ export async function saveToJsonFile(filepath: string, data: any): Promise<void>
 		// Write to file
 		fs.writeFileSync(filepath, JSON.stringify(data, null, 2), 'utf-8');
 	} catch (error) {
-		console.warn(`Failed to save to JSON file: ${error.message}`);
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		console.warn(`Failed to save to JSON file: ${errorMessage}`);
 	}
 }
 
-export function mergeJsonData(firstJsonData: any, secondJsonData: any): any {
+export function mergeJsonData(firstJsonData: unknown, secondJsonData: unknown): unknown {
 	const bothAreArrays = Array.isArray(firstJsonData) && Array.isArray(secondJsonData);
 	if (bothAreArrays) {
-		return [...firstJsonData, ...secondJsonData];
+		return [...(firstJsonData as unknown[]), ...(secondJsonData as unknown[])];
 	}
 
-	const bothAreObjects = typeof firstJsonData === 'object' && typeof secondJsonData === 'object';
+	const bothAreObjects =
+		typeof firstJsonData === 'object' &&
+		firstJsonData !== null &&
+		typeof secondJsonData === 'object' &&
+		secondJsonData !== null;
 	if (bothAreObjects) {
-		return { ...firstJsonData, ...secondJsonData };
+		return { ...(firstJsonData as Record<string, unknown>), ...(secondJsonData as Record<string, unknown>) };
 	}
 
 	// Return second data if available, otherwise first
@@ -93,21 +98,29 @@ export function mergeJsonData(firstJsonData: any, secondJsonData: any): any {
  * Deep merge two objects (for merging API responses)
  * Used by scrapers to merge nested JSON data structures
  */
-export function deepMerge(target: any, source: any): any {
+export function deepMerge(target: unknown, source: unknown): unknown {
 	if (!source) return target;
 	if (!target) return source;
 
 	// If both are arrays, concatenate
 	if (Array.isArray(target) && Array.isArray(source)) {
-		return [...target, ...source];
+		return [...(target as unknown[]), ...(source as unknown[])];
 	}
 
 	// If both are objects, merge recursively
-	if (typeof target === 'object' && typeof source === 'object') {
-		const result = { ...target };
-		for (const key in source) {
-			if (source.hasOwnProperty(key)) {
-				result[key] = deepMerge(result[key], source[key]);
+	if (
+		typeof target === 'object' &&
+		target !== null &&
+		typeof source === 'object' &&
+		source !== null &&
+		!Array.isArray(target) &&
+		!Array.isArray(source)
+	) {
+		const result = { ...(target as Record<string, unknown>) };
+		const sourceObj = source as Record<string, unknown>;
+		for (const key in sourceObj) {
+			if (Object.prototype.hasOwnProperty.call(sourceObj, key)) {
+				result[key] = deepMerge(result[key], sourceObj[key]);
 			}
 		}
 		return result;

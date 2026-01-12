@@ -12,7 +12,6 @@ import {
 	IsString,
 } from 'class-validator';
 import { EventStatus, EventCategory, RecurrenceType, EventLocationType } from '../../enums/event.enum';
-import { Currency } from '../../enums/common.enum';
 import type { ObjectId } from 'mongoose';
 
 @InputType()
@@ -27,20 +26,20 @@ export class EventRecurrenceInput {
 	@IsOptional()
 	@IsNumber()
 	@Min(1)
-	@ValidateIf((o) => o.recurrenceType === RecurrenceType.INTERVAL)
+	@ValidateIf((o: EventRecurrenceInput) => o.recurrenceType === RecurrenceType.INTERVAL)
 	recurrenceInterval?: number;
 
 	@Field(() => [Int], { nullable: true })
 	@IsOptional()
 	@IsArray()
-	@ValidateIf((o) => o.recurrenceType === RecurrenceType.DAYS_OF_WEEK)
+	@ValidateIf((o: EventRecurrenceInput) => o.recurrenceType === RecurrenceType.DAYS_OF_WEEK)
 	recurrenceDaysOfWeek?: number[];
 
 	@Field(() => Int, { nullable: true })
 	@IsOptional()
 	@IsNumber()
 	@Min(1)
-	@ValidateIf((o) => o.recurrenceType === RecurrenceType.DAY_OF_MONTH)
+	@ValidateIf((o: EventRecurrenceInput) => o.recurrenceType === RecurrenceType.DAY_OF_MONTH)
 	recurrenceDayOfMonth?: number;
 
 	@Field(() => Date, { nullable: true })
@@ -108,10 +107,10 @@ export class EventRecurrenceInput {
 	@Min(0)
 	eventPrice?: number;
 
-	@Field(() => Currency, { nullable: true })
+	@Field(() => String, { nullable: true })
 	@IsOptional()
-	@IsEnum(Currency)
-	eventCurrency?: Currency;
+	@IsString()
+	eventCurrency?: string;
 
 	@Field(() => String, { nullable: true })
 	@IsOptional()
@@ -239,10 +238,10 @@ export class EventRecurrenceUpdateInput {
 	@Min(0)
 	eventPrice?: number;
 
-	@Field(() => Currency, { nullable: true })
+	@Field(() => String, { nullable: true })
 	@IsOptional()
-	@IsEnum(Currency)
-	eventCurrency?: Currency;
+	@IsString()
+	eventCurrency?: string;
 
 	@Field(() => String, { nullable: true })
 	@IsOptional()

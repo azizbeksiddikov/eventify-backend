@@ -1,5 +1,5 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
-import { IsNotEmpty, IsOptional, Min, IsIn, IsString, IsArray, IsNumber, IsEnum } from 'class-validator';
+import { IsNotEmpty, IsOptional, Min, IsString, IsEnum } from 'class-validator';
 import { MemberStatus, MemberType } from '../../enums/member.enum';
 import { Direction } from '../../enums/common.enum';
 

@@ -26,7 +26,7 @@ import { GroupMember } from '../../libs/dto/groupMembers/groupMember';
 import { NotificationInput } from '../../libs/dto/notification/notification.input';
 
 // ===== Config =====
-import { lookupAuthMemberLiked, lookupMember } from '../../libs/config';
+import { lookupAuthMemberLiked, shapeObjectIdToString } from '../../libs/config';
 
 // ===== Services =====
 import { AgendaService } from '../agenda/agenda.service';
@@ -64,7 +64,7 @@ export class EventService {
 
 		// check for group existence if provided
 		if (input.groupId) {
-			const group = await this.groupService.getSimpleGroup(input.groupId);
+			await this.groupService.getSimpleGroup(input.groupId);
 
 			// check for authorization
 			const groupAdmin = await this.groupService.isAuthorized(memberId, input.groupId);
@@ -96,15 +96,21 @@ export class EventService {
 			// create notifications (only if event is part of a group)
 			if (input.groupId) {
 				const groupMembers: GroupMember[] = await this.groupService.getOtherGroupMembers(memberId, input.groupId);
+				const eventIdStr = shapeObjectIdToString(event._id);
 
-				groupMembers.forEach(async (groupMember) => {
-					const newNotification: NotificationInput = {
-						memberId: memberId,
-						receiverId: groupMember.memberId,
-						notificationType: NotificationType.CREATE_EVENT,
-						notificationLink: `/events/${event._id}`,
-					};
-					await this.notificationService.createNotification(newNotification);
+				Promise.all(
+					groupMembers.map(async (groupMember) => {
+						const newNotification: NotificationInput = {
+							memberId: memberId,
+							receiverId: groupMember.memberId,
+							notificationType: NotificationType.CREATE_EVENT,
+							notificationLink: `/events/${eventIdStr}`,
+						};
+						await this.notificationService.createNotification(newNotification);
+					}),
+				).catch((error) => {
+					// Silently handle errors for non-blocking notification creation
+					console.error('Error creating notifications:', error);
 				});
 			}
 
@@ -112,7 +118,7 @@ export class EventService {
 			await this.scheduleEventJobs(event);
 
 			return event;
-		} catch (error) {
+		} catch {
 			throw new BadRequestException(Message.EVENT_ALREADY_EXISTS);
 		}
 	}
@@ -225,7 +231,7 @@ export class EventService {
 		// Apply user's requested sort
 		pipeline.push({ $sort: sort });
 
-		let aggList: any[] = [];
+		let aggList: Array<Record<string, unknown>> = [];
 		if (!input.limit) {
 			aggList = [lookupAuthMemberLiked(memberId)];
 		} else {
@@ -241,7 +247,7 @@ export class EventService {
 		});
 
 		const result = await this.eventModel.aggregate(pipeline).exec();
-		return result[0];
+		return result[0] as Events;
 	}
 
 	public async getUniqueEvents(memberId: ObjectId | null, input: EventsInquiry): Promise<Events> {
@@ -262,13 +268,9 @@ export class EventService {
 
 		const sort: T = { [input?.sort ?? 'createdAt']: input?.direction ?? Direction.DESC };
 
-		let aggList: any[] = [];
-		if (!input.limit) {
-			aggList = [lookupAuthMemberLiked(memberId)];
-		} else {
-			const skip = (input.page - 1) * input.limit;
-			aggList = [{ $skip: skip }, { $limit: input.limit }, lookupAuthMemberLiked(memberId)];
-		}
+		const aggList: Array<Record<string, unknown>> = !input.limit
+			? [lookupAuthMemberLiked(memberId)]
+			: [{ $skip: (input.page - 1) * input.limit }, { $limit: input.limit }, lookupAuthMemberLiked(memberId)];
 
 		const result = await this.eventModel
 			.aggregate([
@@ -294,13 +296,14 @@ export class EventService {
 				{ $sort: sort },
 				{
 					$facet: {
-						list: aggList,
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+						list: aggList as any,
 						metaCounter: [{ $count: 'total' }],
 					},
 				},
 			])
 			.exec();
-		return result[0];
+		return result[0] as Events;
 	}
 
 	public async getEventsByCategory(
@@ -344,7 +347,14 @@ export class EventService {
 		const event = await this.eventModel.findById(input._id).exec();
 		if (!event || event.eventStatus === EventStatus.DELETED) throw new Error(Message.EVENT_NOT_FOUND);
 		// if no event.memberId or if event.memberId but not the same as the memberId
-		if (!event.memberId || event.memberId.toString() !== memberId.toString()) throw new Error(Message.NOT_AUTHORIZED);
+		if (!event.memberId) {
+			throw new Error(Message.NOT_AUTHORIZED);
+		}
+		const eventMemberIdStr = shapeObjectIdToString(event.memberId);
+		const authMemberIdStr = shapeObjectIdToString(memberId);
+		if (eventMemberIdStr !== authMemberIdStr) {
+			throw new Error(Message.NOT_AUTHORIZED);
+		}
 
 		return await this.updateEventWithValidation(event, input);
 	}
@@ -360,11 +370,13 @@ export class EventService {
 
 		let newNotification: NotificationInput | null = null;
 		if (event.memberId) {
+			const likeRefIdStr = shapeObjectIdToString(likeRefId);
+			const notificationLink = `/events/${likeRefIdStr}`;
 			newNotification = {
 				memberId: memberId,
 				receiverId: event.memberId,
 				notificationType: NotificationType.LIKE_EVENT,
-				notificationLink: `/events/${likeRefId}`,
+				notificationLink,
 			};
 		}
 		const modifier = await this.likeService.toggleLike(input, newNotification);
@@ -404,7 +416,7 @@ export class EventService {
 		if (eventStartDay) match.eventStartAt = { $gte: new Date(eventStartDay) };
 		if (eventEndDay) match.eventEndAt = { $lte: new Date(eventEndDay) };
 
-		let aggList: any[] = [];
+		let aggList: Array<Record<string, unknown>> = [];
 		if (!input.limit) {
 			aggList = [];
 		} else {
@@ -418,14 +430,15 @@ export class EventService {
 				{ $sort: sort },
 				{
 					$facet: {
-						list: aggList,
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+						list: aggList as any,
 						metaCounter: [{ $count: 'total' }],
 					},
 				},
 			])
 			.exec();
 
-		return result[0];
+		return result[0] as Events;
 	}
 
 	public async updateEventByAdmin(input: EventUpdateInput): Promise<Event> {
@@ -465,7 +478,7 @@ export class EventService {
 
 	private async updateRecurringFutureEvents(event: Event, input: EventUpdateInput): Promise<void> {
 		// Update EventRecurrence template
-		const updateFields: any = {};
+		const updateFields: Record<string, unknown> = {};
 		if (input.eventName) updateFields.eventName = input.eventName;
 		if (input.eventDesc) updateFields.eventDesc = input.eventDesc;
 		if (input.eventImages) updateFields.eventImages = input.eventImages;
@@ -560,7 +573,7 @@ export class EventService {
 	 * - ONGOING: Schedule only EVENT_END
 	 * - COMPLETED/CANCELLED/DELETED: No jobs
 	 */
-	private async scheduleEventJobs(event: any): Promise<void> {
+	private async scheduleEventJobs(event: Event): Promise<void> {
 		const now = new Date();
 		const startTime = new Date(event.eventStartAt);
 		const endTime = new Date(event.eventEndAt);
@@ -574,13 +587,14 @@ export class EventService {
 			if (endTime > now) await this.agendaService.scheduleEventEnd(event._id, endTime);
 
 			// Warn if event should already be ONGOING or COMPLETED
+			const eventIdStr = shapeObjectIdToString(event._id);
 			if (startTime <= now && endTime > now) {
 				console.warn(
-					`Event ${event._id} is marked as UPCOMING but should be ONGOING (start: ${startTime.toISOString()})`,
+					`Event ${eventIdStr} is marked as UPCOMING but should be ONGOING (start: ${startTime.toISOString()})`,
 				);
 			} else if (endTime <= now) {
 				console.warn(
-					`Event ${event._id} is marked as UPCOMING but should be COMPLETED (end: ${endTime.toISOString()})`,
+					`Event ${eventIdStr} is marked as UPCOMING but should be COMPLETED (end: ${endTime.toISOString()})`,
 				);
 			}
 			return;
@@ -589,9 +603,12 @@ export class EventService {
 		// Handle ONGOING events
 		if (event.eventStatus === EventStatus.ONGOING) {
 			// Only schedule end job if event hasn't ended yet
+			const eventIdStr = shapeObjectIdToString(event._id);
 			if (endTime > now) await this.agendaService.scheduleEventEnd(event._id, endTime);
 			else {
-				console.warn(`Event ${event._id} is marked as ONGOING but end time has passed (end: ${endTime.toISOString()})`);
+				console.warn(
+					`Event ${eventIdStr} is marked as ONGOING but end time has passed (end: ${endTime.toISOString()})`,
+				);
 			}
 			return;
 		}

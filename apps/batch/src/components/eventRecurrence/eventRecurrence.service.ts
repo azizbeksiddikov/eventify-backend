@@ -5,6 +5,7 @@ import { EventRecurrence } from '@app/api/src/libs/dto/eventRecurrence/eventRecu
 import { Event } from '@app/api/src/libs/dto/event/event';
 import { EventJobStatus, EventStatus, EventType, RecurrenceType } from '@app/api/src/libs/enums/event.enum';
 import { AgendaService } from '../../agenda/agenda.service';
+import { shapeObjectIdToString } from '@app/api/src/libs/config';
 
 @Injectable()
 export class EventRecurrenceService {
@@ -23,7 +24,7 @@ export class EventRecurrenceService {
 		for (const recurrence of activeRecurrences) {
 			// Skip if recurrenceEndDate is in the past
 			if (recurrence.recurrenceEndDate && recurrence.recurrenceEndDate < new Date()) {
-				this.logger.log(`Skipping recurrence ${recurrence._id} - end date in the past`);
+				this.logger.log(`Skipping recurrence ${shapeObjectIdToString(recurrence._id)} - end date in the past`);
 				continue;
 			}
 
@@ -94,10 +95,13 @@ export class EventRecurrenceService {
 				if (event.eventStartAt > new Date() && event.eventEndAt > new Date()) {
 					try {
 						const agenda = this.agendaService.getAgenda();
-						await agenda.schedule(event.eventStartAt, EventJobStatus.EVENT_START, { eventId: event._id.toString() });
-						await agenda.schedule(event.eventEndAt, EventJobStatus.EVENT_END, { eventId: event._id.toString() });
+						const eventIdStr = shapeObjectIdToString(event._id);
+						await agenda.schedule(event.eventStartAt, EventJobStatus.EVENT_START, { eventId: eventIdStr });
+						await agenda.schedule(event.eventEndAt, EventJobStatus.EVENT_END, { eventId: eventIdStr });
 					} catch (error) {
-						this.logger.error(`Failed to schedule jobs for event ${event._id}: ${error.message}`);
+						const eventIdStr = shapeObjectIdToString(event._id);
+						const errorMessage = error instanceof Error ? error.message : String(error);
+						this.logger.error(`Failed to schedule jobs for event ${eventIdStr}: ${errorMessage}`);
 					}
 				}
 
@@ -105,7 +109,7 @@ export class EventRecurrenceService {
 			}
 		}
 
-		this.logger.log(`Generated ${generatedCount} new events for recurrence ${recurrence._id}`);
+		this.logger.log(`Generated ${generatedCount} new events for recurrence ${shapeObjectIdToString(recurrence._id)}`);
 	}
 
 	private calculateOccurrences(

@@ -3,7 +3,6 @@ import {
 	IsOptional,
 	IsString,
 	IsNumber,
-	IsDate,
 	IsArray,
 	IsNotEmpty,
 	IsBoolean,
@@ -12,7 +11,6 @@ import {
 	IsEnum,
 } from 'class-validator';
 import { EventStatus, EventCategory, EventLocationType } from '../../enums/event.enum';
-import { Currency } from '../../enums/common.enum';
 import type { ObjectId } from 'mongoose';
 
 @InputType()
@@ -97,10 +95,10 @@ export class EventUpdateInput {
 	@Min(0)
 	eventPrice?: number;
 
-	@Field(() => Currency, { nullable: true })
+	@Field(() => String, { nullable: true })
 	@IsOptional()
-	@IsEnum(Currency)
-	eventCurrency?: Currency;
+	@IsString()
+	eventCurrency?: string;
 
 	// ===== Type and Status =====
 	@Field(() => EventStatus, { nullable: true })

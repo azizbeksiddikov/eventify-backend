@@ -54,22 +54,11 @@ export enum Message {
 	TICKET_QUANTITY_INVALID = 'Ticket quantity must be greater than 0.',
 }
 
-// ===== Currency =====
-export enum Currency {
-	KRW = 'KRW',
-	USD = 'USD',
-	JPY = 'JPY',
-	EUR = 'EUR',
-}
-
 // ===== Direction =====
 export enum Direction {
 	ASC = 1,
 	DESC = -1,
 }
-
-// Register Currency enum
-registerEnumType(Currency, { name: 'Currency' });
 
 // Register Direction enum
 registerEnumType(Direction, { name: 'Direction' });

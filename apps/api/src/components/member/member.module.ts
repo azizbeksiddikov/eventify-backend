@@ -14,6 +14,7 @@ import { NotificationModule } from '../notification/notification.module';
 // ===== Member Components =====
 import { MemberResolver } from './member.resolver';
 import { MemberService } from './member.service';
+import { CurrencyModule } from '../currency/currency.module';
 
 @Module({
 	imports: [
@@ -23,6 +24,7 @@ import { MemberService } from './member.service';
 		LikeModule,
 		ViewModule,
 		NotificationModule,
+		CurrencyModule,
 	],
 	providers: [MemberResolver, MemberService],
 	exports: [MemberService],

@@ -1,6 +1,5 @@
 import { Field, ObjectType } from '@nestjs/graphql';
 import { TicketStatus } from '../../enums/ticket.enum';
-import { Currency } from '../../enums/common.enum';
 import { TotalCounter } from '../member/member';
 import { Event } from '../event/event';
 import type { ObjectId } from 'mongoose';
@@ -23,15 +22,19 @@ export class Ticket {
 	ticketStatus: TicketStatus;
 
 	// ===== Pricing =====
+	// Currency-related (external): Price in the event's currency (e.g., 10.00 USD)
 	@Field(() => Number)
 	ticketPrice: number;
 
-	@Field(() => Currency)
-	ticketCurrency: Currency;
+	// Currency-related (external): Currency code (e.g., "USD", "EUR")
+	@Field(() => String)
+	ticketCurrency: string;
 
 	@Field(() => Number)
 	ticketQuantity: number;
 
+	// Internal points system: Total points deducted from user's account
+	// Calculated as: eventPrice * ticketQuantity * exchangeRate
 	@Field(() => Number)
 	totalPrice: number;
 

@@ -8,8 +8,8 @@ import { ViewGroup } from '../../libs/enums/view.enum';
 // ===== DTOs =====
 import { View } from '../../libs/dto/view/view';
 import { ViewInput } from '../../libs/dto/view/view.input';
-import { Events } from '../../libs/dto/event/event';
-import { EventsInquiry, OrdinaryEventInquiry } from '../../libs/dto/event/event.input';
+import { Event, Events } from '../../libs/dto/event/event';
+import { OrdinaryEventInquiry } from '../../libs/dto/event/event.input';
 
 // ===== Types =====
 import { T } from '../../libs/types/common';
@@ -29,10 +29,10 @@ export class ViewService {
 		} else return null;
 	}
 
-	private async checkViewExistance(input: ViewInput): Promise<View> {
+	private async checkViewExistance(input: ViewInput): Promise<View | null> {
 		const { memberId, viewGroup, viewRefId } = input;
 		const search: T = { memberId: memberId, viewGroup: viewGroup, viewRefId: viewRefId };
-		return this.viewModel.findOne(search).exec() as unknown as View;
+		return (await this.viewModel.findOne(search).exec()) as unknown as View | null;
 	}
 
 	// ============== View Query Methods ==============
@@ -41,7 +41,10 @@ export class ViewService {
 		const match: T = { viewGroup: ViewGroup.EVENT, memberId: memberId };
 
 		const data = await this.viewModel
-			.aggregate([
+			.aggregate<{
+				list: Array<{ visitedEvent: Event }>;
+				metaCounter: Array<{ total: number }>;
+			}>([
 				{ $match: match },
 				{ $sort: { updatedAt: -1 } },
 				{
@@ -67,8 +70,8 @@ export class ViewService {
 			])
 			.exec();
 
-		const result: Events = { list: [], metaCounter: data[0].metaCounter };
-		result.list = data[0].list.map((ele) => ele.visitedEvent);
+		const result: Events = { list: [], metaCounter: data[0]?.metaCounter ?? [] };
+		result.list = data[0]?.list.map((ele) => ele.visitedEvent) ?? [];
 
 		return result;
 	}

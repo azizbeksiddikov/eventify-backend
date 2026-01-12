@@ -1,4 +1,4 @@
-import { Field, Int, ObjectType } from '@nestjs/graphql';
+import { Field, ObjectType } from '@nestjs/graphql';
 import type { ObjectId } from 'mongoose';
 import { NotificationType } from '../../enums/notification.enum';
 import { Member, TotalCounter } from '../member/member';

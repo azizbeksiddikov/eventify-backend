@@ -1,5 +1,4 @@
 import { EventCategory, EventStatus, EventType, EventLocationType } from '../../enums/event.enum';
-import { Currency } from '../../enums/common.enum';
 
 export class CrawledEvent {
 	// ===== Event Type =====
@@ -10,7 +9,7 @@ export class CrawledEvent {
 	eventDesc: string;
 	eventImages: string[];
 	eventPrice?: number; // default is 0
-	eventCurrency?: Currency;
+	eventCurrency?: string;
 
 	// ===== Event Timestamps =====
 	eventStartAt: Date;

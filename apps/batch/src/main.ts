@@ -15,11 +15,11 @@ async function bootstrap() {
 
 	const timestamp = () => `[${new Date().toISOString()}]`;
 
-	console.log = (...args: any[]) => originalLog(timestamp(), ...args);
-	console.error = (...args: any[]) => originalError(timestamp(), ...args);
-	console.warn = (...args: any[]) => originalWarn(timestamp(), ...args);
-	console.info = (...args: any[]) => originalInfo(timestamp(), ...args);
-	console.debug = (...args: any[]) => originalDebug(timestamp(), ...args);
+	console.log = (...args: unknown[]) => originalLog(timestamp(), ...args);
+	console.error = (...args: unknown[]) => originalError(timestamp(), ...args);
+	console.warn = (...args: unknown[]) => originalWarn(timestamp(), ...args);
+	console.info = (...args: unknown[]) => originalInfo(timestamp(), ...args);
+	console.debug = (...args: unknown[]) => originalDebug(timestamp(), ...args);
 
 	const port_number = process.env.PORT_BATCH;
 	if (!port_number) {
@@ -29,4 +29,4 @@ async function bootstrap() {
 	await app.listen(port_number);
 	console.log(`Batch server is running on ${process.env.DOMAIN_NAME}:${port_number}`);
 }
-bootstrap();
+void bootstrap();

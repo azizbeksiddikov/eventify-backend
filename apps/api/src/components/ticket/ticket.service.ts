@@ -14,7 +14,7 @@ import { TicketInput, TicketInquiry } from '../../libs/dto/ticket/ticket.input';
 // ===== Types =====
 import { Direction, Message } from '../../libs/enums/common.enum';
 import { T } from '../../libs/types/common';
-import { shapeIntoMongoObjectId } from '../../libs/config';
+import { shapeIntoMongoObjectId, shapeObjectIdToString } from '../../libs/config';
 import { NotificationInput } from '../../libs/dto/notification/notification.input';
 import { NotificationType } from '../../libs/enums/notification.enum';
 
@@ -22,6 +22,7 @@ import { NotificationType } from '../../libs/enums/notification.enum';
 import { NotificationService } from '../notification/notification.service';
 import { MemberService } from '../member/member.service';
 import { EventService } from '../event/event.service';
+import { CurrencyService } from '../currency/currency.service';
 
 @Injectable()
 export class TicketService {
@@ -30,6 +31,7 @@ export class TicketService {
 		private readonly notificationService: NotificationService,
 		private readonly memberService: MemberService,
 		private readonly eventService: EventService,
+		private readonly currencyService: CurrencyService,
 	) {}
 
 	public async createTicket(memberId: ObjectId, ticket: TicketInput): Promise<Ticket> {
@@ -47,9 +49,16 @@ export class TicketService {
 			throw new BadRequestException(Message.EVENT_FULL);
 
 		// Check if the member has enough points
-		const totalPrice = event.eventPrice * ticketQuantity;
+		if (!event.eventCurrency) throw new BadRequestException('Event currency is not defined');
+		const rate = await this.currencyService.getCurrencyRate(event.eventCurrency);
+		const requiredPoints = event.eventPrice * ticketQuantity * rate;
 		const memberPoints = await this.memberService.getMemberPoints(memberId);
-		if (memberPoints < totalPrice) throw new BadRequestException(Message.INSUFFICIENT_POINTS);
+		if (memberPoints < requiredPoints) {
+			const shortfall = requiredPoints - memberPoints;
+			throw new BadRequestException(
+				`Insufficient points. Required: ${requiredPoints.toFixed(2)}, Available: ${memberPoints.toFixed(2)}, Shortfall: ${shortfall.toFixed(2)}`,
+			);
+		}
 
 		// Create a new ticket
 		try {
@@ -60,23 +69,30 @@ export class TicketService {
 				ticketPrice: event.eventPrice,
 				ticketCurrency: event.eventCurrency,
 				ticketQuantity: ticketQuantity,
-				totalPrice: totalPrice,
+				totalPrice: requiredPoints, // Store the calculated points as totalPrice
 			};
 			const newTicket: Ticket = (await this.ticketModel.create(newTicketInput)) as Ticket;
 
 			// create notification for event organizer
 			if (event.memberId) {
+				const eventIdStr = shapeObjectIdToString(eventId);
+				const notificationLink = `/events/${eventIdStr}`;
 				const newNotification: NotificationInput = {
 					memberId: memberId,
 					receiverId: event.memberId,
 					notificationType: NotificationType.JOIN_EVENT,
-					notificationLink: `/events/${eventId}`,
+					notificationLink: notificationLink,
 				};
 				await this.notificationService.createNotification(newNotification);
 			}
 
 			// update member stats
 			await this.memberService.memberStatsEditor({ _id: memberId, targetKey: 'memberEvents', modifier: 1 });
+			await this.memberService.memberStatsEditor({
+				_id: memberId,
+				targetKey: 'memberPoints',
+				modifier: -requiredPoints,
+			});
 
 			// update event stats
 			newTicket.event = await this.eventService.eventStatsEditor({
@@ -87,7 +103,8 @@ export class TicketService {
 
 			return newTicket;
 		} catch (err) {
-			console.log('ERROR: Service.model:', err.message);
+			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+			console.log('ERROR: Service.model:', errorMessage);
 			throw new BadRequestException(Message.CREATE_FAILED);
 		}
 	}
@@ -121,7 +138,7 @@ export class TicketService {
 		const match: T = { memberId: memberId };
 
 		const result = await this.ticketModel
-			.aggregate([
+			.aggregate<Ticket>([
 				{ $match: match },
 				{ $sort: { createdAt: Direction.DESC } },
 				{ $lookup: { from: 'events', localField: 'eventId', foreignField: '_id', as: 'event' } },
@@ -129,14 +146,16 @@ export class TicketService {
 			])
 			.exec();
 
+		if (!result.length) throw new BadRequestException(Message.NO_DATA_FOUND);
 		return result;
 	}
 
 	public async getMyTickets(memberId: ObjectId, input: TicketInquiry): Promise<Tickets> {
 		const match: T = { memberId: memberId };
 		if (input.search.eventId) {
-			match.eventId = shapeIntoMongoObjectId(input.search.eventId);
-			const event: Event = await this.eventService.getSimpleEvent(match.eventId);
+			const eventIdObj = shapeIntoMongoObjectId(input.search.eventId);
+			match.eventId = eventIdObj;
+			const event: Event = await this.eventService.getSimpleEvent(eventIdObj);
 			if (!event) throw new NotFoundException(Message.EVENT_NOT_FOUND);
 		}
 		if (input.search.ticketStatus) {
@@ -144,7 +163,7 @@ export class TicketService {
 		}
 		const sort = { [input?.sort || 'createdAt']: input?.direction || Direction.DESC };
 
-		const result = await this.ticketModel.aggregate([
+		const result = await this.ticketModel.aggregate<Tickets>([
 			{ $match: match },
 			{ $sort: sort },
 			{
@@ -165,7 +184,7 @@ export class TicketService {
 	// ============== Ticket Query Methods ==============
 	public async getEventsByTickets(memberId: ObjectId, eventStatus: EventStatus[]): Promise<Event[]> {
 		const result = await this.ticketModel
-			.aggregate([
+			.aggregate<Event>([
 				{ $match: { memberId: memberId } },
 				{
 					$lookup: {

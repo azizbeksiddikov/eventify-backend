@@ -13,11 +13,11 @@ async function bootstrap() {
 
 	const timestamp = () => `[${new Date().toISOString()}]`;
 
-	console.log = (...args: any[]) => originalLog(timestamp(), ...args);
-	console.error = (...args: any[]) => originalError(timestamp(), ...args);
-	console.warn = (...args: any[]) => originalWarn(timestamp(), ...args);
-	console.info = (...args: any[]) => originalInfo(timestamp(), ...args);
-	console.debug = (...args: any[]) => originalDebug(timestamp(), ...args);
+	console.log = (...args: unknown[]) => originalLog(timestamp(), ...args);
+	console.error = (...args: unknown[]) => originalError(timestamp(), ...args);
+	console.warn = (...args: unknown[]) => originalWarn(timestamp(), ...args);
+	console.info = (...args: unknown[]) => originalInfo(timestamp(), ...args);
+	console.debug = (...args: unknown[]) => originalDebug(timestamp(), ...args);
 
 	// create nest application
 	const app = await NestFactory.create(AppModule, {
@@ -41,4 +41,7 @@ async function bootstrap() {
 	await app.listen(port);
 	console.log(`API server is running on ${process.env.DOMAIN_NAME}:${port}`);
 }
-bootstrap();
+void bootstrap().catch((error) => {
+	console.error('Failed to start application:', error);
+	process.exit(1);
+});

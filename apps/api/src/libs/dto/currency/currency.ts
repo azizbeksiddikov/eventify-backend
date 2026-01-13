@@ -1,6 +1,5 @@
 import { Field, ObjectType } from '@nestjs/graphql';
 import type { ObjectId } from 'mongoose';
-import { TotalCounter } from '../member/member';
 
 @ObjectType()
 export class CurrencyEntity {
@@ -29,13 +28,4 @@ export class CurrencyEntity {
 
 	@Field(() => Date)
 	updatedAt: Date;
-}
-
-@ObjectType()
-export class Currencies {
-	@Field(() => [CurrencyEntity])
-	list: CurrencyEntity[];
-
-	@Field(() => [TotalCounter])
-	metaCounter: TotalCounter[];
 }

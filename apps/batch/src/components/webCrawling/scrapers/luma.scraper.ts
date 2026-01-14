@@ -65,8 +65,9 @@ export class LumaScraper implements IEventScraper {
 				},
 				events: detailedRawData,
 			};
-			saveToJsonFile(`jsons/${this.config.name}-raw.json`, rawDataFile);
-			this.logger.log(`Saved ${detailedRawData.length} detailed events to raw JSON`);
+			// JSON saving disabled to reduce disk I/O - code kept for debugging purposes
+			// saveToJsonFile(`jsons/${this.config.name}-raw.json`, rawDataFile);
+			// this.logger.log(`Saved ${detailedRawData.length} detailed events to raw JSON`);
 
 			// ═══════════════════════════════════════════════════════════
 			// PHASE 4: Extract Structured Data
@@ -89,8 +90,9 @@ export class LumaScraper implements IEventScraper {
 				},
 				events: extractedEvents,
 			};
-			saveToJsonFile(`jsons/${this.config.name}.json`, cleanedDataFile);
-			this.logger.log(`Saved ${extractedEvents.length} cleaned events to JSON`);
+			// JSON saving disabled to reduce disk I/O - code kept for debugging purposes
+			// saveToJsonFile(`jsons/${this.config.name}.json`, cleanedDataFile);
+			// this.logger.log(`Saved ${extractedEvents.length} cleaned events to JSON`);
 
 			return extractedEvents;
 		} catch (error) {

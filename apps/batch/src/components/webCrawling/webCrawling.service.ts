@@ -51,9 +51,10 @@ export class WebCrawlingService {
 		try {
 			logMemory('START');
 
-			logger.info(this.context, '🔵 Starting Ollama service...');
+			logger.info(this.context, 'Starting Ollama service...');
 			await this.ollamaService.startOllama();
-			logger.info(this.context, '🔵 Ollama service initialization complete');
+			this.ollamaService.markProcessingStart(); // Mark that processing has started
+			logger.info(this.context, 'Ollama service initialization complete');
 			logMemory('AFTER Ollama Start');
 
 			for (const scraper of this.scrapers) {
@@ -86,6 +87,11 @@ export class WebCrawlingService {
 			logger.error(this.context, 'Error during web crawling', errorObj);
 			throw error;
 		} finally {
+			// Mark processing as ended before stopping
+			this.ollamaService.markProcessingEnd();
+			// Unload model cache one last time before stopping
+			await this.ollamaService.unloadModelCache();
+			// Stop Ollama container to free resources
 			await this.ollamaService.stopOllama();
 			logMemory('FINAL - After Cleanup');
 		}
@@ -121,21 +127,28 @@ export class WebCrawlingService {
 			for (let i = 0; i < scrapedEvents.length; i++) {
 				const event = scrapedEvents[i];
 
-				try {
-					logger.info(
-						this.context,
-						`  [${i + 1}/${scrapedEvents.length}] Processing: ${event.eventName?.substring(0, 50)}...`,
-					);
+			try {
+				const eventUrl = event.externalUrl ? `\n     URL: ${event.externalUrl}` : '';
+				logger.info(
+					this.context,
+					`  [${i + 1}/${scrapedEvents.length}] Processing: ${event.eventName?.substring(0, 50)}...${eventUrl}`,
+				);
 
-					const safetyCheck = await this.llmService.checkEventSafety(event);
-					if (!safetyCheck.isSafe) {
-						stats.rejected++;
-						logger.info(this.context, `    Rejected: ${safetyCheck.reason}`);
-						continue;
-					}
+			const safetyCheck = await this.llmService.checkEventSafety(event);
+				if (!safetyCheck.isSafe) {
+					stats.rejected++;
+					logger.info(this.context, `     Rejected: ${safetyCheck.reason}`);
+					continue;
+				}
 
 					const completed = await this.llmService.fillMissingEventData(event);
 					stats.accepted++;
+
+					// Clean up model cache after each event to free memory (without restarting container)
+					await this.ollamaService.unloadModelCache();
+
+					// Check memory usage and restart only if critically high (not actively processing)
+					await this.ollamaService.checkAndCleanupMemory();
 
 					if (!testMode) {
 						await this.importEventToDatabase(completed);
@@ -189,6 +202,9 @@ export class WebCrawlingService {
 	}
 
 	private saveFinalSummary(stats: { scraped: number; accepted: number; rejected: number; saved: number }): void {
+		// JSON saving disabled to reduce disk I/O - code kept for debugging purposes
+		// Uncomment below to re-enable JSON saving:
+		/*
 		try {
 			const jsonsDir = path.join(process.cwd(), 'jsons');
 			if (!fs.existsSync(jsonsDir)) fs.mkdirSync(jsonsDir, { recursive: true });
@@ -203,15 +219,17 @@ export class WebCrawlingService {
 
 			const filePath = path.join(jsonsDir, 'crawling_summary.json');
 			fs.writeFileSync(filePath, JSON.stringify(summary, null, 2), 'utf-8');
-
-			logger.info(this.context, `📊 Final Summary:`);
-			logger.info(this.context, `   Total Scraped: ${stats.scraped}`);
-			logger.info(this.context, `   Accepted: ${stats.accepted}`);
-			logger.info(this.context, `   Rejected: ${stats.rejected}`);
-			logger.info(this.context, `   Saved to DB: ${stats.saved}`);
 		} catch (error) {
 			logger.warn(this.context, 'Failed to save summary', error);
 		}
+		*/
+
+		// Log summary to console instead
+		logger.info(this.context, `Final Summary:`);
+		logger.info(this.context, `   Total Scraped: ${stats.scraped}`);
+		logger.info(this.context, `   Accepted: ${stats.accepted}`);
+		logger.info(this.context, `   Rejected: ${stats.rejected}`);
+		logger.info(this.context, `   Saved to DB: ${stats.saved}`);
 	}
 
 	private async findExistingEvent(event: CrawledEvent): Promise<Event | null> {

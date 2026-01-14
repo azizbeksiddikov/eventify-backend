@@ -49,7 +49,8 @@ export class MeetupScraper implements IEventScraper {
 			// DEBUG: Save HTML if no events found (to diagnose blocking)
 			if (eventList.length === 0) {
 				this.logger.warn('No events found - saving HTML for inspection');
-				saveToJsonFile('jsons/meetup-debug.html', htmlContent);
+				// JSON saving disabled to reduce disk I/O - code kept for debugging purposes
+				// saveToJsonFile('jsons/meetup-debug.html', htmlContent);
 			}
 
 			// ═══════════════════════════════════════════════════════════
@@ -73,8 +74,9 @@ export class MeetupScraper implements IEventScraper {
 				},
 				events: detailedRawData,
 			};
-			saveToJsonFile(`jsons/${this.config.name}-raw.json`, rawDataFile);
-			this.logger.log(`Saved ${detailedRawData.length} detailed events to raw JSON`);
+			// JSON saving disabled to reduce disk I/O - code kept for debugging purposes
+			// saveToJsonFile(`jsons/${this.config.name}-raw.json`, rawDataFile);
+			// this.logger.log(`Saved ${detailedRawData.length} detailed events to raw JSON`);
 
 			// ═══════════════════════════════════════════════════════════
 			// PHASE 4: Extract Structured Data
@@ -95,8 +97,9 @@ export class MeetupScraper implements IEventScraper {
 				},
 				events: extractedEvents,
 			};
-			saveToJsonFile(`jsons/${this.config.name}.json`, cleanedDataFile);
-			this.logger.log(`Saved ${extractedEvents.length} cleaned events to JSON`);
+			// JSON saving disabled to reduce disk I/O - code kept for debugging purposes
+			// saveToJsonFile(`jsons/${this.config.name}.json`, cleanedDataFile);
+			// this.logger.log(`Saved ${extractedEvents.length} cleaned events to JSON`);
 
 			return extractedEvents;
 		} catch (error) {
@@ -259,7 +262,9 @@ export class MeetupScraper implements IEventScraper {
 			this.logger.log(`Captured ${apiResponses.length} API responses`);
 			this.logger.log(`Total unique events found from API: ${allEvents.size}`);
 
+			// JSON saving disabled to reduce disk I/O - code kept for debugging purposes
 			// Save API responses for debugging
+			/*
 			if (apiResponses.length > 0) {
 				saveToJsonFile('jsons/meetup-api-responses-debug.json', {
 					timestamp: new Date().toISOString(),
@@ -269,6 +274,7 @@ export class MeetupScraper implements IEventScraper {
 				});
 				this.logger.log(`Saved API responses to jsons/meetup-api-responses-debug.json`);
 			}
+			*/
 
 			// Inject API responses into HTML for processing
 			// Merge all API responses into single object to avoid numeric keys

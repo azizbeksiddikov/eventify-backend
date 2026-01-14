@@ -4,115 +4,147 @@ import { CrawledEvent } from '@app/api/src/libs/dto/event/eventCrawling';
  * Build safety check prompt - extremely minimal filtering
  */
 export function buildSafetyCheckPrompt(event: CrawledEvent): string {
-	const desc = event.eventDesc;
-	const name = event.eventName;
+	const desc = event.eventDesc || 'N/A';
+	const name = event.eventName || 'N/A';
+	return `Evaluate if this event is appropriate for a public community event platform.
 
-	return `Is this event appropriate for a public event platform?
+EVENT: ${name}
+DESCRIPTION: ${desc}
 
-Event: ${name}
-Description: ${desc}
+RESTRICTED TOPICS - Mark as UNSAFE if the event:
 
-IMPORTANT: ACCEPT almost everything. Only mark as unsafe if EXPLICITLY sexual or drug-related.
+1. SEXUAL SERVICES / ADULT CONTENT
+   Keywords: escort, prostitution, sexual services, adult entertainment, strip club, gentlemen's club, massage parlor (suspicious context), erotic, XXX
+   Exception: Dating events, singles mixers, speed dating are SAFE
 
-Examples of SAFE events (say "safe: true"):
-- Bar crawls, drinking parties (alcohol OK)
-- Music, concerts, nightlife
-- Dating meetups, social gatherings
-- Language exchange, networking
-- ANY professional or community event
+2. ILLEGAL DRUGS
+   Keywords: cocaine, heroin, meth, MDMA, ecstasy, molly, drug dealing, illegal substances
+   Exception: Cannabis/marijuana events in legal jurisdictions are SAFE
 
-Examples of UNSAFE (say "safe: false"):
-- Strip clubs, adult entertainment
-- Drug parties, marijuana events
+3. PYRAMID SCHEMES / SCAMS
+   Keywords: MLM, multi-level marketing, get rich quick, pyramid scheme, ponzi, investment opportunity (suspicious), guaranteed returns, work from home opportunity (suspicious)
 
-OUTPUT FORMAT (valid JSON only):
-{"safe": true, "reason": ""}  OR  {"safe": false, "reason": "specific reason"}
+4. VIOLENCE / HATE
+   Keywords: nazi, white supremacy, hate group, violent protest, terrorism, extremist, racial violence
+   Exception: Political protests, activism, and legitimate political gatherings are SAFE
 
-Default to safe=true unless CLEARLY inappropriate.`;
+5. CHILD ENDANGERMENT
+   Any event that inappropriately targets minors or puts children at risk
+
+6. GAMBLING (Illegal Operations)
+   Keywords: underground casino, illegal betting, unlicensed gambling
+   Exception: Licensed casinos, legal poker nights, charity raffles are SAFE
+
+7. WEAPONS (Illegal Context)
+   Keywords: illegal firearms, weapons dealing, unregistered weapons
+   Exception: Licensed gun ranges, legal hunting events, self-defense classes are SAFE
+
+SAFE EVENTS (DO NOT REJECT):
+- Bars, nightlife, social drinking, alcohol events
+- Dating events, singles mixers, speed dating, social gatherings
+- House parties, social gatherings, meetups, networking
+- Language practice, conversation clubs, educational events
+- Protests, political gatherings, activism, demonstrations
+- Cannabis/marijuana events (legal jurisdictions)
+- Adult-oriented but legal entertainment (burlesque, comedy shows)
+- Licensed casinos, poker nights, betting events
+- Gun ranges, hunting events, self-defense classes
+- Any legitimate professional, educational, or community event
+
+DECISION PROCESS:
+1. Check if event name or description contains RESTRICTED keywords in suspicious context
+2. If no clear red flags found → Mark as SAFE
+3. If uncertain or seems like a normal gathering → Mark as SAFE
+4. Only mark UNSAFE if you have strong evidence of illegal/harmful activity
+
+IMPORTANT: Most normal social, educational, entertainment, and community events should be marked as SAFE.
+When in doubt, mark as SAFE.
+
+OUTPUT (valid JSON only, no markdown):
+{"safe": true, "reason": ""}
+OR
+{"safe": false, "reason": "brief specific reason"}
+
+Use empty string for reason when safe=true.`;
 }
 
 export function fillEventDataPrompt(event: CrawledEvent): string {
 	const desc = event.eventDesc || 'N/A';
 	const name = event.eventName || 'N/A';
+	const existingTags = event.eventTags && event.eventTags.length > 0 ? event.eventTags.join(', ') : 'NONE';
+	return `You are an expert event categorizer. Analyze this event and categorize it accurately.
 
-	return `Categorize this event. Return ONLY JSON.
-
-EVENT: ${name}
-
+EVENT NAME: ${name}
 DESCRIPTION: ${desc}
+EXISTING TAGS: ${existingTags}
 
-CATEGORIES: TECHNOLOGY, BUSINESS, SPORTS, ART, EDUCATION, FOOD, HEALTH, ENTERTAINMENT, TRAVEL, POLITICS, RELIGION, OTHER
+TASK:
+1. Identify the PRIMARY activity/purpose of the event
+2. Select 1-2 most relevant categories (max 2)
+3. Generate or enhance tags (specific, lowercase, relevant)
 
-Pick 1-2 categories. Add 3-5 tags.
+AVAILABLE CATEGORIES:
+TECHNOLOGY, BUSINESS, SPORTS, ART, EDUCATION, FOOD, HEALTH, ENTERTAINMENT, TRAVEL, POLITICS, RELIGION, OTHER
 
-=== CATEGORIZATION RULES ===
+CATEGORY SELECTION GUIDE:
 
-Select 1-3 categories from this EXACT list (case-sensitive):
+TECHNOLOGY - Software, hardware, AI, programming, tech products, developer meetups
+→ "React Workshop", "AI Conference", "Blockchain Meetup"
 
-TECHNOLOGY - Software, AI, coding, blockchain, programming, data science, tech meetups
-BUSINESS - Entrepreneurship, networking, career, marketing, sales, startups, professional events
-SPORTS - Fitness, yoga, running, gym, athletics, exercise, outdoor sports activities
-ART - Music, concerts, painting, dance, theater, photography, design, creative arts
-EDUCATION - Classes, courses, workshops, language learning, tutoring, training, academic
-FOOD - Dining, cooking, restaurants, culinary events, food tastings, meals
-HEALTH - Wellness, mental health, meditation, healthcare, therapy, mindfulness
-ENTERTAINMENT - Movies, games, nightlife, comedy, parties, social fun, bars, clubs
-TRAVEL - Trips, tourism, sightseeing, exploration, adventures, tours
-POLITICS - Political events, campaigns, debates, civic engagement, activism
-RELIGION - Religious services, spiritual gatherings, faith-based events
-OTHER - Anything that doesn't clearly fit above categories
+BUSINESS - Networking, entrepreneurship, startups, professional development, career
+→ "Startup Pitch Night", "Entrepreneurs Meetup", "Professional Networking"
 
-=== CRITICAL RULES ===
+SPORTS - Team sports, competitions, athletic activities, games
+→ "Football Match", "Basketball Tournament", "Tennis Clinic"
 
-1. LANGUAGE EVENTS = EDUCATION ONLY
-   - English conversation, language exchange, language practice → EDUCATION
-   - DO NOT add SPORTS, ART, or ENTERTAINMENT to language events
-   - These are learning activities, not physical activities
+HEALTH - Fitness, wellness, yoga, meditation, mental health
+→ "Yoga Class", "Meditation Session", "Wellness Workshop"
 
-2. Choose the PRIMARY purpose of the event
-   - Don't mix unrelated categories
-   - Maximum 2-3 categories, usually just 1-2
+EDUCATION - Learning, teaching, workshops, language practice, academic
+→ "English Conversation", "Language Exchange", "Python Course", "History Lecture"
 
-3. Be PRECISE, not creative
-   - If it's about learning → EDUCATION
-   - If it's about food → FOOD
-   - If it's about exercise → SPORTS
-   - If it's about movies/socializing → ENTERTAINMENT
+FOOD - Cooking, dining, tastings, culinary workshops (food must be the PRIMARY focus)
+→ "Cooking Class", "Wine Tasting", "Food Tour", "Baking Workshop"
 
-=== CORRECT EXAMPLES ===
+ENTERTAINMENT - Concerts, shows, movies, performances, parties
+→ "Live Music", "Comedy Show", "Film Screening"
 
-✅ "English Conversation Practice"
-   → {"categories":["EDUCATION"],"tags":["language","english","conversation","practice","learning"]}
+SPORTS/HEALTH/TRAVEL - Hiking, walking, running, outdoor adventures
+→ "Mountain Hike", "Park Walk", "Running Club", "Nature Trail"
 
-✅ "Korean Language Exchange"
-   → {"categories":["EDUCATION"],"tags":["korean","language","exchange","learning","social"]}
+ART - Visual arts, music creation, theater, creative workshops
+→ "Painting Class", "Gallery Opening", "Theater Production"
 
-✅ "AI Meetup"
-   → {"categories":["TECHNOLOGY"],"tags":["ai","meetup","tech","networking","learning"]}
+COMMON PATTERNS:
+- Language/conversation events → EDUCATION (not FOOD)
+- Social networking events → BUSINESS (not FOOD)
+- Physical outdoor activities → SPORTS, HEALTH, or TRAVEL (not TECHNOLOGY)
+- Hiking/walking/running → SPORTS or HEALTH (not TECHNOLOGY)
 
-✅ "Yoga Class"
-   → {"categories":["SPORTS","HEALTH"],"tags":["yoga","fitness","exercise","wellness","health"]}
+TAGS RULES:
+- If existing tags provided: KEEP ALL + add 2-3 more relevant tags
+- If no existing tags: create 3-5 specific, descriptive tags
+- Use lowercase only
+- Be specific and relevant to the event
+- NEVER reduce the number of existing tags
 
-✅ "Movie Night"
-   → {"categories":["ENTERTAINMENT"],"tags":["movies","film","social","fun","cinema"]}
+EXAMPLES:
 
-✅ "Restaurant Dinner"
-   → {"categories":["FOOD"],"tags":["dining","restaurant","food","social","meal"]}
+"English Speaking Club" → {"categories":["EDUCATION"],"tags":["language","english","speaking","conversation","learning"]}
+Reason: Language practice is educational
 
-=== WRONG EXAMPLES (DO NOT DO THIS) ===
+"Tech Entrepreneurs Networking" → {"categories":["TECHNOLOGY","BUSINESS"],"tags":["networking","startups","tech","entrepreneurs","business"]}
+Reason: Combines tech industry with business networking
 
-❌ "English Conversation" → ["EDUCATION","SPORTS"] - WRONG! No physical activity
-❌ "Language Exchange" → ["EDUCATION","ART"] - WRONG! Not creative arts
-❌ "Tech Meetup" → ["TECHNOLOGY","FOOD","ENTERTAINMENT"] - WRONG! Too many categories
-❌ "Movie Night" → ["ENTERTAINMENT","SPORTS"] - WRONG! Not physical activity
+"Sunset Hiking Group" → {"categories":["SPORTS","HEALTH"],"tags":["hiking","outdoor","nature","fitness","wellness"]}
+Reason: Physical outdoor activity
 
-=== OUTPUT FORMAT ===
+"Italian Cooking Masterclass" → {"categories":["FOOD","EDUCATION"],"tags":["cooking","italian","culinary","workshop","food"]}
+Reason: Food preparation as primary activity + educational format
 
-Return ONLY valid JSON with this exact structure:
-{"categories":["CATEGORY1"],"tags":["tag1","tag2","tag3","tag4","tag5"]}
+"Morning Yoga in the Park" → {"categories":["HEALTH","SPORTS"],"tags":["yoga","wellness","outdoor","fitness","exercise"]}
+Reason: Wellness/fitness focused activity
 
-NO markdown, NO explanations, ONLY the JSON object.
-
-OUTPUT (JSON only):
-{"categories":["CATEGORY"],"tags":["tag1","tag2","tag3"]}`;
+OUTPUT FORMAT (JSON only, no markdown, no backticks):
+{"categories":["CATEGORY1","CATEGORY2"],"tags":["tag1","tag2","tag3","tag4","tag5"]}`;
 }

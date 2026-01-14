@@ -19,8 +19,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1000M  # 1GB for AI/Ollama
-          cpus: "0.8"
+          memory: 1500M
+          cpus: "1.0"
 
   api:
     container_name: eventify-api-dev
@@ -60,6 +60,7 @@ services:
     volumes:
       - ./apps:/usr/src/eventify/apps
       - ./uploads:/usr/src/eventify/uploads
+      - ./jsons:/usr/src/eventify/jsons
       - /var/run/docker.sock:/var/run/docker.sock
     working_dir: /usr/src/eventify
     env_file:

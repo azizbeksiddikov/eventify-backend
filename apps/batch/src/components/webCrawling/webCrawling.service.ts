@@ -34,15 +34,35 @@ export class WebCrawlingService {
 	 * Sequential per-event processing to minimize memory usage.
 	 * @param limit - Optional limit on number of events to process
 	 * @param testMode - If true, events are processed but not saved to DB
-	 * @returns Number of events successfully processed and saved
+	 * @returns Object with stats and processed events data
 	 */
-	async getEventCrawling(limit?: number, testMode?: boolean): Promise<number> {
+	async getEventCrawling(
+		limit?: number,
+		testMode?: boolean,
+	): Promise<{
+		stats: { scraped: number; accepted: number; rejected: number; saved: number };
+		events: Array<{
+			name: string;
+			url: string;
+			categories: string[];
+			tags: string[];
+			description: string;
+		}>;
+	}> {
 		const stats = {
 			scraped: 0,
 			accepted: 0,
 			rejected: 0,
 			saved: 0,
 		};
+
+		const processedEvents: Array<{
+			name: string;
+			url: string;
+			categories: string[];
+			tags: string[];
+			description: string;
+		}> = [];
 
 		const logMemory = (label: string) => {
 			logger.logMemory(this.context, label);
@@ -62,18 +82,19 @@ export class WebCrawlingService {
 				logger.info(this.context, `Processing ${scraper.getName()}...`);
 				logger.info(this.context, `${'='.repeat(80)}`);
 
-				const scraperStats = await this.processScraperSequentially(scraper, limit, testMode || false, logMemory);
+				const scraperResult = await this.processScraperSequentially(scraper, limit, testMode || false, logMemory);
 
-				stats.scraped += scraperStats.scraped;
-				stats.accepted += scraperStats.accepted;
-				stats.rejected += scraperStats.rejected;
-				stats.saved += scraperStats.saved;
+				stats.scraped += scraperResult.stats.scraped;
+				stats.accepted += scraperResult.stats.accepted;
+				stats.rejected += scraperResult.stats.rejected;
+				stats.saved += scraperResult.stats.saved;
+				processedEvents.push(...scraperResult.events);
 
 				logger.info(this.context, `Finished ${scraper.getName()}`);
-				logger.info(this.context, `   Scraped: ${scraperStats.scraped}`);
-				logger.info(this.context, `   Accepted: ${scraperStats.accepted}`);
-				logger.info(this.context, `   Rejected: ${scraperStats.rejected}`);
-				logger.info(this.context, `   Saved to DB: ${scraperStats.saved}`);
+				logger.info(this.context, `   Scraped: ${scraperResult.stats.scraped}`);
+				logger.info(this.context, `   Accepted: ${scraperResult.stats.accepted}`);
+				logger.info(this.context, `   Rejected: ${scraperResult.stats.rejected}`);
+				logger.info(this.context, `   Saved to DB: ${scraperResult.stats.saved}`);
 
 				logMemory(`AFTER ${scraper.getName()}`);
 			}
@@ -81,7 +102,7 @@ export class WebCrawlingService {
 			this.saveFinalSummary(stats);
 
 			logMemory('END');
-			return stats.saved;
+			return { stats, events: processedEvents };
 		} catch (error) {
 			const errorObj = error instanceof Error ? error : undefined;
 			logger.error(this.context, 'Error during web crawling', errorObj);
@@ -105,13 +126,30 @@ export class WebCrawlingService {
 		limit: number | undefined,
 		testMode: boolean,
 		logMemory: (label: string) => void,
-	): Promise<{ scraped: number; accepted: number; rejected: number; saved: number }> {
+	): Promise<{
+		stats: { scraped: number; accepted: number; rejected: number; saved: number };
+		events: Array<{
+			name: string;
+			url: string;
+			categories: string[];
+			tags: string[];
+			description: string;
+		}>;
+	}> {
 		const stats = {
 			scraped: 0,
 			accepted: 0,
 			rejected: 0,
 			saved: 0,
 		};
+
+		const processedEvents: Array<{
+			name: string;
+			url: string;
+			categories: string[];
+			tags: string[];
+			description: string;
+		}> = [];
 
 		logger.info(this.context, `Phase 1: Scraping events from ${scraper.getName()}...`);
 
@@ -141,22 +179,31 @@ export class WebCrawlingService {
 					continue;
 				}
 
-					const completed = await this.llmService.fillMissingEventData(event);
-					stats.accepted++;
+				const completed = await this.llmService.fillMissingEventData(event);
+				stats.accepted++;
 
-					// Clean up model cache after each event to free memory (without restarting container)
-					await this.ollamaService.unloadModelCache();
+				// Add to processed events array
+				processedEvents.push({
+					name: completed.eventName || 'Unknown',
+					url: completed.externalUrl || 'No URL',
+					categories: completed.eventCategories || [],
+					tags: completed.eventTags || [],
+					description: (completed.eventDesc || 'No description').substring(0, 200) + '...',
+				});
 
-					// Check memory usage and restart only if critically high (not actively processing)
-					await this.ollamaService.checkAndCleanupMemory();
+				// Clean up model cache after each event to free memory (without restarting container)
+				await this.ollamaService.unloadModelCache();
 
-					if (!testMode) {
-						await this.importEventToDatabase(completed);
-						stats.saved++;
-						logger.info(this.context, `    Saved to DB`);
-					} else {
-						logger.info(this.context, `    Processed (test mode - not saved)`);
-					}
+				// Check memory usage and restart only if critically high (not actively processing)
+				await this.ollamaService.checkAndCleanupMemory();
+
+				if (!testMode) {
+					await this.importEventToDatabase(completed);
+					stats.saved++;
+					logger.info(this.context, `    Saved to DB`);
+				} else {
+					logger.info(this.context, `    Processed (test mode - not saved)`);
+				}
 				} catch (error) {
 					logger.warn(this.context, `    Failed: ${error instanceof Error ? error.message : String(error)}`);
 				}
@@ -166,7 +213,7 @@ export class WebCrawlingService {
 				}
 			}
 
-			return stats;
+			return { stats, events: processedEvents };
 		} catch (error) {
 			const errorObj = error instanceof Error ? error : undefined;
 			logger.error(this.context, `Error processing ${scraper.getName()}`, errorObj);

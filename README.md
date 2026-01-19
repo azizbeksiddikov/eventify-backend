@@ -56,6 +56,8 @@
    ```
    http://localhost:3007/graphql
    ```
+   
+   **Note:** When running with Docker, use port `5001` for development or `4001` for production instead of `3007`.
 
 That's it! You're ready to explore the API.
 
@@ -135,6 +137,10 @@ npm run dev
 
 Access at: `http://localhost:3007/graphql`
 
+**Note:** When running with Docker, the API is accessible at:
+- Development: `http://localhost:5001/graphql`
+- Production: `http://localhost:4001/graphql`
+
 **Batch Server** (optional, for scheduled tasks):
 
 ```bash
@@ -196,7 +202,10 @@ backend/
 
 ### GraphQL Playground
 
-Access the interactive GraphQL Playground at `http://localhost:3007/graphql` once the server is running.
+Access the interactive GraphQL Playground once the server is running:
+- **Local development:** `http://localhost:3007/graphql`
+- **Docker development:** `http://localhost:5001/graphql`
+- **Docker production:** `http://localhost:4001/graphql`
 
 ### Example Query
 
@@ -215,6 +224,17 @@ query GetEvents {
 ---
 
 ## 🐳 Docker Deployment
+
+### Ports
+
+- **Development:**
+  - API: `http://localhost:5001` (GraphQL: `http://localhost:5001/graphql`)
+  - Batch: `http://localhost:5002`
+  - Ollama (LLM): `http://localhost:11434` (when LLM profile is enabled)
+
+- **Production:**
+  - API: `http://localhost:4001` (GraphQL: `http://localhost:4001/graphql`)
+  - Batch: `http://localhost:3002`
 
 ### Quick Start
 

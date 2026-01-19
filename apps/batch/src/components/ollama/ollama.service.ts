@@ -50,12 +50,15 @@ export class OllamaService {
 
 			// Container doesn't exist - try to create it with docker run
 			if (!status) {
-				logger.warn(this.context, `Ollama container (${this.containerName}) does not exist. Attempting to create it...`);
+				logger.warn(
+					this.context,
+					`Ollama container (${this.containerName}) does not exist. Attempting to create it...`,
+				);
 				try {
 					// Ensure network exists
 					try {
 						await execAsync(`docker network inspect monorepo-network`);
-					} catch (networkError) {
+					} catch {
 						// Network doesn't exist, create it
 						logger.info(this.context, 'Creating monorepo-network...');
 						await execAsync(`docker network create monorepo-network`);
@@ -67,7 +70,6 @@ export class OllamaService {
 					);
 					logger.info(this.context, 'Ollama container created. Waiting for it to be ready...');
 					await this.waitForOllama();
-					logger.info(this.context, 'Ollama started and ready');
 					return;
 				} catch (createError) {
 					const createErrorMessage = createError instanceof Error ? createError.message : String(createError);
@@ -87,14 +89,12 @@ export class OllamaService {
 				logger.info(this.context, 'Ollama container is running. Verifying accessibility...');
 				try {
 					await this.waitForOllama();
-					logger.info(this.context, 'Ollama is accessible');
 					return;
-				} catch (waitError) {
+				} catch {
 					logger.warn(this.context, 'Ollama container is running but not responding. Attempting restart...');
 					// Container is up but not responding - restart it
 					await execAsync(`docker restart ${this.containerName}`);
 					await this.waitForOllama();
-					logger.info(this.context, 'Ollama restarted and ready');
 					return;
 				}
 			}
@@ -106,10 +106,7 @@ export class OllamaService {
 
 				// If container exited with error (non-zero), remove and recreate it
 				if (exitCode !== null && exitCode !== 0) {
-					logger.warn(
-						this.context,
-						`Ollama container exited with code ${exitCode}. Removing and recreating...`,
-					);
+					logger.warn(this.context, `Ollama container exited with code ${exitCode}. Removing and recreating...`);
 					try {
 						await execAsync(`docker rm -f ${this.containerName}`);
 						logger.info(this.context, 'Removed crashed container. Creating new one...');
@@ -117,7 +114,7 @@ export class OllamaService {
 						// Ensure network exists
 						try {
 							await execAsync(`docker network inspect monorepo-network`);
-						} catch (networkError) {
+						} catch {
 							logger.info(this.context, 'Creating monorepo-network...');
 							await execAsync(`docker network create monorepo-network`);
 						}
@@ -130,8 +127,7 @@ export class OllamaService {
 						logger.info(this.context, 'Ollama recreated and ready');
 						return;
 					} catch (recreateError) {
-						const recreateErrorMessage =
-							recreateError instanceof Error ? recreateError.message : String(recreateError);
+						const recreateErrorMessage = recreateError instanceof Error ? recreateError.message : String(recreateError);
 						logger.error(this.context, `Failed to recreate container: ${recreateErrorMessage}`);
 						logger.warn(this.context, '   Events will be processed without LLM filtering/completion');
 						return;
@@ -145,7 +141,6 @@ export class OllamaService {
 
 			// Wait for Ollama to be ready
 			await this.waitForOllama();
-			logger.info(this.context, 'Ollama started and ready');
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			logger.error(this.context, `Failed to start Ollama: ${errorMessage}`);
@@ -220,9 +215,7 @@ export class OllamaService {
 
 		try {
 			// Check container memory usage
-			const { stdout } = await execAsync(
-				`docker stats ${this.containerName} --no-stream --format "{{.MemUsage}}"`,
-			);
+			const { stdout } = await execAsync(`docker stats ${this.containerName} --no-stream --format "{{.MemUsage}}"`);
 			const memUsage = stdout.trim();
 
 			// Parse memory usage (format: "XXX.XXMiB / 1.5GiB")
@@ -268,13 +261,11 @@ export class OllamaService {
 			logger.info(this.context, 'Restarting Ollama container to free memory...');
 			await execAsync(`docker restart ${this.containerName}`);
 			await this.waitForOllama();
-			logger.info(this.context, 'Ollama restarted and ready');
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			logger.error(this.context, `Failed to restart Ollama: ${errorMessage}`);
 		}
 	}
-
 
 	/**
 	 * Unload model from memory to free up cache without restarting container

@@ -64,25 +64,18 @@ export class WebCrawlingService {
 			description: string;
 		}> = [];
 
-		const logMemory = (label: string) => {
-			logger.logMemory(this.context, label);
-		};
-
 		try {
-			logMemory('START');
-
 			logger.info(this.context, 'Starting Ollama service...');
 			await this.ollamaService.startOllama();
-			this.ollamaService.markProcessingStart(); // Mark that processing has started
-			logger.info(this.context, 'Ollama service initialization complete');
-			logMemory('AFTER Ollama Start');
+			this.ollamaService.markProcessingStart();
+			logger.info(this.context, 'Ollama service ready');
 
 			for (const scraper of this.scrapers) {
 				logger.info(this.context, `${'='.repeat(80)}`);
-				logger.info(this.context, `Processing ${scraper.getName()}...`);
+				logger.info(this.context, `Starting ${scraper.getName()}`);
 				logger.info(this.context, `${'='.repeat(80)}`);
 
-				const scraperResult = await this.processScraperSequentially(scraper, limit, testMode || false, logMemory);
+				const scraperResult = await this.processScraperSequentially(scraper, limit, testMode || false);
 
 				stats.scraped += scraperResult.stats.scraped;
 				stats.accepted += scraperResult.stats.accepted;
@@ -90,31 +83,27 @@ export class WebCrawlingService {
 				stats.saved += scraperResult.stats.saved;
 				processedEvents.push(...scraperResult.events);
 
-				logger.info(this.context, `Finished ${scraper.getName()}`);
-				logger.info(this.context, `   Scraped: ${scraperResult.stats.scraped}`);
-				logger.info(this.context, `   Accepted: ${scraperResult.stats.accepted}`);
-				logger.info(this.context, `   Rejected: ${scraperResult.stats.rejected}`);
-				logger.info(this.context, `   Saved to DB: ${scraperResult.stats.saved}`);
-
-				logMemory(`AFTER ${scraper.getName()}`);
+				logger.info(this.context, `Completed ${scraper.getName()}`);
+				logger.info(this.context, `  Scraped: ${scraperResult.stats.scraped}`);
+				logger.info(this.context, `  Accepted: ${scraperResult.stats.accepted}`);
+				logger.info(this.context, `  Rejected: ${scraperResult.stats.rejected}`);
+				logger.info(this.context, `  Saved: ${scraperResult.stats.saved}`);
 			}
 
 			this.saveFinalSummary(stats);
-
-			logMemory('END');
 			return { stats, events: processedEvents };
 		} catch (error) {
-			const errorObj = error instanceof Error ? error : undefined;
-			logger.error(this.context, 'Error during web crawling', errorObj);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorStack = error instanceof Error ? error.stack : undefined;
+			logger.error(this.context, `Fatal error during web crawling: ${errorMessage}`);
+			if (errorStack) {
+				logger.error(this.context, `Stack trace:\n${errorStack}`);
+			}
 			throw error;
 		} finally {
-			// Mark processing as ended before stopping
 			this.ollamaService.markProcessingEnd();
-			// Unload model cache one last time before stopping
 			await this.ollamaService.unloadModelCache();
-			// Stop Ollama container to free resources
 			await this.ollamaService.stopOllama();
-			logMemory('FINAL - After Cleanup');
 		}
 	}
 
@@ -125,7 +114,6 @@ export class WebCrawlingService {
 		scraper: IEventScraper,
 		limit: number | undefined,
 		testMode: boolean,
-		logMemory: (label: string) => void,
 	): Promise<{
 		stats: { scraped: number; accepted: number; rejected: number; saved: number };
 		events: Array<{
@@ -158,65 +146,77 @@ export class WebCrawlingService {
 			stats.scraped = scrapedEvents.length;
 
 			logger.info(this.context, `Scraped ${scrapedEvents.length} events`);
-			logMemory('AFTER Scraping');
-
-			logger.info(this.context, `Phase 2: Processing events sequentially...`);
+			logger.info(this.context, `Processing events sequentially...`);
 
 			for (let i = 0; i < scrapedEvents.length; i++) {
 				const event = scrapedEvents[i];
 
-			try {
-				const eventUrl = event.externalUrl ? `\n     URL: ${event.externalUrl}` : '';
-				logger.info(
-					this.context,
-					`  [${i + 1}/${scrapedEvents.length}] Processing: ${event.eventName?.substring(0, 50)}...${eventUrl}`,
-				);
+				logger.info(this.context, `${'─'.repeat(80)}`);
+				logger.info(this.context, `[${i + 1}/${scrapedEvents.length}] ${event.eventName || 'Unknown Event'}`);
+				logger.info(this.context, `Link: ${event.externalUrl || 'N/A'}`);
 
-			const safetyCheck = await this.llmService.checkEventSafety(event);
-				if (!safetyCheck.isSafe) {
-					stats.rejected++;
-					logger.info(this.context, `     Rejected: ${safetyCheck.reason}`);
-					continue;
-				}
+				try {
+					// Safety check
+					const safetyCheck = await this.llmService.checkEventSafety(event);
+					if (!safetyCheck.isSafe) {
+						stats.rejected++;
+						logger.info(this.context, `Status: REJECTED - ${safetyCheck.reason}`);
+						continue;
+					}
+					logger.info(this.context, `Status: SAFE`);
 
-				const completed = await this.llmService.fillMissingEventData(event);
-				stats.accepted++;
+					// Before LLM
+					const beforeCategories = event.eventCategories?.join(', ') || 'none';
+					const beforeTags = event.eventTags?.slice(0, 5).join(', ') || 'none';
+					const beforeTagsCount = event.eventTags?.length || 0;
+					logger.info(this.context, `Before LLM:`);
+					logger.info(this.context, `  Categories: ${beforeCategories}`);
+					logger.info(
+						this.context,
+						`  Tags: ${beforeTags}${beforeTagsCount > 5 ? ` (+${beforeTagsCount - 5} more)` : ''}`,
+					);
 
-				// Add to processed events array
-				processedEvents.push({
-					name: completed.eventName || 'Unknown',
-					url: completed.externalUrl || 'No URL',
-					categories: completed.eventCategories || [],
-					tags: completed.eventTags || [],
-					description: (completed.eventDesc || 'No description').substring(0, 200) + '...',
-				});
+					// LLM Processing
+					const completed = await this.llmService.fillMissingEventData(event);
+					stats.accepted++;
 
-				// Clean up model cache after each event to free memory (without restarting container)
-				await this.ollamaService.unloadModelCache();
+					// After LLM
+					const afterCategories = completed.eventCategories?.join(', ') || 'none';
+					const afterTags = completed.eventTags?.slice(0, 5).join(', ') || 'none';
+					const afterTagsCount = completed.eventTags?.length || 0;
+					logger.info(this.context, `After LLM:`);
+					logger.info(this.context, `  Categories: ${afterCategories}`);
+					logger.info(
+						this.context,
+						`  Tags: ${afterTags}${afterTagsCount > 5 ? ` (+${afterTagsCount - 5} more)` : ''}`,
+					);
 
-				// Check memory usage and restart only if critically high (not actively processing)
-				await this.ollamaService.checkAndCleanupMemory();
-
-				if (!testMode) {
-					await this.importEventToDatabase(completed);
-					stats.saved++;
-					logger.info(this.context, `    Saved to DB`);
-				} else {
-					logger.info(this.context, `    Processed (test mode - not saved)`);
-				}
+					// Save
+					if (!testMode) {
+						await this.importEventToDatabase(completed);
+						stats.saved++;
+						logger.info(this.context, `Result: SAVED TO DATABASE`);
+					} else {
+						logger.info(this.context, `Result: PROCESSED (test mode)`);
+					}
 				} catch (error) {
-					logger.warn(this.context, `    Failed: ${error instanceof Error ? error.message : String(error)}`);
-				}
-
-				if ((i + 1) % 10 === 0) {
-					logMemory(`After ${i + 1} events`);
+					const errorMessage = error instanceof Error ? error.message : String(error);
+					const errorStack = error instanceof Error ? error.stack : undefined;
+					logger.error(this.context, `ERROR: ${errorMessage}`);
+					if (errorStack) {
+						logger.error(this.context, `Stack: ${errorStack}`);
+					}
 				}
 			}
 
 			return { stats, events: processedEvents };
 		} catch (error) {
-			const errorObj = error instanceof Error ? error : undefined;
-			logger.error(this.context, `Error processing ${scraper.getName()}`, errorObj);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorStack = error instanceof Error ? error.stack : undefined;
+			logger.error(this.context, `Error processing scraper "${scraper.getName()}": ${errorMessage}`);
+			if (errorStack) {
+				logger.error(this.context, `Stack trace:\n${errorStack}`);
+			}
 			throw error;
 		}
 	}
@@ -243,7 +243,12 @@ export class WebCrawlingService {
 				await this.scheduleEventJobs(newEvent);
 			}
 		} catch (error) {
-			logger.warn(this.context, `Failed to import "${event.eventName}"`, error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorStack = error instanceof Error ? error.stack : undefined;
+			logger.error(this.context, `Failed to import event "${event.eventName}": ${errorMessage}`);
+			if (errorStack) {
+				logger.error(this.context, `Stack trace:\n${errorStack}`);
+			}
 			throw error;
 		}
 	}
@@ -251,32 +256,33 @@ export class WebCrawlingService {
 	private saveFinalSummary(stats: { scraped: number; accepted: number; rejected: number; saved: number }): void {
 		// JSON saving disabled to reduce disk I/O - code kept for debugging purposes
 		// Uncomment below to re-enable JSON saving:
-		/*
 		try {
-			const jsonsDir = path.join(process.cwd(), 'jsons');
-			if (!fs.existsSync(jsonsDir)) fs.mkdirSync(jsonsDir, { recursive: true });
+			if (process.env.SAVE_JSON_FILES === 'true') {
+				const jsonsDir = path.join(process.cwd(), 'jsons');
+				if (!fs.existsSync(jsonsDir)) fs.mkdirSync(jsonsDir, { recursive: true });
 
-			const summary = {
-				metadata: {
-					timestamp: new Date().toISOString(),
-					mode: 'optimized_sequential',
-				},
-				stats,
-			};
+				const summary = {
+					metadata: {
+						timestamp: new Date().toISOString(),
+						mode: 'optimized_sequential',
+					},
+					stats,
+				};
 
-			const filePath = path.join(jsonsDir, 'crawling_summary.json');
-			fs.writeFileSync(filePath, JSON.stringify(summary, null, 2), 'utf-8');
+				const filePath = path.join(jsonsDir, 'crawling_summary.json');
+				fs.writeFileSync(filePath, JSON.stringify(summary, null, 2), 'utf-8');
+				logger.info(this.context, `Saved summary to jsons/crawling_summary.json`);
+			}
+
+			logger.info(this.context, `Final Summary:`);
+			logger.info(this.context, `   Total Scraped: ${stats.scraped}`);
+			logger.info(this.context, `   Accepted: ${stats.accepted}`);
+			logger.info(this.context, `   Rejected: ${stats.rejected}`);
+			logger.info(this.context, `   Saved to DB: ${stats.saved}`);
 		} catch (error) {
-			logger.warn(this.context, 'Failed to save summary', error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			logger.error(this.context, `Failed to save summary: ${errorMessage}`);
 		}
-		*/
-
-		// Log summary to console instead
-		logger.info(this.context, `Final Summary:`);
-		logger.info(this.context, `   Total Scraped: ${stats.scraped}`);
-		logger.info(this.context, `   Accepted: ${stats.accepted}`);
-		logger.info(this.context, `   Rejected: ${stats.rejected}`);
-		logger.info(this.context, `   Saved to DB: ${stats.saved}`);
 	}
 
 	private async findExistingEvent(event: CrawledEvent): Promise<Event | null> {

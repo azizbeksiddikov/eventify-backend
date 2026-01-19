@@ -11,7 +11,7 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     networks:
-      - monorepo-network
+      - monorepo-network-dev
     environment:
       - OLLAMA_NUM_PARALLEL=1
       - OLLAMA_MAX_LOADED_MODELS=1
@@ -30,10 +30,11 @@ services:
       context: .
       target: development
     ports:
-      - 4001:3007
+      - 5001:3007
     volumes:
       - ./apps:/usr/src/eventify/apps
       - ./uploads:/usr/src/eventify/uploads
+      - /var/run/docker.sock:/var/run/docker.sock # Allow Docker control
     working_dir: /usr/src/eventify
     env_file:
       - .env.dev
@@ -41,10 +42,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 800M  # 800 MB for API
+          memory: 800M # 800 MB for API
           cpus: "1.0"
     networks:
-      - monorepo-network
+      - monorepo-network-dev
 
     command: npm run dev
 
@@ -56,7 +57,7 @@ services:
       context: .
       target: development
     ports:
-      - 4002:3008
+      - 5002:3008
     volumes:
       - ./apps:/usr/src/eventify/apps
       - ./uploads:/usr/src/eventify/uploads
@@ -65,20 +66,24 @@ services:
     working_dir: /usr/src/eventify
     env_file:
       - .env.dev
+    environment:
+      - SAVE_JSON_FILES=true
     # Resource limits for development
     deploy:
       resources:
         limits:
-          memory: 800M  # 800 MB for Batch
+          memory: 800M # 800 MB for Batch
           cpus: "1.0"
     networks:
-      - monorepo-network
+      - monorepo-network-dev
     # Docker CLI already in base image
     command: npm run dev:batch
 
 volumes:
   ollama_data:
+    name: ollama_data
 
 networks:
-  monorepo-network:
+  monorepo-network-dev:
+    name: monorepo-network-dev
     driver: bridge

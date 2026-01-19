@@ -48,9 +48,11 @@ export class MeetupScraper implements IEventScraper {
 
 			// DEBUG: Save HTML if no events found (to diagnose blocking)
 			if (eventList.length === 0) {
-				this.logger.warn('No events found - saving HTML for inspection');
-				// JSON saving disabled to reduce disk I/O - code kept for debugging purposes
-				// saveToJsonFile('jsons/meetup-debug.html', htmlContent);
+				this.logger.warn('No events found');
+				if (process.env.SAVE_JSON_FILES === 'true') {
+					saveToJsonFile('jsons/meetup-debug.html', htmlContent);
+					this.logger.log('Saved HTML to jsons/meetup-debug.html for inspection');
+				}
 			}
 
 			// ═══════════════════════════════════════════════════════════
@@ -74,9 +76,10 @@ export class MeetupScraper implements IEventScraper {
 				},
 				events: detailedRawData,
 			};
-			// JSON saving disabled to reduce disk I/O - code kept for debugging purposes
-			// saveToJsonFile(`jsons/${this.config.name}-raw.json`, rawDataFile);
-			// this.logger.log(`Saved ${detailedRawData.length} detailed events to raw JSON`);
+			if (process.env.SAVE_JSON_FILES === 'true') {
+				saveToJsonFile(`jsons/${this.config.name}-raw.json`, rawDataFile);
+				this.logger.log(`Saved ${detailedRawData.length} detailed events to jsons/${this.config.name}-raw.json`);
+			}
 
 			// ═══════════════════════════════════════════════════════════
 			// PHASE 4: Extract Structured Data
@@ -97,15 +100,19 @@ export class MeetupScraper implements IEventScraper {
 				},
 				events: extractedEvents,
 			};
-			// JSON saving disabled to reduce disk I/O - code kept for debugging purposes
-			// saveToJsonFile(`jsons/${this.config.name}.json`, cleanedDataFile);
-			// this.logger.log(`Saved ${extractedEvents.length} cleaned events to JSON`);
+			if (process.env.SAVE_JSON_FILES === 'true') {
+				saveToJsonFile(`jsons/${this.config.name}.json`, cleanedDataFile);
+				this.logger.log(`Saved ${extractedEvents.length} cleaned events to jsons/${this.config.name}.json`);
+			}
 
 			return extractedEvents;
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			const errorStack = error instanceof Error ? error.stack : undefined;
 			this.logger.error(`Error during ${this.getName()} scraping: ${errorMessage}`, errorStack);
+			if (errorStack) {
+				this.logger.error(`Stack trace:\n${errorStack}`);
+			}
 			throw error;
 		}
 	}
@@ -212,11 +219,10 @@ export class MeetupScraper implements IEventScraper {
 							apiResponses.push(responseData);
 							this.logger.debug(`Captured API response from: ${responseUrl.substring(0, 100)}...`);
 
-							// Early stop: Count unique events from API responses
 							if (limit) {
 								this.countEventsInResponse(responseData, allEvents);
 								if (allEvents.size >= limit) {
-									this.logger.log(`Reached limit: ${allEvents.size}/${limit} events found, stopping scroll`);
+									this.logger.debug(`Event count: ${allEvents.size}/${limit} events found from API`);
 								}
 							}
 						} catch {
@@ -261,21 +267,22 @@ export class MeetupScraper implements IEventScraper {
 			// DEBUG: Log API response count
 			this.logger.log(`Captured ${apiResponses.length} API responses`);
 			this.logger.log(`Total unique events found from API: ${allEvents.size}`);
+			if (allEvents.size > 0) {
+				this.logger.debug(`API event IDs: ${Array.from(allEvents).join(', ')}`);
+			}
 
 			// JSON saving disabled to reduce disk I/O - code kept for debugging purposes
 			// Save API responses for debugging
-			/*
-			if (apiResponses.length > 0) {
+			if (apiResponses.length > 0 && process.env.SAVE_JSON_FILES === 'true') {
 				saveToJsonFile('jsons/meetup-api-responses-debug.json', {
 					timestamp: new Date().toISOString(),
 					totalResponses: apiResponses.length,
 					totalEvents: allEvents.size,
+					eventIds: Array.from(allEvents),
 					responses: apiResponses,
 				});
 				this.logger.log(`Saved API responses to jsons/meetup-api-responses-debug.json`);
 			}
-			*/
-
 			// Inject API responses into HTML for processing
 			// Merge all API responses into single object to avoid numeric keys
 			if (apiResponses.length > 0) {
@@ -296,7 +303,11 @@ export class MeetupScraper implements IEventScraper {
 			return htmlContent;
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
-			this.logger.error(`Puppeteer error: ${errorMessage}`);
+			const errorStack = error instanceof Error ? error.stack : undefined;
+			this.logger.error(`Puppeteer error for ${this.config.name}: ${errorMessage}`);
+			if (errorStack) {
+				this.logger.error(`Stack trace:\n${errorStack}`);
+			}
 			throw error;
 		} finally {
 			if (browser) {
@@ -347,6 +358,12 @@ export class MeetupScraper implements IEventScraper {
 		let consecutiveNoEvents = 0;
 
 		while (true) {
+			// Check limit BEFORE scrolling to avoid over-fetching
+			if (limit && allEvents.size >= limit) {
+				this.logger.log(`Limit reached: ${allEvents.size}/${limit} events (before scroll ${scrollAttempt + 1})`);
+				break;
+			}
+
 			scrollAttempt++;
 
 			// Get current page height and event count
@@ -392,12 +409,6 @@ export class MeetupScraper implements IEventScraper {
 			// Stop if no new events after threshold
 			if (consecutiveNoEvents >= NO_EVENTS_THRESHOLD) {
 				this.logger.warn(`Stopping: No new events found after ${NO_EVENTS_THRESHOLD} consecutive scrolls`);
-				break;
-			}
-
-			// Early stop if limit reached
-			if (limit && allEvents.size >= limit) {
-				this.logger.log(`Limit reached: ${allEvents.size}/${limit} events`);
 				break;
 			}
 		}
@@ -482,6 +493,10 @@ export class MeetupScraper implements IEventScraper {
 
 		this.logger.log(`Scanned ${objectsScanned} objects, found types: ${Array.from(eventTypesFound).join(', ')}`);
 		this.logger.log(`Extracted ${eventList.length} events`);
+		if (eventList.length > 0) {
+			const eventIds = eventList.map((e) => e.id).join(', ');
+			this.logger.debug(`Extracted event IDs: ${eventIds}`);
+		}
 
 		return eventList;
 	}
@@ -637,7 +652,11 @@ export class MeetupScraper implements IEventScraper {
 			return detailedRawData;
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorStack = error instanceof Error ? error.stack : undefined;
 			this.logger.error(`Error fetching event details: ${errorMessage}`);
+			if (errorStack) {
+				this.logger.error(`Stack trace:\n${errorStack}`);
+			}
 			return detailedRawData;
 		} finally {
 			if (browser) {

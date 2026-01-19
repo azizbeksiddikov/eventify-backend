@@ -8,9 +8,9 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - ollama_data:/root/.ollama
+      - ollama_data_prod:/root/.ollama
     networks:
-      - monorepo-network
+      - monorepo-network-prod
     environment:
       - OLLAMA_NUM_PARALLEL=1
       - OLLAMA_MAX_LOADED_MODELS=1
@@ -18,7 +18,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1000M  # 1GB for AI/Ollama
+          memory: 1000M # 1GB for AI/Ollama
           cpus: "0.8"
 
   api:
@@ -38,10 +38,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 800M  # 800 MB for API
+          memory: 800M # 800 MB for API
           cpus: "1.0"
     networks:
-      - monorepo-network
+      - monorepo-network-prod
     command: node dist/apps/api/main
 
   batch:
@@ -59,18 +59,22 @@ services:
     working_dir: /usr/src/eventify
     env_file:
       - .env
+    environment:
+      - SAVE_JSON_FILES=false
     deploy:
       resources:
         limits:
-          memory: 800M  # 800 MB for Batch
+          memory: 800M # 800 MB for Batch
           cpus: "0.5"
     networks:
-      - monorepo-network
+      - monorepo-network-prod
     command: node dist/apps/batch/main
 
 volumes:
-  ollama_data:
+  ollama_data_prod:
+    name: ollama_data_prod
 
 networks:
-  monorepo-network:
+  monorepo-network-prod:
+    name: monorepo-network-prod
     driver: bridge

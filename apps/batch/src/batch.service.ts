@@ -41,7 +41,9 @@ export class BatchService {
 			await this.eventRecurrenceService.generateRecurringEvents();
 			this.logger.log('Finished: handleRecurringEventsGeneration');
 		} catch (error) {
-			this.logger.error('Error in handleRecurringEventsGeneration:', error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorStack = error instanceof Error ? error.stack : undefined;
+			this.logger.error(`Error in handleRecurringEventsGeneration: ${errorMessage}`, errorStack);
 		}
 	}
 
@@ -53,7 +55,9 @@ export class BatchService {
 			await this.webCrawlingService.getEventCrawling(undefined, isTest);
 			this.logger.log('Finished: handleWebCrawling');
 		} catch (error) {
-			this.logger.error('Error in handleWebCrawling:', error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorStack = error instanceof Error ? error.stack : undefined;
+			this.logger.error(`Error in handleWebCrawling: ${errorMessage}`, errorStack);
 		}
 	}
 
@@ -63,8 +67,10 @@ export class BatchService {
 		try {
 			await this.memberService.batchRollback();
 			this.logger.log('Finished: batchRollback');
-		} catch (err) {
-			this.logger.error('Error in batchRollback:', err);
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorStack = error instanceof Error ? error.stack : undefined;
+			this.logger.error(`Error in batchRollback: ${errorMessage}`, errorStack);
 		}
 	}
 
@@ -74,8 +80,10 @@ export class BatchService {
 		try {
 			await this.memberService.batchTopOrganizers();
 			this.logger.log('Finished: batchTopOrganizers');
-		} catch (err) {
-			this.logger.error('Error in batchTopOrganizers:', err);
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorStack = error instanceof Error ? error.stack : undefined;
+			this.logger.error(`Error in batchTopOrganizers: ${errorMessage}`, errorStack);
 		}
 	}
 
@@ -86,7 +94,9 @@ export class BatchService {
 			await this.eventStatusCleanupService.cleanupEventStatuses();
 			this.logger.log('Finished: handleEventStatusCleanup');
 		} catch (error) {
-			this.logger.error('Error in handleEventStatusCleanup:', error);
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorStack = error instanceof Error ? error.stack : undefined;
+			this.logger.error(`Error in handleEventStatusCleanup: ${errorMessage}`, errorStack);
 		}
 	}
 

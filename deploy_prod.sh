@@ -28,8 +28,12 @@ OLLAMA_MODEL=$(grep -E "^OLLAMA_MODEL=" .env | cut -d '=' -f2 | tr -d '[:space:]
 # Always use llm profile for web scraping
 PROFILES="--profile llm"
 
-echo "Stopping existing containers..."
-docker compose -f docker-compose.prod.yml down
+echo "Stopping existing containers and removing volumes..."
+docker compose -f docker-compose.prod.yml down -v
+
+echo "Cleaning up orphaned Docker networks and volumes..."
+docker network prune -f > /dev/null 2>&1 || true
+docker volume prune -f > /dev/null 2>&1 || true
 
 echo "Checking for base image (node:24-alpine)..."
 if ! docker image inspect node:24-alpine > /dev/null 2>&1; then
@@ -47,22 +51,39 @@ echo "Starting containers..."
 docker compose -f docker-compose.prod.yml $PROFILES up -d
 
 echo "Waiting for containers to be ready..."
-sleep 5
+sleep 10
 
+# Wait for Ollama to be accessible
+OLLAMA_CONTAINER="eventify-ollama"
 echo "Waiting for Ollama..."
+OLLAMA_READY=false
 for i in {1..30}; do
-    if docker exec eventify-ollama curl -s http://localhost:11434/api/version > /dev/null 2>&1; then
+    if docker exec $OLLAMA_CONTAINER ollama list > /dev/null 2>&1; then
+        echo "Ollama is ready!"
+        OLLAMA_READY=true
         break
     fi
+    echo "Waiting for Ollama... ($i/30)"
     sleep 2
 done
 
+if [ "$OLLAMA_READY" = false ]; then
+    echo "Error: Ollama failed to start within 60 seconds"
+    echo "Check logs with: docker logs $OLLAMA_CONTAINER"
+    exit 1
+fi
+
 echo "Checking model ($OLLAMA_MODEL)..."
-if ! docker exec eventify-ollama ollama list 2>/dev/null | grep -q "$OLLAMA_MODEL"; then
-    echo "Model not found. Pulling model..."
-    docker exec eventify-ollama ollama pull "$OLLAMA_MODEL"
+if [ -z "$OLLAMA_MODEL" ]; then
+    echo "Warning: OLLAMA_MODEL not set in .env"
 else
-    echo "Model $OLLAMA_MODEL already exists."
+    if ! docker exec $OLLAMA_CONTAINER ollama list 2>/dev/null | grep -q "$OLLAMA_MODEL"; then
+        echo "Model not found. Pulling model..."
+        docker exec $OLLAMA_CONTAINER ollama pull "$OLLAMA_MODEL"
+        echo "Model $OLLAMA_MODEL installed successfully!"
+    else
+        echo "Model $OLLAMA_MODEL already exists."
+    fi
 fi
 
 echo ""

@@ -65,9 +65,10 @@ export class LumaScraper implements IEventScraper {
 				},
 				events: detailedRawData,
 			};
-			// JSON saving disabled to reduce disk I/O - code kept for debugging purposes
-			// saveToJsonFile(`jsons/${this.config.name}-raw.json`, rawDataFile);
-			// this.logger.log(`Saved ${detailedRawData.length} detailed events to raw JSON`);
+			if (process.env.SAVE_JSON_FILES === 'true') {
+				saveToJsonFile(`jsons/${this.config.name}-raw.json`, rawDataFile);
+				this.logger.log(`Saved ${detailedRawData.length} detailed events to jsons/${this.config.name}-raw.json`);
+			}
 
 			// ═══════════════════════════════════════════════════════════
 			// PHASE 4: Extract Structured Data
@@ -90,9 +91,10 @@ export class LumaScraper implements IEventScraper {
 				},
 				events: extractedEvents,
 			};
-			// JSON saving disabled to reduce disk I/O - code kept for debugging purposes
-			// saveToJsonFile(`jsons/${this.config.name}.json`, cleanedDataFile);
-			// this.logger.log(`Saved ${extractedEvents.length} cleaned events to JSON`);
+			if (process.env.SAVE_JSON_FILES === 'true') {
+				saveToJsonFile(`jsons/${this.config.name}.json`, cleanedDataFile);
+				this.logger.log(`Saved ${extractedEvents.length} cleaned events to jsons/${this.config.name}.json`);
+			}
 
 			return extractedEvents;
 		} catch (error) {
@@ -802,7 +804,8 @@ export class LumaScraper implements IEventScraper {
 			};
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
-			this.logger.warn(`Error mapping Luma event: ${errorMessage}`);
+			const errorStack = error instanceof Error ? error.stack : undefined;
+			this.logger.error(`Error mapping Luma event: ${errorMessage}`, errorStack);
 			return null;
 		}
 	}

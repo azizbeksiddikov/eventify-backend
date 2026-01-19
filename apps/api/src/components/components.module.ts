@@ -14,6 +14,11 @@ import { FaqModule } from './faq/faq.module';
 import { NotificationModule } from './notification/notification.module';
 import { UploadModule } from './upload/upload.module';
 import { CurrencyModule } from './currency/currency.module';
+import { LLMModule } from './llm/llm.module';
+
+// Only include LLM direct chat module in development
+const isDevelopment = process.env.NODE_ENV !== 'production';
+const devModules = isDevelopment ? [LLMModule] : [];
 
 @Module({
 	imports: [
@@ -32,6 +37,7 @@ import { CurrencyModule } from './currency/currency.module';
 		UploadModule,
 		ViewModule,
 		CurrencyModule,
+		...devModules,
 	],
 })
 export class ComponentsModule {}

@@ -60,7 +60,6 @@ export function mapTagsToCategories(tags: string[]): EventCategory[] {
 	return categories.size > 0 ? Array.from(categories) : [EventCategory.OTHER];
 }
 
-// Save to JSON file
 export function saveToJsonFile(filepath: string, data: unknown): void {
 	try {
 		// Create jsons directory if it doesn't exist

@@ -16,27 +16,27 @@ export class WebCrawlingController {
 	async getEventCrawling(@Query('limit') limit?: string, @Query('isTest') isTest?: string) {
 		try {
 			const limitNum = limit ? parseInt(limit, 10) : undefined;
-			const testMode = isTest ? true : false;
+			const testMode = isTest?.toLowerCase() === 'true';
 
-		this.logger.log(`Starting crawling (limit=${limitNum}, testMode=${testMode})`);
+			this.logger.log(`Starting crawling (limit=${limitNum}, testMode=${testMode})`);
 
-		const result = await this.webCrawlingService.getEventCrawling(limitNum, testMode);
+			const result = await this.webCrawlingService.getEventCrawling(limitNum, testMode);
 
-		return {
-			success: true,
-			mode: 'optimized_sequential',
-			stats: {
-				scraped: result.stats.scraped,
-				accepted: result.stats.accepted,
-				rejected: result.stats.rejected,
-				saved: result.stats.saved,
-			},
-			events: result.events,
-			testMode: testMode,
-			message: testMode
-				? 'Events processed but not saved (test mode). Check console for memory usage logs.'
-				: 'Events processed and saved to database. Check console for memory usage logs.',
-		};
+			return {
+				success: true,
+				mode: 'optimized_sequential',
+				stats: {
+					scraped: result.stats.scraped,
+					accepted: result.stats.accepted,
+					rejected: result.stats.rejected,
+					saved: result.stats.saved,
+				},
+				events: result.events,
+				testMode: testMode,
+				message: testMode
+					? 'Events processed but not saved (test mode). Check console for memory usage logs.'
+					: 'Events processed and saved to database. Check console for memory usage logs.',
+			};
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			const errorStack = error instanceof Error ? error.stack : undefined;

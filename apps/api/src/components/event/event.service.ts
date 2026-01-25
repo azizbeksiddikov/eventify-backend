@@ -176,7 +176,12 @@ export class EventService {
 			match.eventStatus = eventStatus === EventStatus.DELETED ? { $ne: EventStatus.DELETED } : eventStatus;
 
 		if (text) {
-			match.$or = [{ eventName: { $regex: new RegExp(text, 'i') } }, { eventDesc: { $regex: new RegExp(text, 'i') } }];
+			match.$or = [
+				{ eventName: { $regex: new RegExp(text, 'i') } },
+				{ eventDesc: { $regex: new RegExp(text, 'i') } },
+				{ eventTags: { $regex: new RegExp(text, 'i') } },
+				{ eventCategories: { $regex: new RegExp(text, 'i') } },
+			];
 		}
 		if (eventCategories && eventCategories.length > 0) match.eventCategories = { $in: eventCategories };
 		if (eventCity) match.eventCity = { $regex: new RegExp(eventCity, 'i') };
@@ -259,7 +264,12 @@ export class EventService {
 			match.eventStatus = eventStatus === EventStatus.DELETED ? { $ne: EventStatus.DELETED } : eventStatus;
 
 		if (text) {
-			match.$or = [{ eventName: { $regex: new RegExp(text, 'i') } }, { eventDesc: { $regex: new RegExp(text, 'i') } }];
+			match.$or = [
+				{ eventName: { $regex: new RegExp(text, 'i') } },
+				{ eventDesc: { $regex: new RegExp(text, 'i') } },
+				{ eventTags: { $regex: new RegExp(text, 'i') } },
+				{ eventCategories: { $regex: new RegExp(text, 'i') } },
+			];
 		}
 		if (eventCategories && eventCategories.length > 0) match.eventCategories = { $in: eventCategories };
 		if (eventCity) match.eventCity = { $regex: new RegExp(eventCity, 'i') };
@@ -409,7 +419,12 @@ export class EventService {
 		if (eventStatus) match.eventStatus = eventStatus;
 
 		if (text) {
-			match.$or = [{ eventName: { $regex: new RegExp(text, 'i') } }, { eventDesc: { $regex: new RegExp(text, 'i') } }];
+			match.$or = [
+				{ eventName: { $regex: new RegExp(text, 'i') } },
+				{ eventDesc: { $regex: new RegExp(text, 'i') } },
+				{ eventTags: { $regex: new RegExp(text, 'i') } },
+				{ eventCategories: { $regex: new RegExp(text, 'i') } },
+			];
 		}
 		if (eventCategories && eventCategories.length > 0) match.eventCategories = { $in: eventCategories };
 

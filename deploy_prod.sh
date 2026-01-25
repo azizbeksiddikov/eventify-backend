@@ -93,5 +93,5 @@ echo ""
 echo "Following logs (Ctrl+C to exit)..."
 echo ""
 
-docker compose -f docker-compose.prod.yml $PROFILES logs -f
+docker compose -f docker-compose.prod.yml $PROFILES logs -f api batch
 

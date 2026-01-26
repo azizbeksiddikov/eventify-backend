@@ -4,21 +4,6 @@ import { ValidationPipe } from '@nestjs/common';
 import { LoggingInterceptor } from './libs/interceptor/Logging.interceptor';
 
 async function bootstrap() {
-	// Override console methods to include timestamps (before app creation)
-	const originalLog = console.log;
-	const originalError = console.error;
-	const originalWarn = console.warn;
-	const originalInfo = console.info;
-	const originalDebug = console.debug;
-
-	const timestamp = () => `[${new Date().toISOString()}]`;
-
-	console.log = (...args: unknown[]) => originalLog(timestamp(), ...args);
-	console.error = (...args: unknown[]) => originalError(timestamp(), ...args);
-	console.warn = (...args: unknown[]) => originalWarn(timestamp(), ...args);
-	console.info = (...args: unknown[]) => originalInfo(timestamp(), ...args);
-	console.debug = (...args: unknown[]) => originalDebug(timestamp(), ...args);
-
 	// create nest application
 	const app = await NestFactory.create(AppModule, {
 		logger: ['log', 'error', 'warn', 'debug', 'verbose'],

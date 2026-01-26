@@ -1,169 +1,116 @@
 import { Injectable } from '@nestjs/common';
-import {
-	OllamaResponse,
-	OllamaError,
-	OllamaTagsResponse,
-	LLMChatRequest,
-	LLMConnectionResponse,
-	LLMChatResponse,
-} from '../../libs/dto/llm/llm';
+import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
+import { LLMChatRequest, LLMConnectionResponse, LLMChatResponse } from '../../libs/dto/llm/llm';
+import { logger } from '../../libs/logger';
 
 @Injectable()
 export class LLMChatService {
-	private readonly ollamaModel: string;
-	private readonly ollamaBaseUrl: string;
+	private readonly genAI: GoogleGenerativeAI;
+	private readonly model: GenerativeModel;
+	private readonly modelName: string;
+	private readonly context = 'LLMChatService';
 
 	constructor() {
-		const ollamaModel = process.env.OLLAMA_MODEL;
-		const ollamaBaseUrl = process.env.OLLAMA_BASE_URL;
-		if (!ollamaModel || !ollamaBaseUrl) throw new Error('OLLAMA_MODEL and OLLAMA_BASE_URL must be set');
+		const apiKey = process.env.GEMINI_API_KEY;
+		if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
 
-		this.ollamaModel = ollamaModel;
-		this.ollamaBaseUrl = ollamaBaseUrl;
-	}
+		this.modelName = 'gemini-2.5-flash';
+		this.genAI = new GoogleGenerativeAI(apiKey);
+		this.model = this.genAI.getGenerativeModel({
+			model: this.modelName,
+			generationConfig: {
+				temperature: 0.5,
+			},
+		});
 
-	private async ensureOllamaRunning(): Promise<void> {
-		try {
-			const response = await fetch(`${this.ollamaBaseUrl}/api/version`, {
-				signal: AbortSignal.timeout(3000),
-			});
-			if (response.ok) {
-				return; // Ollama is running
-			}
-		} catch {
-			// Ollama is not accessible - log warning but don't fail
-			console.warn(
-				`Ollama is not accessible at ${this.ollamaBaseUrl}. Ensure the Ollama container is running with: docker-compose --profile llm up -d ollama`,
-			);
-		}
+		logger.info(this.context, 'LLMChatService initialized with Gemini API key');
 	}
 
 	async checkConnection(): Promise<LLMConnectionResponse> {
-		// Try to start container if needed
-		await this.ensureOllamaRunning();
-
 		try {
-			const response = await fetch(`${this.ollamaBaseUrl}/api/tags`, {
-				method: 'GET',
-			});
-			if (!response.ok) {
-				throw new Error(`Ollama API error: ${response.statusText}`);
-			}
-
-			const data = (await response.json()) as OllamaTagsResponse;
-
-			const models = data.models || [];
-			const hasModels = models.length > 0;
-			const hasConfiguredModel = models.some((m) => m.name === this.ollamaModel);
+			// Test the connection by making a simple request
+			const result = await this.model.generateContent('Hello');
+			const response = result.response;
+			response.text(); // This will throw if there's an API error
 
 			return {
 				success: true,
-				message: hasModels
-					? hasConfiguredModel
-						? 'Connected to Ollama - model ready'
-						: `Connected to Ollama - model "${this.ollamaModel}" not found in available models`
-					: 'Connected to Ollama - no models installed',
-				baseUrl: this.ollamaBaseUrl,
-				configuredModel: this.ollamaModel,
-				availableModels: data,
+				message: 'Connected to Gemini AI - model ready',
+				baseUrl: 'Gemini API',
+				configuredModel: this.modelName,
+				modelReady: true,
 			};
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
-			console.error('Ollama connection error:', errorMessage);
+			logger.error(this.context, 'Gemini connection error', error instanceof Error ? error : new Error(errorMessage));
 			return {
 				success: false,
-				message: 'Failed to connect to Ollama',
+				message: 'Failed to connect to Gemini AI',
 				error: errorMessage,
-				baseUrl: this.ollamaBaseUrl,
-				configuredModel: this.ollamaModel,
+				baseUrl: 'Gemini API',
+				configuredModel: this.modelName,
 			};
 		}
 	}
 
 	async directChat(request?: LLMChatRequest): Promise<LLMChatResponse> {
-		// Try to start container if needed
-		await this.ensureOllamaRunning();
-
 		const prompt = request?.prompt || 'Say "Hello, I am working!" in a friendly way.';
-		const model = request?.model || this.ollamaModel;
 		const temperature = request?.temperature ?? 0.7;
-		const num_predict = request?.num_predict ?? 100;
-		const num_ctx = request?.num_ctx ?? 2048;
-
-		// Estimate token count (rough approximation: 1 token ≈ 4 characters)
-		const promptTokens = Math.ceil(prompt.length / 4);
-		const maxTokens = num_predict;
-		const contextTokens = num_ctx;
 
 		const startTime = Date.now();
 
 		try {
-			const response = await fetch(`${this.ollamaBaseUrl}/api/generate`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					model: model,
-					prompt: prompt,
-					stream: false,
-					options: {
-						temperature: temperature,
-						num_predict: num_predict,
-						num_ctx: num_ctx,
-						num_thread: 1,
-					},
-				}),
+			const customModel = this.genAI.getGenerativeModel({
+				model: this.modelName,
+				generationConfig: {
+					temperature: temperature,
+				},
 			});
+
+			const result = await customModel.generateContent(prompt);
+			const response = result.response;
+			const aiResponse = response.text();
 
 			const endTime = Date.now();
 			const duration = endTime - startTime;
 
-			if (!response.ok) {
-				const errorData = (await response.json()) as OllamaError;
-				throw new Error(`Ollama API error: ${errorData.error || response.statusText}`);
-			}
+			// Use actual Gemini metrics from usageMetadata
+			const usageMetadata = response.usageMetadata;
+			const promptTokenCount = usageMetadata?.promptTokenCount || 0;
+			const candidatesTokenCount = usageMetadata?.candidatesTokenCount || 0;
+			const totalTokenCount = usageMetadata?.totalTokenCount || 0;
+			const cachedContentTokenCount = usageMetadata?.cachedContentTokenCount;
 
-			const data = (await response.json()) as OllamaResponse;
-			const aiResponse = data.response || '';
-
-			// Estimate output tokens
-			const outputTokens = Math.ceil(aiResponse.length / 4);
+			// Gemini 2.5 Flash context window
+			const contextWindowSize = 32768;
 
 			return {
 				success: true,
 				request: {
 					prompt: prompt,
 					promptLength: prompt.length,
-					model: model,
+					model: this.modelName,
 					temperature: temperature,
-					num_predict: num_predict,
-					num_ctx: num_ctx,
+					num_ctx: contextWindowSize,
 				},
 				tokenInfo: {
-					estimatedPromptTokens: promptTokens,
-					estimatedOutputTokens: outputTokens,
-					estimatedTotalTokens: promptTokens + outputTokens,
-					maxPredictTokens: maxTokens,
-					contextWindowSize: contextTokens,
-					tokensUsed: `${promptTokens + outputTokens} / ${contextTokens} (${(((promptTokens + outputTokens) / contextTokens) * 100).toFixed(2)}%)`,
-					outputTokensUsed: `${outputTokens} / ${maxTokens} (${((outputTokens / maxTokens) * 100).toFixed(2)}%)`,
+					promptTokenCount: promptTokenCount,
+					candidatesTokenCount: candidatesTokenCount,
+					totalTokenCount: totalTokenCount,
+					cachedContentTokenCount: cachedContentTokenCount,
+					contextWindowSize: contextWindowSize,
+					tokensUsed: `${totalTokenCount} / ${contextWindowSize} (${((totalTokenCount / contextWindowSize) * 100).toFixed(2)}%)`,
+					outputTokensUsed: `${candidatesTokenCount}`,
 				},
 				performance: {
 					totalDurationMs: duration,
-					promptEvalCount: data.prompt_eval_count,
-					promptEvalDuration: data.prompt_eval_duration,
-					evalCount: data.eval_count,
-					evalDuration: data.eval_duration,
-					tokensPerSecond:
-						data.eval_count && data.eval_duration
-							? (data.eval_count / (data.eval_duration / 1000000000)).toFixed(2)
-							: 'N/A',
+					tokensPerSecond: candidatesTokenCount > 0 ? (candidatesTokenCount / (duration / 1000)).toFixed(2) : '0',
 				},
 				response: {
 					text: aiResponse,
 					length: aiResponse.length,
 					preview: aiResponse.substring(0, 200) + (aiResponse.length > 200 ? '...' : ''),
 				},
-				raw: data,
 			};
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
@@ -173,12 +120,11 @@ export class LLMChatService {
 				request: {
 					prompt: prompt,
 					promptLength: prompt.length,
-					model: model,
+					model: this.modelName,
 					temperature: temperature,
-					num_predict: num_predict,
-					num_ctx: num_ctx,
+					num_ctx: 32768,
 				},
-				hint: 'Make sure Ollama Docker container is running and the model is downloaded',
+				hint: 'Make sure GEMINI_API_KEY is set correctly',
 			};
 		}
 	}

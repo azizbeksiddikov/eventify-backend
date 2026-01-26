@@ -2,10 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { CrawledEvent } from '@app/api/src/libs/dto/event/eventCrawling';
 import { buildSafetyCheckPrompt, fillEventDataPrompt } from '../../libs/constants/llm.prompts';
 import { EventCategory } from '@app/api/src/libs/enums/event.enum';
-
-interface OllamaResponse {
-	response: string;
-}
+import { GoogleGenerativeAI, GenerativeModel, GenerateContentResult, FinishReason } from '@google/generative-ai';
+import { logger } from '../../libs/logger';
 
 interface EventCategorizationResponse {
 	categories?: string[] | string;
@@ -20,23 +18,30 @@ interface SafetyCheckResponse {
 @Injectable()
 export class LLMService {
 	private readonly llmEnabled: boolean;
-	private readonly ollamaModel: string;
-	private readonly ollamaBaseUrl: string;
+	private readonly genAI: GoogleGenerativeAI;
+	private readonly model: GenerativeModel;
+	private readonly modelName: string;
+	private readonly context = 'LLMService';
 
 	constructor() {
 		this.llmEnabled = true;
 
-		const ollamaModel = process.env.OLLAMA_MODEL;
-		const ollamaBaseUrl = process.env.OLLAMA_BASE_URL;
-		if (!ollamaModel || !ollamaBaseUrl) throw new Error('OLLAMA_MODEL and OLLAMA_BASE_URL must be set');
+		const apiKey = process.env.GEMINI_API_KEY;
+		if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
 
-		this.ollamaModel = ollamaModel;
-		this.ollamaBaseUrl = ollamaBaseUrl;
+		this.modelName = 'gemini-2.5-flash';
+		this.genAI = new GoogleGenerativeAI(apiKey);
+		this.model = this.genAI.getGenerativeModel({
+			model: this.modelName,
+			generationConfig: {
+				temperature: 0.05,
+			},
+		});
 
 		if (this.llmEnabled) {
-			console.log(`LLM enabled: ${this.ollamaModel} at ${this.ollamaBaseUrl}`);
+			logger.info(this.context, `LLM enabled: ${this.modelName} via Gemini API`);
 		} else {
-			console.warn('LLM is disabled.');
+			logger.warn(this.context, 'LLM is disabled.');
 		}
 	}
 
@@ -47,7 +52,7 @@ export class LLMService {
 	}> {
 		if (!this.llmEnabled) return { accepted: events, rejected: [], reasons: new Map() };
 
-		console.log(`Processing ${events.length} events with AI safety filter...`);
+		logger.info(this.context, `Processing ${events.length} events with AI safety filter...`);
 
 		const safeEvents: CrawledEvent[] = [];
 		const rejected: CrawledEvent[] = [];
@@ -56,7 +61,7 @@ export class LLMService {
 		// Process events sequentially with delay to prevent CPU overload
 		for (let i = 0; i < events.length; i++) {
 			const event = events[i];
-			console.log(`Processing event ${i + 1}/${events.length}`);
+			logger.info(this.context, `Processing event ${i + 1}/${events.length}`);
 
 			////////////////////////////////////////////////////////////
 			// Step 1: Filter Events for sexual content and drugs
@@ -84,12 +89,12 @@ export class LLMService {
 				await new Promise((resolve) => setTimeout(resolve, 2000));
 			} catch (error) {
 				const errorMessage = error instanceof Error ? error.message : String(error);
-				console.warn(`Processing error for "${event.eventName}": ${errorMessage}`);
+				logger.warn(this.context, `Processing error for "${event.eventName}": ${errorMessage}`);
 				safeEvents.push(event);
 			}
 		}
 
-		console.log(`AI filtering complete: ${safeEvents.length} accepted, ${rejected.length} rejected`);
+		logger.info(this.context, `AI filtering complete: ${safeEvents.length} accepted, ${rejected.length} rejected`);
 		return { accepted: safeEvents, rejected, reasons };
 	}
 
@@ -103,40 +108,110 @@ export class LLMService {
 		}
 
 		const prompt = fillEventDataPrompt(event);
+		let result: GenerateContentResult | null = null;
+		let aiResponse: string | null = null;
 
 		try {
-			const response = await fetch(`${this.ollamaBaseUrl}/api/generate`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					model: this.ollamaModel, // Model name (e.g., "llama3")
-					prompt: prompt,
-					stream: false, // Return complete response (no streaming)
-					keep_alive: '5m', // Keep model in memory for 5 minutes (will auto-unload after)
-					options: {
-						temperature: 0.05, // Low = more deterministic output (maintains accuracy)
-						num_predict: 1000,
-						num_ctx: 8192,
-						num_thread: 1, // CPU threads for inference
-					},
-				}),
-			});
+			result = await this.model.generateContent(prompt);
+			const response = result.response;
 
-			if (!response.ok) {
-				const errorText = await response.text();
-				console.error(`ERROR: Ollama API error (${response.status}): ${response.statusText}`);
-				console.error(`   Response body: ${errorText.substring(0, 200)}`);
-				throw new Error(`Ollama API error: ${response.statusText}`);
+			// Check if prompt was blocked
+			if (response.promptFeedback?.blockReason) {
+				const blockReason = response.promptFeedback.blockReason;
+				const blockMessage = response.promptFeedback.blockReasonMessage || 'No message provided';
+				const safetyRatings = response.promptFeedback.safetyRatings || [];
+
+				logger.error(
+					this.context,
+					`Prompt was blocked for event "${event.eventName || 'Unknown'}"`,
+					undefined,
+					`Block reason: ${blockReason}`,
+					`Block message: ${blockMessage}`,
+					`Safety ratings:`,
+					JSON.stringify(safetyRatings, null, 2),
+				);
+				return event;
 			}
 
-			const data = (await response.json()) as OllamaResponse;
-			const aiResponse = data.response;
+			// Check if we have candidates
+			if (!response.candidates || response.candidates.length === 0) {
+				logger.error(
+					this.context,
+					`No candidates returned for event "${event.eventName || 'Unknown'}"`,
+					undefined,
+					`Full response:`,
+					JSON.stringify(response, null, 2),
+				);
+				return event;
+			}
+
+			// Check finish reason
+			const firstCandidate = response.candidates[0];
+			const isTruncated = firstCandidate.finishReason === FinishReason.MAX_TOKENS;
+			if (firstCandidate.finishReason && firstCandidate.finishReason !== FinishReason.STOP) {
+				logger.warn(
+					this.context,
+					`Unexpected finish reason: ${firstCandidate.finishReason}`,
+					`Finish message: ${firstCandidate.finishMessage || 'N/A'}`,
+					`Event: ${event.eventName || 'Unknown'}`,
+					isTruncated ? 'Response was truncated - will attempt to repair JSON' : '',
+				);
+			}
+
+			// Get the text response
+			try {
+				aiResponse = response.text();
+			} catch (textError) {
+				const error = textError instanceof Error ? textError : new Error(String(textError));
+				logger.error(
+					this.context,
+					`Failed to extract text from response for event "${event.eventName || 'Unknown'}"`,
+					error,
+					`Response structure:`,
+					JSON.stringify(
+						{
+							candidates: response.candidates?.map((c) => ({
+								index: c.index,
+								finishReason: c.finishReason,
+								finishMessage: c.finishMessage,
+								safetyRatings: c.safetyRatings,
+								contentParts:
+									c.content?.parts?.map((p) => {
+										// Part can be TextPart, InlineDataPart, FunctionCallPart, etc.
+										// We only care about text parts for logging
+										const part = p as { text?: string };
+										const text = part?.text;
+										return {
+											text: typeof text === 'string' ? text.substring(0, 100) : 'N/A',
+										};
+									}) || [],
+							})),
+							promptFeedback: response.promptFeedback,
+							usageMetadata: response.usageMetadata,
+						},
+						null,
+						2,
+					),
+				);
+				return event;
+			}
+
+			// Log usage metadata if available
+			if (response.usageMetadata) {
+				logger.debug(
+					this.context,
+					`Token usage for "${event.eventName || 'Unknown'}":`,
+					`Prompt: ${response.usageMetadata.promptTokenCount},`,
+					`Candidates: ${response.usageMetadata.candidatesTokenCount},`,
+					`Total: ${response.usageMetadata.totalTokenCount}`,
+				);
+			}
 
 			// Try to extract JSON from response
 			let parsedData: EventCategorizationResponse;
 			try {
 				parsedData = JSON.parse(aiResponse.trim()) as EventCategorizationResponse;
-			} catch {
+			} catch (parseError) {
 				// Try multiple extraction patterns
 				let jsonStr: string | null = null;
 
@@ -156,24 +231,83 @@ export class LLMService {
 					if (match) jsonStr = match[0];
 				}
 
-				// Pattern 4: First { to last }
+				// Pattern 4: First { to last } (or end of string if truncated)
 				if (!jsonStr) {
 					const firstBrace = aiResponse.indexOf('{');
-					const lastBrace = aiResponse.lastIndexOf('}');
-					if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-						jsonStr = aiResponse.substring(firstBrace, lastBrace + 1);
+					if (firstBrace !== -1) {
+						// If truncated, use everything from { to end, otherwise find last }
+						if (isTruncated) {
+							jsonStr = aiResponse.substring(firstBrace);
+						} else {
+							const lastBrace = aiResponse.lastIndexOf('}');
+							if (lastBrace !== -1 && lastBrace > firstBrace) {
+								jsonStr = aiResponse.substring(firstBrace, lastBrace + 1);
+							}
+						}
 					}
 				}
 
 				if (jsonStr) {
+					// If response was truncated, try to repair incomplete JSON
+					if (isTruncated) {
+						jsonStr = this.repairTruncatedJSON(jsonStr);
+					}
+
 					try {
 						parsedData = JSON.parse(jsonStr.trim()) as EventCategorizationResponse;
 					} catch (e) {
 						const error = e as Error;
-						throw new Error(`JSON parse error: ${error.message}`);
+						const errorMsg = `JSON parse error after extraction: ${error.message}`;
+						logger.error(
+							this.context,
+							errorMsg,
+							error,
+							`Raw AI Response (${aiResponse.length} chars, first 2000):`,
+							aiResponse.substring(0, 2000),
+							`Extracted JSON string (first 500 chars):`,
+							jsonStr.substring(0, 500),
+							`Was truncated: ${isTruncated}`,
+							`Full response structure:`,
+							JSON.stringify(
+								{
+									candidates: result?.response.candidates?.length || 0,
+									promptFeedback: result?.response.promptFeedback,
+									usageMetadata: result?.response.usageMetadata,
+								},
+								null,
+								2,
+							),
+						);
+						throw new Error(errorMsg);
 					}
 				} else {
-					throw new Error('Could not extract JSON from AI response');
+					const errorMsg = 'Could not extract JSON from AI response';
+					logger.error(
+						this.context,
+						errorMsg,
+						parseError instanceof Error ? parseError : undefined,
+						`Raw AI Response (${aiResponse.length} chars, first 2000):`,
+						aiResponse.substring(0, 2000),
+						`Was truncated: ${isTruncated}`,
+						`Full response structure:`,
+						JSON.stringify(
+							{
+								candidates:
+									result?.response.candidates?.map((c) => ({
+										index: c.index,
+										finishReason: c.finishReason,
+										finishMessage: c.finishMessage,
+										hasContent: !!c.content,
+										partsCount: c.content?.parts?.length || 0,
+									})) || [],
+								promptFeedback: result?.response.promptFeedback,
+								usageMetadata: result?.response.usageMetadata,
+							},
+							null,
+							2,
+						),
+					);
+					throw new Error(errorMsg);
 				}
 			}
 
@@ -217,9 +351,75 @@ export class LLMService {
 			};
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
-			console.error(`LLM ERROR: ${errorMessage}`);
+			const errorStack = error instanceof Error ? error.stack : undefined;
+
+			logger.error(
+				this.context,
+				`Failed to fill missing event data for "${event.eventName || 'Unknown'}": ${errorMessage}`,
+				error instanceof Error ? error : undefined,
+				aiResponse
+					? `Raw AI Response (${aiResponse.length} chars, first 2000): ${aiResponse.substring(0, 2000)}`
+					: 'No AI response received',
+				result
+					? `Response structure available: ${JSON.stringify(
+							{
+								hasCandidates: !!result.response.candidates?.length,
+								candidatesCount: result.response.candidates?.length || 0,
+								hasPromptFeedback: !!result.response.promptFeedback,
+								blockReason: result.response.promptFeedback?.blockReason,
+								hasUsageMetadata: !!result.response.usageMetadata,
+							},
+							null,
+							2,
+						)}`
+					: 'No result object',
+			);
+
+			if (errorStack) {
+				logger.error(this.context, `Stack trace:`, undefined, errorStack);
+			}
+
 			return event;
 		}
+	}
+
+	/**
+	 * Attempts to repair truncated JSON by closing incomplete structures
+	 * Handles cases where MAX_TOKENS cut off the response mid-JSON
+	 */
+	private repairTruncatedJSON(jsonStr: string): string {
+		let repaired = jsonStr.trim();
+
+		// Remove trailing comma if present
+		repaired = repaired.replace(/,\s*$/, '');
+
+		// Count open/close braces and brackets to determine what needs closing
+		const openBraces = (repaired.match(/\{/g) || []).length;
+		const closeBraces = (repaired.match(/\}/g) || []).length;
+		const openBrackets = (repaired.match(/\[/g) || []).length;
+		const closeBrackets = (repaired.match(/\]/g) || []).length;
+
+		// Check if we're in the middle of a string (odd number of quotes before the end)
+		const lastQuoteIndex = repaired.lastIndexOf('"');
+		const quotesBeforeEnd = (repaired.substring(0, lastQuoteIndex).match(/"/g) || []).length;
+		const isInString = quotesBeforeEnd % 2 === 1 && lastQuoteIndex === repaired.length - 1;
+
+		// If we're in the middle of a string, close it
+		if (isInString) {
+			repaired += '"';
+		}
+
+		// Close incomplete arrays
+		for (let i = closeBrackets; i < openBrackets; i++) {
+			repaired += ']';
+		}
+
+		// Close incomplete objects
+		for (let i = closeBraces; i < openBraces; i++) {
+			repaired += '}';
+		}
+
+		return repaired;
 	}
 
 	/**
@@ -307,33 +507,71 @@ export class LLMService {
 		}
 
 		const prompt = buildSafetyCheckPrompt(event);
+		let result: GenerateContentResult | null = null;
+		let aiResponse: string | null = null;
 
 		try {
-			const response = await fetch(`${this.ollamaBaseUrl}/api/generate`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					model: this.ollamaModel,
-					prompt: prompt,
-					stream: false,
-					keep_alive: '10m', // Keep model in memory for 10 minutes (prevent unloading during batch)
-					options: {
-						temperature: 0.05, // Very low for deterministic safety decisions
-						num_predict: 100, // Simpler prompt needs fewer tokens
-						num_ctx: 512, // Smaller context for simplified prompt
-						num_thread: 1,
-					},
-				}),
-			});
+			result = await this.model.generateContent(prompt);
+			const response = result.response;
 
-			if (!response.ok) throw new Error(`Ollama API error: ${response.statusText}`);
-			const data = (await response.json()) as OllamaResponse;
-			const aiResponse = data.response;
+			// Check if prompt was blocked
+			if (response.promptFeedback?.blockReason) {
+				const blockReason = response.promptFeedback.blockReason;
+				const blockMessage = response.promptFeedback.blockReasonMessage || 'No message provided';
+				logger.warn(
+					this.context,
+					`Safety check prompt was blocked`,
+					`Block reason: ${blockReason}`,
+					`Block message: ${blockMessage}`,
+					`Event: ${event.eventName || 'Unknown'}`,
+				);
+				return { isSafe: true, reason: `Prompt blocked: ${blockReason}` };
+			}
+
+			// Check if we have candidates
+			if (!response.candidates || response.candidates.length === 0) {
+				logger.error(
+					this.context,
+					`No candidates returned in safety check`,
+					undefined,
+					`Full response:`,
+					JSON.stringify(response, null, 2),
+				);
+				return { isSafe: true, reason: 'No candidates returned' };
+			}
+
+			// Get the text response
+			try {
+				const textResult = response.text();
+				aiResponse = textResult;
+			} catch (textError) {
+				const error = textError instanceof Error ? textError : new Error(String(textError));
+				logger.error(
+					this.context,
+					`Failed to extract text in safety check`,
+					error,
+					`Response structure:`,
+					JSON.stringify(
+						{
+							candidates: response.candidates?.map((c) => ({
+								index: c.index,
+								finishReason: c.finishReason,
+								finishMessage: c.finishMessage,
+								safetyRatings: c.safetyRatings,
+							})),
+							promptFeedback: response.promptFeedback,
+						},
+						null,
+						2,
+					),
+				);
+				return { isSafe: true, reason: 'Failed to extract text' };
+			}
 
 			let parsedResponse: SafetyCheckResponse;
 			try {
 				parsedResponse = JSON.parse(aiResponse.trim()) as SafetyCheckResponse;
-			} catch {
+			} catch (parseError) {
 				let jsonStr: string | null = null;
 
 				let match = aiResponse.match(/```json\s*([\s\S]*?)\s*```/);
@@ -360,22 +598,77 @@ export class LLMService {
 				if (jsonStr) {
 					try {
 						parsedResponse = JSON.parse(jsonStr.trim()) as SafetyCheckResponse;
-					} catch {
+					} catch (e) {
+						const error = e as Error;
+						logger.error(
+							this.context,
+							`JSON parse error in safety check: ${error.message}`,
+							error,
+							`Raw AI Response:`,
+							aiResponse && typeof aiResponse === 'string' ? aiResponse.substring(0, 1000) : 'N/A',
+							`Extracted JSON:`,
+							jsonStr.substring(0, 500),
+						);
 						return { isSafe: true, reason: 'JSON parsing failed' };
 					}
 				} else {
+					logger.error(
+						this.context,
+						'Could not extract JSON from AI response in safety check',
+						parseError instanceof Error ? parseError : undefined,
+						aiResponse && typeof aiResponse === 'string'
+							? `Raw AI Response (${aiResponse.length} chars): ${aiResponse.substring(0, 2000)}`
+							: 'No AI response available',
+					);
 					return { isSafe: true, reason: 'JSON parsing failed' };
 				}
 			}
 
 			if (typeof parsedResponse.safe !== 'boolean') {
+				logger.warn(
+					this.context,
+					`Invalid LLM response format in safety check. Expected boolean 'safe' field.`,
+					aiResponse && typeof aiResponse === 'string'
+						? `Raw AI Response: ${aiResponse.substring(0, 1000)}`
+						: 'No AI response available',
+				);
 				return { isSafe: true, reason: 'Invalid LLM response format' };
 			}
 
 			return { isSafe: parsedResponse.safe, reason: parsedResponse.reason || '' };
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
-			console.error(`Ollama error: ${errorMessage}`);
+			const errorStack = error instanceof Error ? error.stack : undefined;
+
+			let responsePreview = 'No AI response received';
+			if (aiResponse !== null && aiResponse !== undefined) {
+				const responseStr = String(aiResponse);
+				if (responseStr.length > 0) {
+					responsePreview = responseStr.substring(0, 1000);
+				}
+			}
+
+			logger.error(
+				this.context,
+				`Gemini API error in safety check: ${errorMessage}`,
+				error instanceof Error ? error : undefined,
+				`Raw AI Response: ${responsePreview}`,
+				result
+					? `Response structure: ${JSON.stringify(
+							{
+								hasCandidates: !!result.response.candidates?.length,
+								blockReason: result.response.promptFeedback?.blockReason,
+							},
+							null,
+							2,
+						)}`
+					: 'No result object',
+			);
+
+			if (errorStack) {
+				logger.error(this.context, `Stack trace:`, undefined, errorStack);
+			}
+
 			return { isSafe: true, reason: 'LLM unavailable - accepting' };
 		}
 	}

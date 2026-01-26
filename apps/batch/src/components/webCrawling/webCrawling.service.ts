@@ -8,7 +8,6 @@ import { MeetupScraper } from './scrapers/meetup.scraper';
 import { LumaScraper } from './scrapers/luma.scraper';
 import { IEventScraper, CrawledEvent } from '@app/api/src/libs/dto/event/eventCrawling';
 import { LLMService } from '../llm/llm.service';
-import { OllamaService } from '../ollama/ollama.service';
 import { EventStatus, EventType } from '@app/api/src/libs/enums/event.enum';
 import { EventInput } from '@app/api/src/libs/dto/event/event.input';
 import { AgendaService } from '../../agenda/agenda.service';
@@ -25,7 +24,6 @@ export class WebCrawlingService {
 		private readonly meetupScraper: MeetupScraper,
 		private readonly lumaScraper: LumaScraper,
 		private readonly llmService: LLMService,
-		private readonly ollamaService: OllamaService,
 	) {
 		this.scrapers = [this.meetupScraper, this.lumaScraper];
 	}
@@ -65,10 +63,7 @@ export class WebCrawlingService {
 		}> = [];
 
 		try {
-			logger.info(this.context, 'Starting Ollama service...');
-			await this.ollamaService.startOllama();
-			this.ollamaService.markProcessingStart();
-			logger.info(this.context, 'Ollama service ready');
+			logger.info(this.context, 'Starting web crawling with Gemini AI...');
 
 			for (const scraper of this.scrapers) {
 				logger.info(this.context, `${'='.repeat(80)}`);
@@ -100,10 +95,6 @@ export class WebCrawlingService {
 				logger.error(this.context, `Stack trace:\n${errorStack}`);
 			}
 			throw error;
-		} finally {
-			this.ollamaService.markProcessingEnd();
-			await this.ollamaService.unloadModelCache();
-			await this.ollamaService.stopOllama();
 		}
 	}
 

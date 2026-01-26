@@ -1,27 +1,4 @@
 services:
-  ollama:
-    image: ollama/ollama:latest
-    container_name: eventify-ollama
-    restart: unless-stopped
-    # Only start when LLM features are needed
-    profiles:
-      - llm
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    networks:
-      - monorepo-network-dev
-    environment:
-      - OLLAMA_NUM_PARALLEL=1
-      - OLLAMA_MAX_LOADED_MODELS=1
-    # Resource limits to prevent memory issues
-    deploy:
-      resources:
-        limits:
-          memory: 1500M
-          cpus: "1.0"
-
   api:
     container_name: eventify-api-dev
     image: eventify-api:dev
@@ -78,10 +55,6 @@ services:
       - monorepo-network-dev
     # Docker CLI already in base image
     command: npm run dev:batch
-
-volumes:
-  ollama_data:
-    name: ollama_data
 
 networks:
   monorepo-network-dev:

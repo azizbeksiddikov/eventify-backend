@@ -9,15 +9,15 @@ if ! docker info > /dev/null 2>&1; then
     exit 1
 fi
 
-# Find backend containers (api, batch, ollama - both dev and prod)
-BACKEND_CONTAINERS=$(docker ps -aq --filter "name=eventify-api" --filter "name=eventify-batch" --filter "name=eventify-ollama" | sort -u)
+# Find backend containers (api, batch - both dev and prod)
+BACKEND_CONTAINERS=$(docker ps -aq --filter "name=eventify-api" --filter "name=eventify-batch" | sort -u)
 
 if [ -z "$BACKEND_CONTAINERS" ]; then
     echo "No backend containers found"
 else
     # Show containers that will be removed
     echo "Found backend containers (dev and prod):"
-    docker ps -a --filter "name=eventify-api" --filter "name=eventify-batch" --filter "name=eventify-ollama" --format "   - {{.Names}} ({{.ID}})" || true
+    docker ps -a --filter "name=eventify-api" --filter "name=eventify-batch" --format "   - {{.Names}} ({{.ID}})" || true
     echo ""
     
     # Stop backend containers
@@ -44,11 +44,6 @@ else
     echo "No backend images found"
 fi
 
-# Remove backend volumes
-echo "Removing backend volumes..."
-docker volume rm ollama_data 2>/dev/null || true
-docker volume rm ollama_data_prod 2>/dev/null || true
-
 # Remove backend networks (both dev and prod)
 echo "Removing backend networks..."
 docker network rm monorepo-network-dev 2>/dev/null || true
@@ -66,7 +61,7 @@ echo ""
 echo "Backend cleanup complete!"
 echo ""
 echo "Remaining backend resources:"
-BACKEND_REMAINING=$(docker ps -aq --filter "name=eventify-api" --filter "name=eventify-batch" --filter "name=eventify-ollama" | sort -u)
+BACKEND_REMAINING=$(docker ps -aq --filter "name=eventify-api" --filter "name=eventify-batch"| sort -u)
 if [ -z "$BACKEND_REMAINING" ]; then
     echo "  Containers: 0"
 else

@@ -7,44 +7,15 @@ export interface LLMChatRequest {
 	prompt?: string;
 	model?: string;
 	temperature?: number;
-	num_predict?: number;
 	num_ctx?: number;
 }
 
 /**
- * Response from Ollama API generate endpoint
+ * Response from Gemini API
  */
-export interface OllamaResponse {
-	response: string;
-	done: boolean;
-	context?: number[];
-	total_duration?: number;
-	load_duration?: number;
-	prompt_eval_count?: number;
-	prompt_eval_duration?: number;
-	eval_count?: number;
-	eval_duration?: number;
-}
-
-/**
- * Error response from Ollama API
- */
-export interface OllamaError {
-	error: string;
-}
-
-/**
- * Response from Ollama API tags endpoint
- */
-export interface OllamaTagsResponse {
-	models?: Array<{
-		name: string;
-		model?: string;
-		size?: number;
-		digest?: string;
-		modified_at?: string;
-		[key: string]: unknown;
-	}>;
+export interface GeminiChatResponse {
+	text: string;
+	[key: string]: unknown;
 }
 
 /**
@@ -55,24 +26,22 @@ export interface LLMConnectionResponse {
 	message: string;
 	baseUrl: string;
 	configuredModel: string;
-	availableModels?: OllamaTagsResponse;
 	error?: string;
 	hint?: string;
 	modelReady?: boolean;
-	other?: string;
 }
 
 /**
  * Token information in LLM chat response
  */
 export interface LLMTokenInfo {
-	estimatedPromptTokens: number;
-	estimatedOutputTokens: number;
-	estimatedTotalTokens: number;
-	maxPredictTokens: number;
+	promptTokenCount: number; // Actual prompt tokens from Gemini
+	candidatesTokenCount: number; // Actual output tokens from Gemini
+	totalTokenCount: number; // Actual total tokens from Gemini
+	cachedContentTokenCount?: number; // Cached tokens if available
 	contextWindowSize: number;
-	tokensUsed: string;
-	outputTokensUsed: string;
+	tokensUsed: string; // Formatted usage string
+	outputTokensUsed: string; // Formatted output usage string
 }
 
 /**
@@ -97,7 +66,6 @@ export interface LLMChatResponse {
 		promptLength: number;
 		model: string;
 		temperature: number;
-		num_predict: number;
 		num_ctx: number;
 	};
 	tokenInfo?: LLMTokenInfo;

@@ -1,26 +1,4 @@
 services:
-  ollama:
-    image: ollama/ollama:latest
-    container_name: eventify-ollama
-    restart: unless-stopped
-    profiles:
-      - llm
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data_prod:/root/.ollama
-    networks:
-      - monorepo-network-prod
-    environment:
-      - OLLAMA_NUM_PARALLEL=1
-      - OLLAMA_MAX_LOADED_MODELS=1
-    # Resource limits to prevent memory issues
-    deploy:
-      resources:
-        limits:
-          memory: 1000M # 1GB for AI/Ollama
-          cpus: "0.8"
-
   api:
     container_name: eventify-api-prod
     image: eventify-api:prod
@@ -69,10 +47,6 @@ services:
     networks:
       - monorepo-network-prod
     command: node dist/apps/batch/main
-
-volumes:
-  ollama_data_prod:
-    name: ollama_data_prod
 
 networks:
   monorepo-network-prod:

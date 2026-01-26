@@ -53,10 +53,11 @@
    ```
 
 4. **Open GraphQL Playground**
+
    ```
    http://localhost:3007/graphql
    ```
-   
+
    **Note:** When running with Docker, use port `5001` for development or `4001` for production instead of `3007`.
 
 That's it! You're ready to explore the API.
@@ -79,7 +80,7 @@ That's it! You're ready to explore the API.
 ### Advanced Features
 
 - 🤖 **Web Crawling** - Automated event scraping from external platforms (Meetup, Luma, etc.)
-- 🧠 **AI Integration** - LLM (Ollama) for event crawling - filters & categorizes scraped events
+- 🧠 **AI Integration** - LLM (Gemini) for event crawling - filters & categorizes scraped events
 - 📤 **File Uploads** - Image uploads for events, groups, and members
 - ⏰ **Batch Processing** - Scheduled tasks for recurring events, web crawling, and data processing
 - 🔐 **Authentication** - JWT-based authentication with role-based access control
@@ -93,7 +94,7 @@ That's it! You're ready to explore the API.
 
 ### Environment Files
 
-- **`.env.dev`** - Development (copy from `env.example`)
+- **`.env.dev`** - Development
 - **`.env`** - Production
 
 ### Required Variables
@@ -115,9 +116,13 @@ MONGODB_URI=mongodb://admin:password@dev-server:27017/eventify?authSource=admin
 # JWT Secret
 SECRET_TOKEN=your-secret-token-here
 
-# AI/LLM Configuration (Optional)
-OLLAMA_BASE_URL=http://ollama:11434
-OLLAMA_MODEL=qwen2.5:0.5b
+# AI/LLM Configuration
+GEMINI_API_KEY=your-gemini-api-key
+
+# Puppeteer Configuration
+PUPPETEER_CACHE_DIR=/root/.cache/puppeteer
+PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ```
 
 **Production (`.env`):**
@@ -138,6 +143,7 @@ npm run dev
 Access at: `http://localhost:3007/graphql`
 
 **Note:** When running with Docker, the API is accessible at:
+
 - Development: `http://localhost:5001/graphql`
 - Production: `http://localhost:4001/graphql`
 
@@ -203,6 +209,7 @@ backend/
 ### GraphQL Playground
 
 Access the interactive GraphQL Playground once the server is running:
+
 - **Local development:** `http://localhost:3007/graphql`
 - **Docker development:** `http://localhost:5001/graphql`
 - **Docker production:** `http://localhost:4001/graphql`
@@ -230,7 +237,6 @@ query GetEvents {
 - **Development:**
   - API: `http://localhost:5001` (GraphQL: `http://localhost:5001/graphql`)
   - Batch: `http://localhost:5002`
-  - Ollama (LLM): `http://localhost:11434` (when LLM profile is enabled)
 
 - **Production:**
   - API: `http://localhost:4001` (GraphQL: `http://localhost:4001/graphql`)

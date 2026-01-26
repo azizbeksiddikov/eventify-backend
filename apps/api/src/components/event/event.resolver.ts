@@ -17,6 +17,7 @@ import {
 } from '../../libs/dto/event/event.input';
 import { EventUpdateInput } from '../../libs/dto/event/event.update';
 import { EventService } from './event.service';
+import { logger } from '../../libs/logger';
 
 @Resolver(() => Event)
 export class EventResolver {
@@ -26,7 +27,7 @@ export class EventResolver {
 	@UseGuards(RolesGuard)
 	@Mutation(() => Event)
 	public async createEvent(@Args('input') input: EventInput, @AuthMember('_id') memberId: ObjectId): Promise<Event> {
-		console.log('Mutation: createEvent');
+		logger.debug('EventResolver', 'Mutation: createEvent');
 		return await this.eventService.createEvent(memberId, input);
 	}
 
@@ -36,7 +37,7 @@ export class EventResolver {
 		@Args('eventId') eventId: string,
 		@AuthMember('_id') memberId: ObjectId | null,
 	): Promise<Event> {
-		console.log('Query: getEvent');
+		logger.debug('EventResolver', 'Query: getEvent');
 		const targetId = shapeIntoMongoObjectId(eventId);
 
 		return await this.eventService.getEvent(memberId, targetId);
@@ -48,7 +49,7 @@ export class EventResolver {
 		@Args('input') input: EventsInquiry,
 		@AuthMember('_id') memberId: ObjectId | null,
 	): Promise<Events> {
-		console.log('Query: getEvents');
+		logger.debug('EventResolver', 'Query: getEvents');
 		return await this.eventService.getEvents(memberId, input);
 	}
 
@@ -58,7 +59,7 @@ export class EventResolver {
 		@Args('input') input: EventsInquiry,
 		@AuthMember('_id') memberId: ObjectId | null,
 	): Promise<Events> {
-		console.log('Query: getUniqueEvents');
+		logger.debug('EventResolver', 'Query: getUniqueEvents');
 		return await this.eventService.getUniqueEvents(memberId, input);
 	}
 
@@ -68,7 +69,7 @@ export class EventResolver {
 		@Args('input') input: EventsByCategoryInquiry,
 		@AuthMember('_id') memberId: ObjectId | null,
 	): Promise<[CategoryEvents]> {
-		console.log('Query: getEventsByCategory');
+		logger.debug('EventResolver', 'Query: getEventsByCategory');
 		return await this.eventService.getEventsByCategory(memberId, input);
 	}
 
@@ -78,7 +79,7 @@ export class EventResolver {
 		@Args('input') input: OrdinaryEventInquiry,
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<Events> {
-		console.log('Query: getFavorites');
+		logger.debug('EventResolver', 'Query: getFavorites');
 
 		return await this.eventService.getFavorites(memberId, input);
 	}
@@ -89,7 +90,7 @@ export class EventResolver {
 		@Args('input') input: OrdinaryEventInquiry,
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<Events> {
-		console.log('Query: getVisited');
+		logger.debug('EventResolver', 'Query: getVisited');
 
 		return await this.eventService.getVisited(memberId, input);
 	}
@@ -101,7 +102,7 @@ export class EventResolver {
 		@Args('input') input: EventUpdateInput,
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<Event> {
-		console.log('Mutation: updateEvent');
+		logger.debug('EventResolver', 'Mutation: updateEvent');
 		input._id = shapeIntoMongoObjectId(input._id);
 		return await this.eventService.updateEventByOrganizer(memberId, input);
 	}
@@ -109,7 +110,7 @@ export class EventResolver {
 	@UseGuards(AuthGuard)
 	@Mutation(() => Event)
 	public async likeTargetEvent(@Args('eventId') input: string, @AuthMember('_id') memberId: ObjectId): Promise<Event> {
-		console.log('Mutation: likeTargetEvent');
+		logger.debug('EventResolver', 'Mutation: likeTargetEvent');
 		const likeRefId = shapeIntoMongoObjectId(input);
 		return await this.eventService.likeTargetEvent(memberId, likeRefId);
 	}
@@ -119,7 +120,7 @@ export class EventResolver {
 	@UseGuards(RolesGuard)
 	@Query(() => Events)
 	public async getAllEventsByAdmin(@Args('input') input: EventsInquiry): Promise<Events> {
-		console.log('Query: getAllEventsByAdmin');
+		logger.debug('EventResolver', 'Query: getAllEventsByAdmin');
 		return await this.eventService.getAllEventsByAdmin(input);
 	}
 
@@ -127,7 +128,7 @@ export class EventResolver {
 	@UseGuards(RolesGuard)
 	@Mutation(() => Event)
 	public async updateEventByAdmin(@Args('input') input: EventUpdateInput): Promise<Event> {
-		console.log('Mutation: updateEventByAdmin');
+		logger.debug('EventResolver', 'Mutation: updateEventByAdmin');
 		return await this.eventService.updateEventByAdmin(input);
 	}
 
@@ -135,7 +136,7 @@ export class EventResolver {
 	@UseGuards(RolesGuard)
 	@Mutation(() => Event)
 	public async removeEventByAdmin(@Args('eventId') eventId: string): Promise<Event | null> {
-		console.log('Mutation: removeEventByAdmin');
+		logger.debug('EventResolver', 'Mutation: removeEventByAdmin');
 		const targetId = shapeIntoMongoObjectId(eventId);
 		return await this.eventService.removeEventByAdmin(targetId);
 	}

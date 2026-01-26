@@ -14,6 +14,7 @@ import { Notification } from '../../libs/dto/notification/notification';
 import { NotificationUpdate } from '../../libs/dto/notification/notification.update';
 import { AuthMember } from '../auth/decorators/authMember.decorator';
 import type { ObjectId } from 'mongoose';
+import { logger } from '../../libs/logger';
 
 @Resolver()
 export class NotificationResolver {
@@ -22,7 +23,7 @@ export class NotificationResolver {
 	@UseGuards(AuthGuard)
 	@Mutation(() => Notification)
 	async createNotification(@Args('input') input: NotificationInput): Promise<Notification> {
-		console.log('Mutation: createNotification');
+		logger.debug('NotificationResolver', 'Mutation: createNotification');
 		return await this.notificationService.createNotification(input);
 	}
 
@@ -32,7 +33,7 @@ export class NotificationResolver {
 		@Args('input') input: NotificationsInquiry,
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<Notifications> {
-		console.log('Query: getNotifications');
+		logger.debug('NotificationResolver', 'Query: getNotifications');
 
 		return await this.notificationService.getNotifications(memberId, input);
 	}
@@ -43,7 +44,7 @@ export class NotificationResolver {
 		@Args('input') input: NotificationUpdate,
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<Notification> {
-		console.log('Mutation: updateNotification');
+		logger.debug('NotificationResolver', 'Mutation: updateNotification');
 
 		return await this.notificationService.updateNotification(memberId, input);
 	}
@@ -51,7 +52,7 @@ export class NotificationResolver {
 	@UseGuards(AuthGuard)
 	@Mutation(() => Boolean)
 	async readAllNotifications(@AuthMember('_id') memberId: ObjectId): Promise<boolean> {
-		console.log('Mutation: readAllNotifications');
+		logger.debug('NotificationResolver', 'Mutation: readAllNotifications');
 		await this.notificationService.readAllNotifications(memberId);
 		return true;
 	}

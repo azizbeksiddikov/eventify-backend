@@ -16,6 +16,7 @@ import { FaqService } from './faq.service';
 
 // ===== Config =====
 import { shapeIntoMongoObjectId } from '../../libs/config';
+import { logger } from '../../libs/logger';
 
 @Resolver()
 export class FaqResolver {
@@ -25,13 +26,13 @@ export class FaqResolver {
 	@UseGuards(RolesGuard)
 	@Mutation(() => Faq)
 	public async createFaq(@Args('input') input: FaqInput): Promise<Faq> {
-		console.log('Mutation: createFaq');
+		logger.debug('FaqResolver', 'Mutation: createFaq');
 		return await this.faqService.createFaq(input);
 	}
 
 	@Query(() => [FaqByGroup])
 	public async getFaqs(): Promise<FaqByGroup[]> {
-		console.log('Query: getFaqs');
+		logger.debug('FaqResolver', 'Query: getFaqs');
 		return await this.faqService.getFaqs();
 	}
 
@@ -39,7 +40,7 @@ export class FaqResolver {
 	@UseGuards(RolesGuard)
 	@Query(() => [FaqByGroup])
 	public async getAllFaqsByAdmin(): Promise<FaqByGroup[]> {
-		console.log('Query: getAllFaqsByAdmin');
+		logger.debug('FaqResolver', 'Query: getAllFaqsByAdmin');
 		return await this.faqService.getAllFaqsByAdmin();
 	}
 
@@ -47,7 +48,7 @@ export class FaqResolver {
 	@UseGuards(RolesGuard)
 	@Mutation(() => Faq)
 	public async updateFaq(@Args('input') input: FaqUpdate): Promise<Faq | null> {
-		console.log('Mutation: updateFaq');
+		logger.debug('FaqResolver', 'Mutation: updateFaq');
 		input._id = shapeIntoMongoObjectId(input._id);
 		return await this.faqService.updateFaq(input);
 	}
@@ -56,7 +57,7 @@ export class FaqResolver {
 	@UseGuards(RolesGuard)
 	@Mutation(() => Faq)
 	public async removeFaq(@Args('input') input: string): Promise<Faq | null> {
-		console.log('Mutation: removeFaq');
+		logger.debug('FaqResolver', 'Mutation: removeFaq');
 		const faqId = shapeIntoMongoObjectId(input);
 		return await this.faqService.removeFaq(faqId);
 	}

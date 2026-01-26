@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { LoggingInterceptor } from './libs/interceptor/Logging.interceptor';
+import { logger } from './libs/logger';
 
 async function bootstrap() {
 	// create nest application
@@ -24,9 +25,9 @@ async function bootstrap() {
 	}
 
 	await app.listen(port);
-	console.log(`API server is running on ${process.env.DOMAIN_NAME}:${port}`);
+	logger.info('Bootstrap', `API server is running on ${process.env.DOMAIN_NAME}:${port}`);
 }
 void bootstrap().catch((error) => {
-	console.error('Failed to start application:', error);
+	logger.error('Bootstrap', 'Failed to start application', error);
 	process.exit(1);
 });

@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config'; // for env vars
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { GraphQLError } from 'graphql';
+import { logger } from './libs/logger';
 
 import { ComponentsModule } from './components/components.module';
 import { DatabaseModule } from './database/database.module';
@@ -39,7 +40,7 @@ import { AppResolver } from './app.resolver';
 					message: message,
 				};
 
-				console.log('GraphQL global Error:', graphqlFormattedError);
+				logger.error('AppModule', 'GraphQL global Error', graphqlFormattedError);
 				return graphqlFormattedError;
 			},
 		}),

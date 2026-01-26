@@ -55,7 +55,7 @@ class AppLogger {
 	}
 
 	info(context: string, message: string, ...args: unknown[]): void {
-		console.log(this.formatMessage(LogLevel.INFO, context, message, ...args));
+		console.info(this.formatMessage(LogLevel.INFO, context, message, ...args));
 	}
 
 	warn(context: string, message: string, ...args: unknown[]): void {

@@ -3,6 +3,7 @@ import { mkdirSync, existsSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { getSerialForImage, validMimeTypes } from '../../libs/config';
 import { Message } from '../../libs/enums/common.enum';
+import { logger } from '../../libs/logger';
 
 @Injectable()
 export class UploadService {
@@ -49,7 +50,7 @@ export class UploadService {
 				writeFileSync(url, file.buffer);
 				uploadedImages.push(url);
 			} catch (err) {
-				console.log('Error uploading file:', err);
+				logger.error('UploadService', 'Error uploading file', err);
 				throw new BadRequestException(Message.UPLOAD_FAILED);
 			}
 		}

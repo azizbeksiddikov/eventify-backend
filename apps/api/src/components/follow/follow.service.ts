@@ -28,6 +28,7 @@ import {
 // ===== Services =====
 import { MemberService } from '../member/member.service';
 import { NotificationService } from '../notification/notification.service';
+import { logger } from '../../libs/logger';
 
 @Injectable()
 export class FollowService {
@@ -83,7 +84,7 @@ export class FollowService {
 
 			return targetMember;
 		} catch (err) {
-			console.log('Error, Service.model', err);
+			logger.error('FollowService', 'Error, Service.model', err instanceof Error ? err : new Error(String(err)));
 			throw new BadRequestException(Message.CREATE_FAILED);
 		}
 	}

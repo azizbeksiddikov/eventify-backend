@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { BatchModule } from './batch.module';
+import { logger } from './libs/logger';
 
 async function bootstrap() {
 	const app = await NestFactory.create(BatchModule, {
@@ -12,6 +13,6 @@ async function bootstrap() {
 	}
 
 	await app.listen(port_number);
-	console.log(`Batch server is running on ${process.env.DOMAIN_NAME}:${port_number}`);
+	logger.info('Bootstrap', `Batch server is running on ${process.env.DOMAIN_NAME}:${port_number}`);
 }
 void bootstrap();

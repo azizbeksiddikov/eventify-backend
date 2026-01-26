@@ -27,6 +27,7 @@ import { NotificationInput } from '../../libs/dto/notification/notification.inpu
 
 // ===== Config =====
 import { lookupAuthMemberLiked, shapeObjectIdToString } from '../../libs/config';
+import { logger } from '../../libs/logger';
 
 // ===== Services =====
 import { AgendaService } from '../agenda/agenda.service';
@@ -110,7 +111,11 @@ export class EventService {
 					}),
 				).catch((error) => {
 					// Silently handle errors for non-blocking notification creation
-					console.error('Error creating notifications:', error);
+					logger.error(
+						'EventService',
+						'Error creating notifications',
+						error instanceof Error ? error : new Error(String(error)),
+					);
 				});
 			}
 
@@ -604,11 +609,13 @@ export class EventService {
 			// Warn if event should already be ONGOING or COMPLETED
 			const eventIdStr = shapeObjectIdToString(event._id);
 			if (startTime <= now && endTime > now) {
-				console.warn(
+				logger.warn(
+					'EventService',
 					`Event ${eventIdStr} is marked as UPCOMING but should be ONGOING (start: ${startTime.toISOString()})`,
 				);
 			} else if (endTime <= now) {
-				console.warn(
+				logger.warn(
+					'EventService',
 					`Event ${eventIdStr} is marked as UPCOMING but should be COMPLETED (end: ${endTime.toISOString()})`,
 				);
 			}
@@ -621,7 +628,8 @@ export class EventService {
 			const eventIdStr = shapeObjectIdToString(event._id);
 			if (endTime > now) await this.agendaService.scheduleEventEnd(event._id, endTime);
 			else {
-				console.warn(
+				logger.warn(
+					'EventService',
 					`Event ${eventIdStr} is marked as ONGOING but end time has passed (end: ${endTime.toISOString()})`,
 				);
 			}

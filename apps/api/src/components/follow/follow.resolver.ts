@@ -17,6 +17,7 @@ import { FollowService } from './follow.service';
 
 // ===== Config =====
 import { shapeIntoMongoObjectId } from '../../libs/config';
+import { logger } from '../../libs/logger';
 
 @Resolver()
 export class FollowResolver {
@@ -26,7 +27,7 @@ export class FollowResolver {
 	@UseGuards(AuthGuard)
 	@Mutation(() => Member)
 	public async subscribe(@Args('input') input: string, @AuthMember('_id') memberId: ObjectId): Promise<Member> {
-		console.log('Mutation: subscribe');
+		logger.debug('FollowResolver', 'Mutation: subscribe');
 		const followingId = shapeIntoMongoObjectId(input);
 		return await this.followService.subscribe(memberId, followingId);
 	}
@@ -34,7 +35,7 @@ export class FollowResolver {
 	@UseGuards(AuthGuard)
 	@Mutation(() => Member)
 	public async unsubscribe(@Args('input') input: string, @AuthMember('_id') memberId: ObjectId): Promise<Member> {
-		console.log('Mutation: unsubscribe');
+		logger.debug('FollowResolver', 'Mutation: unsubscribe');
 		const followingId = shapeIntoMongoObjectId(input);
 		return await this.followService.unsubscribe(memberId, followingId);
 	}
@@ -46,7 +47,7 @@ export class FollowResolver {
 		@Args('input') input: FollowInquiry,
 		@AuthMember('_id') memberId: ObjectId | null,
 	): Promise<Followings> {
-		console.log('Query: getMemberFollowings');
+		logger.debug('FollowResolver', 'Query: getMemberFollowings');
 		const { followerId } = input.search;
 		if (followerId) {
 			input.search.followerId = shapeIntoMongoObjectId(followerId);
@@ -60,7 +61,7 @@ export class FollowResolver {
 		@Args('input') input: FollowInquiry,
 		@AuthMember('_id') memberId: ObjectId | null,
 	): Promise<Followers> {
-		console.log('Query: getMemberFollowers');
+		logger.debug('FollowResolver', 'Query: getMemberFollowers');
 		const { followingId } = input.search;
 		if (followingId) {
 			input.search.followingId = shapeIntoMongoObjectId(followingId);
@@ -71,14 +72,14 @@ export class FollowResolver {
 	@UseGuards(AuthGuard)
 	@Query(() => [Member])
 	public async getMemberFollowingsList(@AuthMember('_id') memberId: ObjectId): Promise<Member[]> {
-		console.log('Query: getMemberFollowingsList');
+		logger.debug('FollowResolver', 'Query: getMemberFollowingsList');
 		return await this.followService.getMemberFollowingsList(memberId);
 	}
 
 	@UseGuards(AuthGuard)
 	@Query(() => [Member])
 	public async getMemberFollowersList(@AuthMember('_id') memberId: ObjectId): Promise<Member[]> {
-		console.log('Query: getMemberFollowersList');
+		logger.debug('FollowResolver', 'Query: getMemberFollowersList');
 		return await this.followService.getMemberFollowersList(memberId);
 	}
 }

@@ -23,6 +23,7 @@ import { NotificationService } from '../notification/notification.service';
 import { MemberService } from '../member/member.service';
 import { EventService } from '../event/event.service';
 import { CurrencyService } from '../currency/currency.service';
+import { logger } from '../../libs/logger';
 
 @Injectable()
 export class TicketService {
@@ -104,7 +105,7 @@ export class TicketService {
 			return newTicket;
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-			console.log('ERROR: Service.model:', errorMessage);
+			logger.error('TicketService', 'ERROR: Service.model', err instanceof Error ? err : new Error(errorMessage));
 			throw new BadRequestException(Message.CREATE_FAILED);
 		}
 	}

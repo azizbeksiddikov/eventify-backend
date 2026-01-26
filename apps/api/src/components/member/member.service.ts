@@ -21,6 +21,7 @@ import { NotificationType } from '../../libs/enums/notification.enum';
 
 // ===== Config =====
 import { lookupAuthMemberFollowed, lookupAuthMemberLiked, shapeObjectIdToString } from '../../libs/config';
+import { logger } from '../../libs/logger';
 
 // ===== Services =====
 import { AuthService } from '../auth/auth.service';
@@ -57,9 +58,10 @@ export class MemberService {
 			return newMember;
 		} catch (err: unknown) {
 			if (err instanceof Error) {
-				console.error('Error in signup:', err.message);
+				logger.error('MemberService', 'Error in signup', err);
+			} else {
+				logger.error('MemberService', 'Error in signup', new Error('Unknown error'));
 			}
-			console.error('Error in signup:', 'Unknown error');
 			throw new BadRequestException(Message.USED_MEMBER_NICK_OR_PHONE);
 		}
 	}

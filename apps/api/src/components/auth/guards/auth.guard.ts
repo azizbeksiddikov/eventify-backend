@@ -3,13 +3,14 @@ import { GqlContextType, GqlExecutionContext } from '@nestjs/graphql';
 import { AuthService } from '../auth.service';
 import { Message } from '../../../libs/enums/common.enum';
 import { GraphQLRequest, HttpRequest, GraphQLContext } from '../../../libs/types/common';
+import { logger } from '../../../libs/logger';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
 	constructor(private authService: AuthService) {}
 
 	async canActivate(context: ExecutionContext): Promise<boolean> {
-		console.info('--- @guard() Authentication [AuthGuard] ---');
+		logger.debug('AuthGuard', '--- @guard() Authentication [AuthGuard] ---');
 
 		let request: GraphQLRequest | HttpRequest;
 		if (context.getType<GqlContextType>() === 'graphql') {
@@ -28,24 +29,24 @@ export class AuthGuard implements CanActivate {
 
 		const bearerToken = request.headers?.authorization;
 		if (!bearerToken) {
-			console.error('No bearer token provided');
+			logger.error('AuthGuard', 'No bearer token provided');
 			throw new BadRequestException(Message.TOKEN_NOT_EXIST);
 		}
 
 		try {
 			const token = bearerToken.split(' ')[1];
 			if (!token) {
-				console.error('Invalid token format');
+				logger.error('AuthGuard', 'Invalid token format');
 				throw new BadRequestException(Message.TOKEN_NOT_EXIST);
 			}
 
 			const authMember = await this.authService.verifyToken(token);
 			if (!authMember) {
-				console.error('Token verification failed');
+				logger.error('AuthGuard', 'Token verification failed');
 				throw new UnauthorizedException(Message.NOT_AUTHENTICATED);
 			}
 
-			console.log('username[auth] =>', authMember.username);
+			logger.debug('AuthGuard', `username[auth] => ${authMember.username}`);
 
 			// Ensure request.body exists (may be undefined for multipart/form-data)
 			if (!request.body) {
@@ -55,7 +56,7 @@ export class AuthGuard implements CanActivate {
 			return true;
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			console.error('Authentication error:', errorMessage);
+			logger.error('AuthGuard', 'Authentication error', error instanceof Error ? error : new Error(errorMessage));
 			throw new UnauthorizedException(Message.NOT_AUTHENTICATED);
 		}
 	}

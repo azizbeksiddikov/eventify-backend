@@ -15,6 +15,7 @@ import { TicketService } from './ticket.service';
 // ===== Guards & Decorators =====
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { AuthMember } from '../auth/decorators/authMember.decorator';
+import { logger } from '../../libs/logger';
 
 @Resolver()
 export class TicketResolver {
@@ -23,14 +24,14 @@ export class TicketResolver {
 	@UseGuards(AuthGuard)
 	@Mutation(() => Ticket)
 	async createTicket(@Args('input') input: TicketInput, @AuthMember('_id') memberId: ObjectId): Promise<Ticket> {
-		console.log('Mutation: createTicket');
+		logger.debug('TicketResolver', 'Mutation: createTicket');
 		return this.ticketService.createTicket(memberId, input);
 	}
 
 	@UseGuards(AuthGuard)
 	@Mutation(() => Ticket)
 	async cancelTicket(@Args('input') input: string, @AuthMember('_id') memberId: ObjectId): Promise<Ticket> {
-		console.log('Mutation: cancelTicket');
+		logger.debug('TicketResolver', 'Mutation: cancelTicket');
 		const ticketId = shapeIntoMongoObjectId(input);
 		return this.ticketService.cancelTicket(memberId, ticketId);
 	}
@@ -38,14 +39,14 @@ export class TicketResolver {
 	@UseGuards(AuthGuard)
 	@Query(() => Tickets)
 	async getMyTickets(@AuthMember('_id') memberId: ObjectId, @Args('input') input: TicketInquiry): Promise<Tickets> {
-		console.log('Query: getMyTickets');
+		logger.debug('TicketResolver', 'Query: getMyTickets');
 		return this.ticketService.getMyTickets(memberId, input);
 	}
 
 	@UseGuards(AuthGuard)
 	@Query(() => [Ticket])
 	async getAllTicketsList(@AuthMember('_id') memberId: ObjectId): Promise<Ticket[]> {
-		console.log('Query: getAllTicketsList');
+		logger.debug('TicketResolver', 'Query: getAllTicketsList');
 		return this.ticketService.getAllTicketsList(memberId);
 	}
 }

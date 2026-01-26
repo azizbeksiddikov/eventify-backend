@@ -11,6 +11,7 @@ import { LikeInput } from '../../libs/dto/like/like.input';
 import { NotificationInput } from '../../libs/dto/notification/notification.input';
 import { T } from '../../libs/types/common';
 import { NotificationService } from '../notification/notification.service';
+import { logger } from '../../libs/logger';
 
 @Injectable()
 export class LikeService {
@@ -20,7 +21,7 @@ export class LikeService {
 	) {}
 
 	public async toggleLike(input: LikeInput, notificationInput: NotificationInput | null): Promise<number> {
-		console.log('LikeService: toggleLike');
+		logger.debug('LikeService', 'toggleLike');
 
 		// check for existence of like
 		const search: T = { memberId: input.memberId, likeRefId: input.likeRefId, likeGroup: input.likeGroup };
@@ -42,7 +43,7 @@ export class LikeService {
 				}
 			} catch (err) {
 				const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-				console.log('ERROR: Service.model:', errorMessage);
+				logger.error('LikeService', 'ERROR: Service.model', err instanceof Error ? err : new Error(errorMessage));
 				throw new BadRequestException(Message.CREATE_FAILED);
 			}
 		}

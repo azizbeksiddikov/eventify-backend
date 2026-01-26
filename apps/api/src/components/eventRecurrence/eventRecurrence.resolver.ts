@@ -15,6 +15,7 @@ import { EventRecurrenceInput, EventRecurrenceUpdateInput } from '../../libs/dto
 
 // ===== Service =====
 import { EventRecurrenceService } from './eventRecurrence.service';
+import { logger } from '../../libs/logger';
 
 @Resolver(() => EventRecurrence)
 export class EventRecurrenceResolver {
@@ -26,7 +27,7 @@ export class EventRecurrenceResolver {
 		@Args('input') input: EventRecurrenceInput,
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<EventRecurrence> {
-		console.log('Mutation: createRecurringEvent');
+		logger.debug('EventRecurrenceResolver', 'Mutation: createRecurringEvent');
 		return await this.eventRecurrenceService.createRecurringEvent(memberId, input);
 	}
 
@@ -36,7 +37,7 @@ export class EventRecurrenceResolver {
 		@Args('input') input: EventRecurrenceUpdateInput,
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<EventRecurrence> {
-		console.log('Mutation: updateRecurringEvent');
+		logger.debug('EventRecurrenceResolver', 'Mutation: updateRecurringEvent');
 		return await this.eventRecurrenceService.updateRecurringEvent(memberId, input);
 	}
 
@@ -46,14 +47,14 @@ export class EventRecurrenceResolver {
 		@Args('recurrenceId') recurrenceId: string,
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<EventRecurrence> {
-		console.log('Mutation: cancelRecurringSeries');
+		logger.debug('EventRecurrenceResolver', 'Mutation: cancelRecurringSeries');
 		return await this.eventRecurrenceService.cancelRecurringSeries(memberId, shapeIntoMongoObjectId(recurrenceId));
 	}
 
 	@UseGuards(AuthGuard)
 	@Query(() => EventRecurrence)
 	public async getRecurrence(@Args('recurrenceId') recurrenceId: string): Promise<EventRecurrence> {
-		console.log('Query: getRecurrence');
+		logger.debug('EventRecurrenceResolver', 'Query: getRecurrence');
 		return await this.eventRecurrenceService.getRecurrence(shapeIntoMongoObjectId(recurrenceId));
 	}
 }

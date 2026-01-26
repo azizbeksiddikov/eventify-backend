@@ -26,6 +26,7 @@ import { LikeService } from '../like/like.service';
 import { NotificationService } from '../notification/notification.service';
 import { ViewService } from '../view/view.service';
 import { MemberService } from '../member/member.service';
+import { logger } from '../../libs/logger';
 
 @Injectable()
 export class GroupService {
@@ -67,7 +68,7 @@ export class GroupService {
 
 			return newGroup;
 		} catch (err) {
-			console.error('Error in createGroup:', err);
+			logger.error('GroupService', 'Error in createGroup', err instanceof Error ? err : new Error(String(err)));
 			throw new BadRequestException(Message.CREATE_FAILED);
 		}
 	}
@@ -350,7 +351,7 @@ export class GroupService {
 			group.meJoined = [{ ...newGroupMemberInput, meJoined: true }];
 			return group;
 		} catch (err) {
-			console.error('Error in joinTargetGroup:', err);
+			logger.error('GroupService', 'Error in joinTargetGroup', err instanceof Error ? err : new Error(String(err)));
 			throw new BadRequestException(Message.CREATE_FAILED);
 		}
 	}

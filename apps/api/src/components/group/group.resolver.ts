@@ -24,6 +24,7 @@ import { shapeIntoMongoObjectId } from '../../libs/config';
 
 // ===== Services =====
 import { GroupService } from './group.service';
+import { logger } from '../../libs/logger';
 
 @Resolver(() => Group)
 export class GroupResolver {
@@ -34,7 +35,7 @@ export class GroupResolver {
 	@UseGuards(RolesGuard)
 	@Mutation(() => Group)
 	public async createGroup(@Args('input') input: GroupInput, @AuthMember('_id') memberId: ObjectId): Promise<Group> {
-		console.log('Mutation: createGroup');
+		logger.debug('GroupResolver', 'Mutation: createGroup');
 		return await this.groupService.createGroup(memberId, input);
 	}
 
@@ -44,7 +45,7 @@ export class GroupResolver {
 		@Args('groupId') groupId: string,
 		@AuthMember('_id') memberId: ObjectId | null,
 	): Promise<Group> {
-		console.log('Query: getGroup');
+		logger.debug('GroupResolver', 'Query: getGroup');
 
 		const targetId = shapeIntoMongoObjectId(groupId);
 		return await this.groupService.getGroup(memberId, targetId);
@@ -56,7 +57,7 @@ export class GroupResolver {
 		@Args('input') input: GroupsInquiry,
 		@AuthMember('_id') memberId: ObjectId | null,
 	): Promise<Groups> {
-		console.log('Query: getGroups');
+		logger.debug('GroupResolver', 'Query: getGroups');
 		return await this.groupService.getGroups(memberId, input);
 	}
 
@@ -64,14 +65,14 @@ export class GroupResolver {
 	@UseGuards(RolesGuard)
 	@Query(() => [Group])
 	public async getMyGroups(@AuthMember('_id') memberId: ObjectId): Promise<Group[]> {
-		console.log('Query: getMyGroups');
+		logger.debug('GroupResolver', 'Query: getMyGroups');
 		return await this.groupService.getMyGroups(memberId);
 	}
 
 	@UseGuards(AuthGuard)
 	@Query(() => [Group])
 	public async getJoinedGroups(@AuthMember('_id') memberId: ObjectId): Promise<Group[]> {
-		console.log('Query: getJoinedGroups');
+		logger.debug('GroupResolver', 'Query: getJoinedGroups');
 		return await this.groupService.getJoinedGroups(memberId);
 	}
 
@@ -82,7 +83,7 @@ export class GroupResolver {
 		@Args('input') input: GroupUpdateInput,
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<Group> {
-		console.log('Mutation: updateGroup');
+		logger.debug('GroupResolver', 'Mutation: updateGroup');
 		input._id = shapeIntoMongoObjectId(input._id);
 		return await this.groupService.updateGroup(memberId, input);
 	}
@@ -91,7 +92,7 @@ export class GroupResolver {
 	@UseGuards(RolesGuard)
 	@Mutation(() => Group)
 	public async deleteGroup(@Args('groupId') groupId: string, @AuthMember('_id') memberId: ObjectId): Promise<Group> {
-		console.log('Mutation: deleteGroup');
+		logger.debug('GroupResolver', 'Mutation: deleteGroup');
 		const targetId = shapeIntoMongoObjectId(groupId);
 		return await this.groupService.deleteGroup(memberId, targetId);
 	}
@@ -99,7 +100,7 @@ export class GroupResolver {
 	@UseGuards(AuthGuard)
 	@Mutation(() => Group)
 	public async likeTargetGroup(@Args('groupId') input: string, @AuthMember('_id') memberId: ObjectId): Promise<Group> {
-		console.log('Mutation: likeTargetGroup');
+		logger.debug('GroupResolver', 'Mutation: likeTargetGroup');
 		const likeRefId = shapeIntoMongoObjectId(input);
 		return await this.groupService.likeTargetGroup(memberId, likeRefId);
 	}
@@ -111,7 +112,7 @@ export class GroupResolver {
 		@Args('groupId') groupId: string,
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<Group> {
-		console.log('Mutation: joinTargetGroup');
+		logger.debug('GroupResolver', 'Mutation: joinTargetGroup');
 		const targetId = shapeIntoMongoObjectId(groupId);
 		return await this.groupService.joinTargetGroup(memberId, targetId);
 	}
@@ -123,7 +124,7 @@ export class GroupResolver {
 		@Args('input') input: GroupMemberUpdateInput,
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<GroupMember> {
-		console.log('Mutation: updateGroupMemberRole');
+		logger.debug('GroupResolver', 'Mutation: updateGroupMemberRole');
 		input.groupId = shapeIntoMongoObjectId(input.groupId);
 		input.targetMemberId = shapeIntoMongoObjectId(input.targetMemberId);
 		return await this.groupService.updateGroupMemberRole(memberId, input);
@@ -135,7 +136,7 @@ export class GroupResolver {
 		@Args('groupId') groupId: string,
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<Group> {
-		console.log('Mutation: leaveTargetGroup');
+		logger.debug('GroupResolver', 'Mutation: leaveTargetGroup');
 		const targetId = shapeIntoMongoObjectId(groupId);
 		return await this.groupService.leaveTargetGroup(memberId, targetId);
 	}
@@ -145,7 +146,7 @@ export class GroupResolver {
 	@UseGuards(RolesGuard)
 	@Query(() => Groups)
 	public async getAllGroupsByAdmin(@Args('input') input: GroupsInquiry): Promise<Groups> {
-		console.log('Query: getAllGroupsByAdmin');
+		logger.debug('GroupResolver', 'Query: getAllGroupsByAdmin');
 		return await this.groupService.getAllGroupsByAdmin(input);
 	}
 
@@ -153,7 +154,7 @@ export class GroupResolver {
 	@UseGuards(RolesGuard)
 	@Mutation(() => Group)
 	public async updateGroupByAdmin(@Args('input') input: GroupUpdateInput): Promise<Group> {
-		console.log('Mutation: updateGroupByAdmin');
+		logger.debug('GroupResolver', 'Mutation: updateGroupByAdmin');
 		return await this.groupService.updateGroupByAdmin(input);
 	}
 
@@ -161,7 +162,7 @@ export class GroupResolver {
 	@UseGuards(RolesGuard)
 	@Mutation(() => Group)
 	public async removeGroupByAdmin(@Args('groupId') groupId: string): Promise<Group> {
-		console.log('Mutation: removeGroupByAdmin');
+		logger.debug('GroupResolver', 'Mutation: removeGroupByAdmin');
 		const targetId = shapeIntoMongoObjectId(groupId);
 		return await this.groupService.removeGroupByAdmin(targetId);
 	}

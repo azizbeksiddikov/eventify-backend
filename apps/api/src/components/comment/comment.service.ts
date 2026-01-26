@@ -24,6 +24,7 @@ import { NotificationService } from '../notification/notification.service';
 import { EventService } from '../event/event.service';
 import { GroupService } from '../group/group.service';
 import { MemberService } from '../member/member.service';
+import { logger } from '../../libs/logger';
 
 @Injectable()
 export class CommentService {
@@ -65,7 +66,7 @@ export class CommentService {
 			result = await this.commentModel.create(input);
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
-			console.log('Error, Service.model:', errorMessage);
+			logger.error('CommentService', 'Error, Service.model', err instanceof Error ? err : new Error(errorMessage));
 			throw new BadRequestException(Message.CREATE_FAILED);
 		}
 

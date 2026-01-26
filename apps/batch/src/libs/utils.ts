@@ -1,6 +1,7 @@
 import { EventStatus, EventCategory } from '@app/api/src/libs/enums/event.enum';
 import path from 'path';
 import fs from 'fs';
+import { logger } from './logger';
 
 // Event Status
 export function determineStatus(eventStartAt: Date, eventEndAt: Date): EventStatus {
@@ -70,7 +71,7 @@ export function saveToJsonFile(filepath: string, data: unknown): void {
 		fs.writeFileSync(filepath, JSON.stringify(data, null, 2), 'utf-8');
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
-		console.warn(`Failed to save to JSON file: ${errorMessage}`);
+		logger.warn('utils', `Failed to save to JSON file: ${errorMessage}`);
 	}
 }
 

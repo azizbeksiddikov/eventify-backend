@@ -17,6 +17,7 @@ import { CurrencyService } from './currency.service';
 // ===== Config =====
 import { shapeIntoMongoObjectId } from '../../libs/config';
 import { WithoutGuard } from '../auth/guards/without.guard';
+import { logger } from '../../libs/logger';
 
 @Resolver()
 export class CurrencyResolver {
@@ -25,14 +26,14 @@ export class CurrencyResolver {
 	@UseGuards(WithoutGuard)
 	@Query(() => [CurrencyEntity])
 	public async getCurrencies(@Args('input') input: CurrencyInquiry): Promise<CurrencyEntity[]> {
-		console.log('Query: getCurrencies');
+		logger.debug('CurrencyResolver', 'Query: getCurrencies');
 		return await this.currencyService.getAllCurrencies(input);
 	}
 
 	@UseGuards(WithoutGuard)
 	@Query(() => CurrencyEntity)
 	public async getCurrency(@Args('input') input: string): Promise<CurrencyEntity | null> {
-		console.log('Query: getCurrency');
+		logger.debug('CurrencyResolver', 'Query: getCurrency');
 		const currencyId = shapeIntoMongoObjectId(input);
 		return await this.currencyService.getCurrency(currencyId);
 	}
@@ -40,7 +41,7 @@ export class CurrencyResolver {
 	@UseGuards(WithoutGuard)
 	@Query(() => CurrencyEntity)
 	public async getCurrencyByCode(@Args('input') currencyCode: string): Promise<CurrencyEntity | null> {
-		console.log('Query: getCurrencyByCode');
+		logger.debug('CurrencyResolver', 'Query: getCurrencyByCode');
 		return await this.currencyService.getCurrencyByCode(currencyCode);
 	}
 
@@ -50,7 +51,7 @@ export class CurrencyResolver {
 	@UseGuards(RolesGuard)
 	@Mutation(() => CurrencyEntity)
 	public async createCurrency(@Args('input') input: CurrencyInput): Promise<CurrencyEntity> {
-		console.log('Mutation: createCurrency');
+		logger.debug('CurrencyResolver', 'Mutation: createCurrency');
 		return await this.currencyService.createCurrency(input);
 	}
 
@@ -58,7 +59,7 @@ export class CurrencyResolver {
 	@UseGuards(RolesGuard)
 	@Mutation(() => CurrencyEntity)
 	public async updateCurrency(@Args('input') input: CurrencyUpdate): Promise<CurrencyEntity | null> {
-		console.log('Mutation: updateCurrency');
+		logger.debug('CurrencyResolver', 'Mutation: updateCurrency');
 		input._id = shapeIntoMongoObjectId(input._id);
 		return await this.currencyService.updateCurrency(input);
 	}
@@ -67,7 +68,7 @@ export class CurrencyResolver {
 	@UseGuards(RolesGuard)
 	@Mutation(() => CurrencyEntity)
 	public async removeCurrency(@Args('input') input: string): Promise<CurrencyEntity | null> {
-		console.log('Mutation: removeCurrency');
+		logger.debug('CurrencyResolver', 'Mutation: removeCurrency');
 		const currencyId = shapeIntoMongoObjectId(input);
 		return await this.currencyService.removeCurrency(currencyId);
 	}

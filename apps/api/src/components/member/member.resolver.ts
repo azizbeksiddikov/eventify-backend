@@ -23,6 +23,7 @@ import { shapeIntoMongoObjectId } from '../../libs/config';
 // ===== Services =====
 import { MemberService } from './member.service';
 import { CurrencyService } from '../currency/currency.service';
+import { logger } from '../../libs/logger';
 
 @Resolver()
 export class MemberResolver {
@@ -34,13 +35,13 @@ export class MemberResolver {
 	// ============== Authentication Methods ==============
 	@Mutation(() => Member)
 	public async signup(@Args('input') input: MemberInput): Promise<Member> {
-		console.log('Mutation: signup');
+		logger.debug('MemberResolver', 'Mutation: signup');
 		return await this.memberService.signup(input);
 	}
 
 	@Mutation(() => Member)
 	public async login(@Args('input') input: LoginInput): Promise<Member> {
-		console.log('Mutation: login');
+		logger.debug('MemberResolver', 'Mutation: login');
 		return await this.memberService.login(input);
 	}
 
@@ -69,14 +70,14 @@ export class MemberResolver {
 		@Args('input') input: MemberUpdateInput,
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<Member> {
-		console.log('Mutation: updateMember');
+		logger.debug('MemberResolver', 'Mutation: updateMember');
 		return await this.memberService.updateMember(memberId, input);
 	}
 
 	@UseGuards(AuthGuard)
 	@Query(() => String)
 	public checkAuthRoles(@AuthMember() authMember: Member): string {
-		console.log('Query: checkAuthRoles');
+		logger.debug('MemberResolver', 'Query: checkAuthRoles');
 		const memberId = (authMember._id as { toString(): string }).toString();
 		return `Hi ${authMember.username}, you are ${authMember.memberType} and id: ${memberId}`;
 	}
@@ -85,7 +86,7 @@ export class MemberResolver {
 	@UseGuards(WithoutGuard)
 	@Query(() => Member)
 	public async getMember(@Args('memberId') input: string, @AuthMember('_id') memberId: ObjectId): Promise<Member> {
-		console.log('Query: getMember');
+		logger.debug('MemberResolver', 'Query: getMember');
 		const targetId = shapeIntoMongoObjectId(input);
 		return await this.memberService.getMember(memberId, targetId);
 	}
@@ -96,14 +97,14 @@ export class MemberResolver {
 		@Args('input') input: OrganizersInquiry,
 		@AuthMember('_id') memberId: ObjectId,
 	): Promise<Members> {
-		console.log('Query: getOrganizers');
+		logger.debug('MemberResolver', 'Query: getOrganizers');
 		return await this.memberService.getOrganizers(memberId, input);
 	}
 
 	@UseGuards(WithoutGuard)
 	@Query(() => Member)
 	public async getOrganizer(@Args('input') input: string, @AuthMember('_id') memberId: ObjectId): Promise<Member> {
-		console.log('Query: getOrganizer');
+		logger.debug('MemberResolver', 'Query: getOrganizer');
 		const targetId = shapeIntoMongoObjectId(input);
 		return await this.memberService.getOrganizer(memberId, targetId);
 	}
@@ -118,7 +119,7 @@ export class MemberResolver {
 	@UseGuards(AuthGuard)
 	@Mutation(() => Member)
 	public async deleteAccount(@AuthMember('_id') memberId: ObjectId): Promise<Member> {
-		console.log('Mutation: deleteAccount');
+		logger.debug('MemberResolver', 'Mutation: deleteAccount');
 		return await this.memberService.deleteAccount(memberId);
 	}
 
@@ -127,7 +128,7 @@ export class MemberResolver {
 	@UseGuards(RolesGuard)
 	@Query(() => Members)
 	public async getAllMembersByAdmin(@Args('input') input: MembersInquiry): Promise<Members> {
-		console.log('Query: getAllMembersByAdmin');
+		logger.debug('MemberResolver', 'Query: getAllMembersByAdmin');
 		return await this.memberService.getAllMembersByAdmin(input);
 	}
 
@@ -135,7 +136,7 @@ export class MemberResolver {
 	@UseGuards(RolesGuard)
 	@Mutation(() => Member)
 	public async updateMemberByAdmin(@Args('input') input: MemberUpdateInput): Promise<Member> {
-		console.log('Mutation: updateMemberByAdmin');
+		logger.debug('MemberResolver', 'Mutation: updateMemberByAdmin');
 		return await this.memberService.updateMemberByAdmin(input);
 	}
 
@@ -143,7 +144,7 @@ export class MemberResolver {
 	@UseGuards(RolesGuard)
 	@Mutation(() => Member)
 	public async removeMemberByAdmin(@Args('input') input: string): Promise<Member> {
-		console.log('Mutation: removeMemberByAdmin');
+		logger.debug('MemberResolver', 'Mutation: removeMemberByAdmin');
 		const memberId = shapeIntoMongoObjectId(input);
 		return await this.memberService.removeMemberByAdmin(memberId);
 	}

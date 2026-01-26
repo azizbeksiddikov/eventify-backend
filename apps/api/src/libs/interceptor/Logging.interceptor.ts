@@ -20,7 +20,8 @@ export class LoggingInterceptor implements NestInterceptor {
 			return next.handle().pipe(
 				tap((response) => {
 					const responseTime = Date.now() - recordTime;
-					this.logger.verbose(`HTTP Response: ${JSON.stringify(response)} - ${responseTime}ms\n\n`, 'RESPONSE');
+					const responseStr = this.truncateResponse(response);
+					this.logger.verbose(`HTTP Response: ${responseStr} - ${responseTime}ms\n\n`, 'RESPONSE');
 				}),
 				catchError((error: Error) => {
 					const responseTime = Date.now() - recordTime;
@@ -58,6 +59,16 @@ export class LoggingInterceptor implements NestInterceptor {
 			return JSON.stringify(data).slice(0, 75);
 		} catch {
 			return String(data).slice(0, 75);
+		}
+	}
+
+	private truncateResponse(response: unknown): string {
+		try {
+			const responseStr = JSON.stringify(response);
+			return responseStr.length > 70 ? responseStr.slice(0, 70) + '...' : responseStr;
+		} catch {
+			const responseStr = String(response);
+			return responseStr.length > 70 ? responseStr.slice(0, 70) + '...' : responseStr;
 		}
 	}
 }

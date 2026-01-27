@@ -38,7 +38,16 @@ export class WebCrawlingService {
 		limit?: number,
 		testMode?: boolean,
 	): Promise<{
-		stats: { scraped: number; accepted: number; rejected: number; saved: number };
+		stats: {
+			scraped: number;
+			accepted: number;
+			rejected: number;
+			saved: number;
+			aiProcessed: number;
+			aiSkipped: number;
+			aiSafetyCheckFailed: number;
+			aiDataFillFailed: number;
+		};
 		events: Array<{
 			name: string;
 			url: string;
@@ -52,6 +61,10 @@ export class WebCrawlingService {
 			accepted: 0,
 			rejected: 0,
 			saved: 0,
+			aiProcessed: 0,
+			aiSkipped: 0,
+			aiSafetyCheckFailed: 0,
+			aiDataFillFailed: 0,
 		};
 
 		const processedEvents: Array<{
@@ -76,6 +89,10 @@ export class WebCrawlingService {
 				stats.accepted += scraperResult.stats.accepted;
 				stats.rejected += scraperResult.stats.rejected;
 				stats.saved += scraperResult.stats.saved;
+				stats.aiProcessed += scraperResult.stats.aiProcessed;
+				stats.aiSkipped += scraperResult.stats.aiSkipped;
+				stats.aiSafetyCheckFailed += scraperResult.stats.aiSafetyCheckFailed;
+				stats.aiDataFillFailed += scraperResult.stats.aiDataFillFailed;
 				processedEvents.push(...scraperResult.events);
 
 				logger.info(this.context, `Completed ${scraper.getName()}`);
@@ -83,6 +100,10 @@ export class WebCrawlingService {
 				logger.info(this.context, `  Accepted: ${scraperResult.stats.accepted}`);
 				logger.info(this.context, `  Rejected: ${scraperResult.stats.rejected}`);
 				logger.info(this.context, `  Saved: ${scraperResult.stats.saved}`);
+				logger.info(this.context, `  AI Processed: ${scraperResult.stats.aiProcessed}`);
+				logger.info(this.context, `  AI Skipped: ${scraperResult.stats.aiSkipped}`);
+				logger.info(this.context, `  AI Safety Check Failed: ${scraperResult.stats.aiSafetyCheckFailed}`);
+				logger.info(this.context, `  AI Data Fill Failed: ${scraperResult.stats.aiDataFillFailed}`);
 			}
 
 			this.saveFinalSummary(stats);
@@ -106,7 +127,16 @@ export class WebCrawlingService {
 		limit: number | undefined,
 		testMode: boolean,
 	): Promise<{
-		stats: { scraped: number; accepted: number; rejected: number; saved: number };
+		stats: {
+			scraped: number;
+			accepted: number;
+			rejected: number;
+			saved: number;
+			aiProcessed: number;
+			aiSkipped: number;
+			aiSafetyCheckFailed: number;
+			aiDataFillFailed: number;
+		};
 		events: Array<{
 			name: string;
 			url: string;
@@ -120,6 +150,10 @@ export class WebCrawlingService {
 			accepted: 0,
 			rejected: 0,
 			saved: 0,
+			aiProcessed: 0,
+			aiSkipped: 0,
+			aiSafetyCheckFailed: 0,
+			aiDataFillFailed: 0,
 		};
 
 		const processedEvents: Array<{
@@ -151,10 +185,22 @@ export class WebCrawlingService {
 					const safetyCheck = await this.llmService.checkEventSafety(event);
 					if (!safetyCheck.isSafe) {
 						stats.rejected++;
+						// Track AI safety check failure only if AI was attempted but failed
+						// (keyword check rejections don't count as AI failures)
 						logger.info(this.context, `Status: REJECTED - ${safetyCheck.reason}`);
 						continue;
 					}
-					logger.info(this.context, `Status: SAFE`);
+
+					// Track AI safety check processing
+					let aiProcessedAny = false;
+					if (safetyCheck.aiProcessed) {
+						aiProcessedAny = true;
+					} else {
+						// AI was attempted but failed (keyword check passed, but AI call failed)
+						stats.aiSafetyCheckFailed++;
+					}
+
+					logger.info(this.context, `Status: SAFE${safetyCheck.aiProcessed ? ' (AI verified)' : ' (keyword check)'}`);
 
 					// Before LLM
 					const beforeCategories = event.eventCategories?.join(', ') || 'none';
@@ -167,8 +213,38 @@ export class WebCrawlingService {
 						`  Tags: ${beforeTags}${beforeTagsCount > 5 ? ` (+${beforeTagsCount - 5} more)` : ''}`,
 					);
 
+					// Check if event needs AI processing (missing categories or tags)
+					const needsCategories = !event.eventCategories || event.eventCategories.length === 0;
+					const needsTags = !event.eventTags || event.eventTags.length === 0;
+					const needsAIProcessing = needsCategories || needsTags;
+
 					// LLM Processing
-					const completed = await this.llmService.fillMissingEventData(event);
+					const fillResult = await this.llmService.fillMissingEventData(event);
+					const completed = fillResult.event;
+
+					// Track AI data fill processing
+					if (fillResult.aiProcessed) {
+						aiProcessedAny = true;
+					} else if (needsAIProcessing) {
+						// AI processing was needed but failed
+						stats.aiDataFillFailed++;
+					}
+
+					// Count overall AI processing success
+					if (aiProcessedAny) {
+						stats.aiProcessed++;
+					} else {
+						// Count as skipped if AI was needed/attempted but failed
+						// Safety check: If aiProcessed=false here (and isSafe=true), it means keyword check passed but AI call failed
+						// Data fill: AI was needed but failed
+						const safetyCheckAIFailed = !safetyCheck.aiProcessed; // At this point (isSafe=true), false means AI was attempted but failed
+						const dataFillAIFailed = needsAIProcessing && !fillResult.aiProcessed;
+
+						if (safetyCheckAIFailed || dataFillAIFailed) {
+							stats.aiSkipped++;
+						}
+					}
+
 					stats.accepted++;
 
 					// After LLM
@@ -181,6 +257,9 @@ export class WebCrawlingService {
 						this.context,
 						`  Tags: ${afterTags}${afterTagsCount > 5 ? ` (+${afterTagsCount - 5} more)` : ''}`,
 					);
+					if (!fillResult.aiProcessed) {
+						logger.info(this.context, `  AI Status: SKIPPED (AI processing failed or not needed)`);
+					}
 
 					// Save
 					if (!testMode) {
@@ -244,7 +323,16 @@ export class WebCrawlingService {
 		}
 	}
 
-	private saveFinalSummary(stats: { scraped: number; accepted: number; rejected: number; saved: number }): void {
+	private saveFinalSummary(stats: {
+		scraped: number;
+		accepted: number;
+		rejected: number;
+		saved: number;
+		aiProcessed: number;
+		aiSkipped: number;
+		aiSafetyCheckFailed: number;
+		aiDataFillFailed: number;
+	}): void {
 		// JSON saving disabled to reduce disk I/O - code kept for debugging purposes
 		// Uncomment below to re-enable JSON saving:
 		try {
@@ -270,6 +358,11 @@ export class WebCrawlingService {
 			logger.info(this.context, `   Accepted: ${stats.accepted}`);
 			logger.info(this.context, `   Rejected: ${stats.rejected}`);
 			logger.info(this.context, `   Saved to DB: ${stats.saved}`);
+			logger.info(this.context, `   AI Processing:`);
+			logger.info(this.context, `     Processed by AI: ${stats.aiProcessed}`);
+			logger.info(this.context, `     Skipped (AI failed/not needed): ${stats.aiSkipped}`);
+			logger.info(this.context, `     Safety Check Failed: ${stats.aiSafetyCheckFailed}`);
+			logger.info(this.context, `     Data Fill Failed: ${stats.aiDataFillFailed}`);
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			logger.error(this.context, `Failed to save summary: ${errorMessage}`);

@@ -19,9 +19,15 @@ interface SafetyCheckResponse {
 export class LLMService {
 	private readonly llmEnabled: boolean;
 	private readonly genAI: GoogleGenerativeAI;
-	private readonly model: GenerativeModel;
-	private readonly modelName: string;
 	private readonly context = 'LLMService';
+
+	// Fallback models in order of preference
+	private readonly fallbackModels: string[] = [
+		'gemini-2.5-flash',
+		'gemini-2.0-flash',
+		'gemini-2.5-flash-lite',
+		'gemini-2.5-pro',
+	];
 
 	constructor() {
 		this.llmEnabled = true;
@@ -29,20 +35,66 @@ export class LLMService {
 		const apiKey = process.env.GEMINI_API_KEY;
 		if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
 
-		this.modelName = 'gemini-2.5-flash';
 		this.genAI = new GoogleGenerativeAI(apiKey);
-		this.model = this.genAI.getGenerativeModel({
-			model: this.modelName,
+
+		if (this.llmEnabled) {
+			logger.info(this.context, `LLM enabled with fallback models: ${this.fallbackModels.join(' -> ')}`);
+		} else {
+			logger.warn(this.context, 'LLM is disabled.');
+		}
+	}
+
+	/**
+	 * Get a model instance by name
+	 */
+	private getModel(modelName: string): GenerativeModel {
+		return this.genAI.getGenerativeModel({
+			model: modelName,
 			generationConfig: {
 				temperature: 0.05,
 			},
 		});
+	}
 
-		if (this.llmEnabled) {
-			logger.info(this.context, `LLM enabled: ${this.modelName} via Gemini API`);
-		} else {
-			logger.warn(this.context, 'LLM is disabled.');
+	/**
+	 * Generate content with automatic fallback to other models on failure
+	 * Tries each model in the fallback list until one succeeds
+	 */
+	private async generateContentWithFallback(
+		prompt: string,
+	): Promise<{ result: GenerateContentResult; modelUsed: string }> {
+		const errors: string[] = [];
+
+		for (const modelName of this.fallbackModels) {
+			try {
+				const model = this.getModel(modelName);
+				const result = await model.generateContent(prompt);
+				return { result, modelUsed: modelName };
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				const isOverloaded = errorMessage.includes('503') || errorMessage.includes('overloaded');
+				const isRateLimited = errorMessage.includes('429') || errorMessage.includes('rate limit');
+				const isTemporary = isOverloaded || isRateLimited;
+
+				errors.push(`${modelName}: ${errorMessage}`);
+
+				if (isTemporary) {
+					logger.warn(
+						this.context,
+						`Model ${modelName} unavailable (${isOverloaded ? 'overloaded' : 'rate limited'}), trying next model...`,
+					);
+					// Small delay before trying next model
+					await new Promise((resolve) => setTimeout(resolve, 1000));
+					continue;
+				}
+
+				// For non-temporary errors, still try next model but log as error
+				logger.error(this.context, `Model ${modelName} failed with non-temporary error: ${errorMessage}`);
+			}
 		}
+
+		// All models failed
+		throw new Error(`All models failed. Errors: ${errors.join(' | ')}`);
 	}
 
 	async filterAndCompleteEvents(events: CrawledEvent[]): Promise<{
@@ -82,8 +134,8 @@ export class LLMService {
 				await new Promise((resolve) => setTimeout(resolve, 3000));
 
 				// Fill missing data
-				const completedEvent = await this.fillMissingEventData(event);
-				safeEvents.push(completedEvent);
+				const fillResult = await this.fillMissingEventData(event);
+				safeEvents.push(fillResult.event);
 
 				// Add another delay after completion to allow memory cleanup
 				await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -98,21 +150,24 @@ export class LLMService {
 		return { accepted: safeEvents, rejected, reasons };
 	}
 
-	async fillMissingEventData(event: CrawledEvent): Promise<CrawledEvent> {
+	async fillMissingEventData(event: CrawledEvent): Promise<{ event: CrawledEvent; aiProcessed: boolean }> {
 		// Check if event needs completion (missing categories or tags)
 		const needsCategories = !event.eventCategories || event.eventCategories.length === 0;
 		const needsTags = !event.eventTags || event.eventTags.length === 0;
 
 		if (!needsCategories && !needsTags) {
-			return event;
+			return { event, aiProcessed: false }; // No AI processing needed
 		}
 
 		const prompt = fillEventDataPrompt(event);
 		let result: GenerateContentResult | null = null;
 		let aiResponse: string | null = null;
+		let modelUsed: string = 'unknown';
 
 		try {
-			result = await this.model.generateContent(prompt);
+			const generated = await this.generateContentWithFallback(prompt);
+			result = generated.result;
+			modelUsed = generated.modelUsed;
 			const response = result.response;
 
 			// Check if prompt was blocked
@@ -130,7 +185,7 @@ export class LLMService {
 					`Safety ratings:`,
 					JSON.stringify(safetyRatings, null, 2),
 				);
-				return event;
+				return { event, aiProcessed: false };
 			}
 
 			// Check if we have candidates
@@ -142,7 +197,7 @@ export class LLMService {
 					`Full response:`,
 					JSON.stringify(response, null, 2),
 				);
-				return event;
+				return { event, aiProcessed: false };
 			}
 
 			// Check finish reason
@@ -193,14 +248,14 @@ export class LLMService {
 						2,
 					),
 				);
-				return event;
+				return { event, aiProcessed: false };
 			}
 
 			// Log usage metadata if available
 			if (response.usageMetadata) {
 				logger.debug(
 					this.context,
-					`Token usage for "${event.eventName || 'Unknown'}":`,
+					`Token usage for "${event.eventName || 'Unknown'}" (model: ${modelUsed}):`,
 					`Prompt: ${response.usageMetadata.promptTokenCount},`,
 					`Candidates: ${response.usageMetadata.candidatesTokenCount},`,
 					`Total: ${response.usageMetadata.totalTokenCount}`,
@@ -345,9 +400,12 @@ export class LLMService {
 			const sanitizedTags = mergedTags.length > 0 ? mergedTags : originalTags;
 
 			return {
-				...event,
-				eventCategories: sanitizedCategories,
-				eventTags: sanitizedTags,
+				event: {
+					...event,
+					eventCategories: sanitizedCategories,
+					eventTags: sanitizedTags,
+				},
+				aiProcessed: true,
 			};
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
@@ -379,7 +437,7 @@ export class LLMService {
 				logger.error(this.context, `Stack trace:`, undefined, errorStack);
 			}
 
-			return event;
+			return { event, aiProcessed: false }; // AI processing failed
 		}
 	}
 
@@ -498,20 +556,23 @@ export class LLMService {
 		return null; // No clear violation, proceed with LLM check
 	}
 
-	async checkEventSafety(event: CrawledEvent): Promise<{ isSafe: boolean; reason: string }> {
+	async checkEventSafety(event: CrawledEvent): Promise<{ isSafe: boolean; reason: string; aiProcessed: boolean }> {
 		// Quick keyword check first
 		const combinedText = `${event.eventName || ''} ${event.eventDesc || ''}`;
 		const quickCheck = this.quickKeywordCheck(combinedText);
 		if (quickCheck !== null) {
-			return quickCheck;
+			return { ...quickCheck, aiProcessed: false }; // Keyword check, not AI
 		}
 
 		const prompt = buildSafetyCheckPrompt(event);
 		let result: GenerateContentResult | null = null;
 		let aiResponse: string | null = null;
+		let modelUsed: string = 'unknown';
 
 		try {
-			result = await this.model.generateContent(prompt);
+			const generated = await this.generateContentWithFallback(prompt);
+			result = generated.result;
+			modelUsed = generated.modelUsed;
 			const response = result.response;
 
 			// Check if prompt was blocked
@@ -525,7 +586,7 @@ export class LLMService {
 					`Block message: ${blockMessage}`,
 					`Event: ${event.eventName || 'Unknown'}`,
 				);
-				return { isSafe: true, reason: `Prompt blocked: ${blockReason}` };
+				return { isSafe: true, reason: `Prompt blocked: ${blockReason}`, aiProcessed: false };
 			}
 
 			// Check if we have candidates
@@ -537,7 +598,7 @@ export class LLMService {
 					`Full response:`,
 					JSON.stringify(response, null, 2),
 				);
-				return { isSafe: true, reason: 'No candidates returned' };
+				return { isSafe: true, reason: 'No candidates returned', aiProcessed: false };
 			}
 
 			// Get the text response
@@ -565,7 +626,7 @@ export class LLMService {
 						2,
 					),
 				);
-				return { isSafe: true, reason: 'Failed to extract text' };
+				return { isSafe: true, reason: 'Failed to extract text', aiProcessed: false };
 			}
 
 			let parsedResponse: SafetyCheckResponse;
@@ -609,7 +670,7 @@ export class LLMService {
 							`Extracted JSON:`,
 							jsonStr.substring(0, 500),
 						);
-						return { isSafe: true, reason: 'JSON parsing failed' };
+						return { isSafe: true, reason: 'JSON parsing failed', aiProcessed: false };
 					}
 				} else {
 					logger.error(
@@ -620,7 +681,7 @@ export class LLMService {
 							? `Raw AI Response (${aiResponse.length} chars): ${aiResponse.substring(0, 2000)}`
 							: 'No AI response available',
 					);
-					return { isSafe: true, reason: 'JSON parsing failed' };
+					return { isSafe: true, reason: 'JSON parsing failed', aiProcessed: false };
 				}
 			}
 
@@ -632,10 +693,14 @@ export class LLMService {
 						? `Raw AI Response: ${aiResponse.substring(0, 1000)}`
 						: 'No AI response available',
 				);
-				return { isSafe: true, reason: 'Invalid LLM response format' };
+				return { isSafe: true, reason: 'Invalid LLM response format', aiProcessed: false };
 			}
 
-			return { isSafe: parsedResponse.safe, reason: parsedResponse.reason || '' };
+			logger.debug(
+				this.context,
+				`Safety check completed for "${event.eventName || 'Unknown'}" using model: ${modelUsed}`,
+			);
+			return { isSafe: parsedResponse.safe, reason: parsedResponse.reason || '', aiProcessed: true };
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			const errorStack = error instanceof Error ? error.stack : undefined;
@@ -669,7 +734,7 @@ export class LLMService {
 				logger.error(this.context, `Stack trace:`, undefined, errorStack);
 			}
 
-			return { isSafe: true, reason: 'LLM unavailable - accepting' };
+			return { isSafe: true, reason: 'LLM unavailable - accepting', aiProcessed: false };
 		}
 	}
 

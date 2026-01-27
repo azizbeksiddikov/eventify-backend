@@ -349,14 +349,14 @@ export class MeetupScraper implements IEventScraper {
 
 	/**
 	 * Scroll until end of content or limit reached
-	 * Keeps scrolling as long as new content loads
+	 * Keeps scrolling as long as page height increases (content loading)
+	 * Only stops when height stays the same for multiple consecutive scrolls
 	 */
 	private async scrollUntilEnd(page: Page, allEvents: Set<string>, limit?: number): Promise<void> {
 		const waitTimeMs = SCROLL_CONFIG.MEETUP.WAIT_BETWEEN_ROUNDS_MS;
-		const NO_EVENTS_THRESHOLD = 5; // Stop after 5 consecutive scrolls with no new events
-		const MIN_SCROLLS = 10; // Minimum scrolls before giving up (page needs time to load)
+		const NO_HEIGHT_CHANGE_THRESHOLD = 10; // Stop after 10 consecutive scrolls with no height change
 		let scrollAttempt = 0;
-		let consecutiveNoNewContent = 0;
+		let consecutiveNoHeightChange = 0;
 
 		while (true) {
 			// Check limit BEFORE scrolling to avoid over-fetching
@@ -398,27 +398,23 @@ export class MeetupScraper implements IEventScraper {
 			const newEvents = afterEventCount - beforeEventCount;
 			const heightIncreased = afterHeight > beforeHeight;
 
-			if (newEvents > 0) {
-				this.logger.log(`New content: +${newEvents} events, height: ${beforeHeight}px → ${afterHeight}px`);
-				consecutiveNoNewContent = 0; // Reset counter when new events found
-			} else if (heightIncreased) {
-				this.logger.log(`Height increased but no new events: ${beforeHeight}px → ${afterHeight}px`);
-				consecutiveNoNewContent++;
+			if (heightIncreased) {
+				// Height increased = content is loading, keep scrolling
+				consecutiveNoHeightChange = 0;
+				if (newEvents > 0) {
+					this.logger.log(`New content: +${newEvents} events, height: ${beforeHeight}px → ${afterHeight}px`);
+				} else {
+					this.logger.log(`Height increased: ${beforeHeight}px → ${afterHeight}px (content loading...)`);
+				}
 			} else {
-				consecutiveNoNewContent++;
-				this.logger.log(`No new content detected (attempt ${consecutiveNoNewContent}/${NO_EVENTS_THRESHOLD})`);
+				// Height didn't change - might be at the end
+				consecutiveNoHeightChange++;
+				this.logger.log(`No height change (${consecutiveNoHeightChange}/${NO_HEIGHT_CHANGE_THRESHOLD})`);
 
-				// Only stop early if we've done minimum scrolls
-				if (scrollAttempt >= MIN_SCROLLS && consecutiveNoNewContent >= NO_EVENTS_THRESHOLD) {
-					this.logger.log(`Reached end of page after ${scrollAttempt} scrolls`);
+				if (consecutiveNoHeightChange >= NO_HEIGHT_CHANGE_THRESHOLD) {
+					this.logger.log(`Reached end of page after ${scrollAttempt} scrolls (no height change)`);
 					break;
 				}
-			}
-
-			// Stop if no new events after threshold (but only after minimum scrolls)
-			if (scrollAttempt >= MIN_SCROLLS && consecutiveNoNewContent >= NO_EVENTS_THRESHOLD) {
-				this.logger.warn(`Stopping: No new content after ${NO_EVENTS_THRESHOLD} consecutive scrolls`);
-				break;
 			}
 
 			// Safety limit to prevent infinite scrolling

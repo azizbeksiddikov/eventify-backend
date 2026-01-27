@@ -354,8 +354,9 @@ export class MeetupScraper implements IEventScraper {
 	private async scrollUntilEnd(page: Page, allEvents: Set<string>, limit?: number): Promise<void> {
 		const waitTimeMs = SCROLL_CONFIG.MEETUP.WAIT_BETWEEN_ROUNDS_MS;
 		const NO_EVENTS_THRESHOLD = 5; // Stop after 5 consecutive scrolls with no new events
+		const MIN_SCROLLS = 10; // Minimum scrolls before giving up (page needs time to load)
 		let scrollAttempt = 0;
-		let consecutiveNoEvents = 0;
+		let consecutiveNoNewContent = 0;
 
 		while (true) {
 			// Check limit BEFORE scrolling to avoid over-fetching
@@ -385,8 +386,10 @@ export class MeetupScraper implements IEventScraper {
 			const randomY = Math.floor(Math.random() * 600) + 100;
 			await page.mouse.move(randomX, randomY);
 
-			// Wait for API calls to complete and new content to render (with some randomness)
-			const randomWait = waitTimeMs + Math.floor(Math.random() * 1000);
+			// Wait for API calls to complete and new content to render
+			// Use longer wait time for first few scrolls as page needs time to initialize
+			const baseWait = scrollAttempt <= 3 ? waitTimeMs * 2 : waitTimeMs;
+			const randomWait = baseWait + Math.floor(Math.random() * 1000);
 			await new Promise((resolve) => setTimeout(resolve, randomWait));
 
 			// Check if new content loaded
@@ -397,21 +400,35 @@ export class MeetupScraper implements IEventScraper {
 
 			if (newEvents > 0) {
 				this.logger.log(`New content: +${newEvents} events, height: ${beforeHeight}px → ${afterHeight}px`);
-				consecutiveNoEvents = 0; // Reset counter when new events found
+				consecutiveNoNewContent = 0; // Reset counter when new events found
 			} else if (heightIncreased) {
 				this.logger.log(`Height increased but no new events: ${beforeHeight}px → ${afterHeight}px`);
-				consecutiveNoEvents++;
+				consecutiveNoNewContent++;
 			} else {
-				this.logger.log(`No new content detected, reached end of page`);
+				consecutiveNoNewContent++;
+				this.logger.log(`No new content detected (attempt ${consecutiveNoNewContent}/${NO_EVENTS_THRESHOLD})`);
+
+				// Only stop early if we've done minimum scrolls
+				if (scrollAttempt >= MIN_SCROLLS && consecutiveNoNewContent >= NO_EVENTS_THRESHOLD) {
+					this.logger.log(`Reached end of page after ${scrollAttempt} scrolls`);
+					break;
+				}
+			}
+
+			// Stop if no new events after threshold (but only after minimum scrolls)
+			if (scrollAttempt >= MIN_SCROLLS && consecutiveNoNewContent >= NO_EVENTS_THRESHOLD) {
+				this.logger.warn(`Stopping: No new content after ${NO_EVENTS_THRESHOLD} consecutive scrolls`);
 				break;
 			}
 
-			// Stop if no new events after threshold
-			if (consecutiveNoEvents >= NO_EVENTS_THRESHOLD) {
-				this.logger.warn(`Stopping: No new events found after ${NO_EVENTS_THRESHOLD} consecutive scrolls`);
+			// Safety limit to prevent infinite scrolling
+			if (scrollAttempt >= SCROLL_CONFIG.MEETUP.MAX_SCROLLS) {
+				this.logger.warn(`Reached maximum scroll limit (${SCROLL_CONFIG.MEETUP.MAX_SCROLLS})`);
 				break;
 			}
 		}
+
+		this.logger.log(`Scrolling complete: ${scrollAttempt} scrolls, ${allEvents.size} events from API`);
 	}
 
 	/**

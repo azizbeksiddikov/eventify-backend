@@ -517,19 +517,23 @@ export class MeetupScraper implements IEventScraper {
 	/**
 	 * PHASE 2: Fetch complete data with retry logic
 	 * Designed for batch processing with delays and error handling
+	 * Restarts browser periodically to prevent memory/session issues
+	 * Saves progress periodically to prevent data loss on crashes
 	 */
 	async fetchEventDetailsWithRetry(
 		eventList: Array<{ id: string; url: string; title?: string }>,
 	): Promise<MeetupEvent[]> {
-		let browser: Browser | undefined;
 		const detailedRawData: MeetupEvent[] = [];
 		let successCount = 0;
 		let failedCount = 0;
+		const BROWSER_RESTART_INTERVAL = 10; // Restart browser every 5 events to prevent memory issues
 
-		try {
-			browser = await puppeteer.launch({
+		// Helper to create a new browser instance
+		const createBrowser = async (): Promise<Browser> => {
+			return puppeteer.launch({
 				headless: BATCH_CONFIG.HEADLESS,
 				executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
+				protocolTimeout: 180000, // 3 minutes protocol timeout
 				args: [
 					'--no-sandbox',
 					'--disable-setuid-sandbox',
@@ -538,25 +542,80 @@ export class MeetupScraper implements IEventScraper {
 					'--window-size=1920,1080',
 				],
 			});
+		};
 
-			let page = await browser.newPage();
+		let browser: Browser | undefined;
+		let page: Page | undefined;
+
+		try {
+			browser = await createBrowser();
+			page = await browser.newPage();
 			await page.setUserAgent(this.config.userAgent || SCRAPER_DEFAULTS.USER_AGENT);
 
 			for (let i = 0; i < eventList.length; i++) {
 				const eventInfo = eventList[i];
 				let eventData: MeetupEvent | null = null;
 				let attempts = 0;
+				let needsNewBrowser = false;
 				let needsNewPage = false;
+
+				// Restart browser periodically to prevent memory/session issues
+				if (i > 0 && i % BROWSER_RESTART_INTERVAL === 0) {
+					this.logger.log(
+						`Restarting browser after ${i} events (${successCount} success, ${failedCount} failed so far)...`,
+					);
+
+					// Save progress before restart
+					if (process.env.SAVE_JSON_FILES === 'true' && detailedRawData.length > 0) {
+						const progressFile = {
+							metadata: {
+								source: this.config.name,
+								savedAt: new Date().toISOString(),
+								progress: `${i}/${eventList.length}`,
+								successCount,
+								failedCount,
+							},
+							events: detailedRawData,
+						};
+						saveToJsonFile(`jsons/${this.config.name}-progress.json`, progressFile);
+						this.logger.log(`   Saved progress: ${detailedRawData.length} events`);
+					}
+
+					try {
+						if (page) await page.close().catch(() => {});
+						if (browser) await browser.close().catch(() => {});
+					} catch {
+						// Ignore close errors
+					}
+					browser = await createBrowser();
+					page = await browser.newPage();
+					await page.setUserAgent(this.config.userAgent || SCRAPER_DEFAULTS.USER_AGENT);
+				}
 
 				// Try with exponential backoff
 				while (attempts <= BATCH_CONFIG.MAX_RETRIES && !eventData) {
 					attempts++;
 
 					try {
-						// Create new page if previous one had detached frame error
-						if (needsNewPage) {
+						// Create new browser if previous one had protocol timeout
+						if (needsNewBrowser) {
+							this.logger.debug(`   Restarting browser due to timeout...`);
 							try {
-								await page.close();
+								if (page) await page.close().catch(() => {});
+								if (browser) await browser.close().catch(() => {});
+							} catch {
+								// Ignore close errors
+							}
+							browser = await createBrowser();
+							page = await browser.newPage();
+							await page.setUserAgent(this.config.userAgent || SCRAPER_DEFAULTS.USER_AGENT);
+							needsNewBrowser = false;
+							needsNewPage = false;
+						}
+						// Create new page if previous one had detached frame error
+						else if (needsNewPage) {
+							try {
+								if (page) await page.close().catch(() => {});
 							} catch {
 								// Ignore close errors
 							}
@@ -577,10 +636,10 @@ export class MeetupScraper implements IEventScraper {
 							`[${i + 1}/${eventList.length}] ${eventInfo.title?.substring(0, 50) || eventInfo.id}${attempts > 1 ? ` (attempt ${attempts})` : ''}`,
 						);
 
-						// Navigate to event detail page
+						// Navigate to event detail page with increased timeout
 						await page.goto(eventInfo.url, {
 							waitUntil: PUPPETEER_CONFIG.WAIT_UNTIL,
-							timeout: PUPPETEER_CONFIG.TIMEOUT_MS / 4,
+							timeout: PUPPETEER_CONFIG.TIMEOUT_MS / 2, // Increased from /4 to /2 (30s)
 						});
 
 						// Wait for page to be fully loaded and stable
@@ -588,7 +647,7 @@ export class MeetupScraper implements IEventScraper {
 
 						// Wait for event data to load
 						await page.waitForSelector('script[type="application/json"]', {
-							timeout: PUPPETEER_CONFIG.TIMEOUT_MS / 6,
+							timeout: PUPPETEER_CONFIG.TIMEOUT_MS / 4, // Increased from /6 to /4 (15s)
 						});
 
 						// Additional wait for any dynamic content
@@ -628,9 +687,29 @@ export class MeetupScraper implements IEventScraper {
 						const errorMessage = error instanceof Error ? error.message : String(error);
 						this.logger.warn(`   Attempt ${attempts} failed: ${errorMessage}`);
 
+						// If it's a protocol timeout, we need a new browser
+						if (
+							errorMessage.includes('protocolTimeout') ||
+							errorMessage.includes('Protocol error') ||
+							errorMessage.includes('timed out') ||
+							errorMessage.includes('Target closed') ||
+							errorMessage.includes('Session closed')
+						) {
+							needsNewBrowser = true;
+						}
 						// If it's a detached frame error, we need a new page
-						if (errorMessage.includes('detached Frame')) {
+						else if (errorMessage.includes('detached Frame') || errorMessage.includes('Execution context')) {
 							needsNewPage = true;
+						}
+						// If page not found (404), skip this event
+						else if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+							this.logger.warn(`   Event page not found, skipping: ${eventInfo.id}`);
+							break;
+						}
+						// If rate limited (429), wait longer before retry
+						else if (errorMessage.includes('429') || errorMessage.includes('Too Many Requests')) {
+							this.logger.warn(`   Rate limited! Waiting 30 seconds before retry...`);
+							await new Promise((resolve) => setTimeout(resolve, 30000));
 						}
 
 						if (attempts > BATCH_CONFIG.MAX_RETRIES) {
@@ -657,7 +736,7 @@ export class MeetupScraper implements IEventScraper {
 
 			// Close the page
 			try {
-				await page.close();
+				if (page) await page.close().catch(() => {});
 			} catch {
 				// Ignore close errors
 			}

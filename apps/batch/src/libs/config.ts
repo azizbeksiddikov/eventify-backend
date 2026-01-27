@@ -61,7 +61,7 @@ export const SCRAPER_DEFAULTS = {
 // Batch processing configuration for scrapers
 export const BATCH_CONFIG = {
 	// Retry configuration
-	MAX_RETRIES: 2, // Number of retry attempts per event
+	MAX_RETRIES: 3, // Number of retry attempts per event (increased from 2)
 	BASE_DELAY_MS: 2000, // Base delay between requests (2 seconds)
 	RETRY_BACKOFF_MULTIPLIER: 2, // Exponential backoff multiplier
 

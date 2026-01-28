@@ -725,18 +725,18 @@ export class MeetupScraper implements IEventScraper {
 							`[${i + 1}/${eventList.length}] ${eventInfo.title?.substring(0, 50) || eventInfo.id}${attempts > 1 ? ` (attempt ${attempts})` : ''}`,
 						);
 
-						// Navigate to event detail page - wait for network to settle
+						// Navigate to event detail page - use domcontentloaded (faster, works better with blocked networks)
 						await page.goto(eventInfo.url, {
-							waitUntil: 'networkidle2', // Wait until network is idle (better for JS-heavy pages)
-							timeout: PUPPETEER_CONFIG.TIMEOUT_MS, // Full 60s timeout
+							waitUntil: 'domcontentloaded',
+							timeout: 30000, // 30 seconds for navigation
 						});
 
 						// Wait for page to be fully loaded and stable
-						await new Promise((resolve) => setTimeout(resolve, 2000));
+						await new Promise((resolve) => setTimeout(resolve, 3000));
 
-						// Wait for event data to load (longer timeout)
+						// Wait for event data to load
 						await page.waitForSelector('script[type="application/json"]', {
-							timeout: PUPPETEER_CONFIG.TIMEOUT_MS / 2, // 30 seconds
+							timeout: 20000, // 20 seconds
 						});
 
 						// Additional wait for any dynamic content

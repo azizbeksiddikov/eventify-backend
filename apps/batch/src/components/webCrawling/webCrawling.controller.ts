@@ -9,13 +9,13 @@ export class WebCrawlingController {
 
 	/**
 	 * Get events with sequential processing for memory efficiency.
-	 * GET /web-crawling/events
+	 * GET /web-crawling/events (default limit: 50)
 	 * GET /web-crawling/events?limit=5&isTest=true
 	 */
 	@Get('events')
 	async getEventCrawling(@Query('limit') limit?: string, @Query('isTest') isTest?: string) {
 		try {
-			const limitNum = limit ? parseInt(limit, 10) : undefined;
+			const limitNum = limit ? parseInt(limit, 10) : 50;
 			const testMode = isTest?.toLowerCase() === 'true';
 
 			this.logger.log(`Starting crawling (limit=${limitNum}, testMode=${testMode})`);

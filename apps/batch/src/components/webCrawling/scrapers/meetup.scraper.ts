@@ -141,6 +141,17 @@ export class MeetupScraper implements IEventScraper {
 					'--disable-web-security', // Disable CORS (use with caution)
 					'--disable-features=IsolateOrigins,site-per-process',
 					'--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+					// Memory-saving flags
+					'--disable-extensions',
+					'--disable-background-networking',
+					'--disable-default-apps',
+					'--disable-sync',
+					'--disable-translate',
+					'--metrics-recording-only',
+					'--mute-audio',
+					'--no-first-run',
+					'--safebrowsing-disable-auto-update',
+					'--js-flags=--max-old-space-size=512', // Limit JS heap
 				],
 			});
 
@@ -201,11 +212,51 @@ export class MeetupScraper implements IEventScraper {
 				});
 			});
 
-			// Intercept network requests to capture API responses
+			// Intercept network requests to capture API responses and BLOCK unnecessary resources
 			await page.setRequestInterception(true);
 
+			// Resource types to block (saves memory - we only need API responses)
+			const blockedResourceTypes = new Set(['image', 'stylesheet', 'font', 'media', 'texttrack', 'manifest', 'other']);
+
+			// URL patterns to block (analytics, tracking, ads)
+			const blockedUrlPatterns = [
+				'google-analytics',
+				'googletagmanager',
+				'facebook',
+				'doubleclick',
+				'analytics',
+				'tracking',
+				'ads',
+				'.png',
+				'.jpg',
+				'.jpeg',
+				'.gif',
+				'.webp',
+				'.svg',
+				'.ico',
+				'.woff',
+				'.woff2',
+				'.ttf',
+				'.css',
+			];
+
 			page.on('request', (request) => {
-				// Continue all requests
+				const resourceType = request.resourceType();
+				const url = request.url().toLowerCase();
+
+				// Block unnecessary resource types
+				if (blockedResourceTypes.has(resourceType)) {
+					void request.abort();
+					return;
+				}
+
+				// Block tracking/analytics URLs
+				if (blockedUrlPatterns.some((pattern) => url.includes(pattern))) {
+					void request.abort();
+					return;
+				}
+
+				// Allow everything else (HTML, XHR/fetch for API calls, scripts)
 				void request.continue();
 			});
 
@@ -262,8 +313,23 @@ export class MeetupScraper implements IEventScraper {
 			// Final wait for any remaining API calls
 			await new Promise((resolve) => setTimeout(resolve, SCROLL_CONFIG.MEETUP.WAIT_BETWEEN_ROUNDS_MS));
 
-			// Get HTML content
-			const htmlContent = await page.content();
+			// Get HTML content with error handling (browser may be unresponsive after long scrolling)
+			let htmlContent = '';
+			try {
+				htmlContent = await page.content();
+			} catch (contentError) {
+				const errorMsg = contentError instanceof Error ? contentError.message : String(contentError);
+				this.logger.warn(`Failed to get page content: ${errorMsg}`);
+				this.logger.log(`Will use API responses only (${apiResponses.length} captured)`);
+				// Return just the API data as a minimal HTML page
+				if (apiResponses.length > 0) {
+					const mergedApiData = apiResponses.reduce((acc, response) => {
+						return deepMerge(acc, response);
+					}, {});
+					return `<html><body><script type="application/json" id="captured-api-data">${JSON.stringify(mergedApiData)}</script></body></html>`;
+				}
+				throw contentError; // Re-throw if we have no data at all
+			}
 
 			// DEBUG: Log API response count
 			this.logger.log(`Captured ${apiResponses.length} API responses`);
@@ -659,18 +725,18 @@ export class MeetupScraper implements IEventScraper {
 							`[${i + 1}/${eventList.length}] ${eventInfo.title?.substring(0, 50) || eventInfo.id}${attempts > 1 ? ` (attempt ${attempts})` : ''}`,
 						);
 
-						// Navigate to event detail page with increased timeout
+						// Navigate to event detail page - wait for network to settle
 						await page.goto(eventInfo.url, {
-							waitUntil: PUPPETEER_CONFIG.WAIT_UNTIL,
-							timeout: PUPPETEER_CONFIG.TIMEOUT_MS / 2, // Increased from /4 to /2 (30s)
+							waitUntil: 'networkidle2', // Wait until network is idle (better for JS-heavy pages)
+							timeout: PUPPETEER_CONFIG.TIMEOUT_MS, // Full 60s timeout
 						});
 
 						// Wait for page to be fully loaded and stable
-						await new Promise((resolve) => setTimeout(resolve, 1000));
+						await new Promise((resolve) => setTimeout(resolve, 2000));
 
-						// Wait for event data to load
+						// Wait for event data to load (longer timeout)
 						await page.waitForSelector('script[type="application/json"]', {
-							timeout: PUPPETEER_CONFIG.TIMEOUT_MS / 4, // Increased from /6 to /4 (15s)
+							timeout: PUPPETEER_CONFIG.TIMEOUT_MS / 2, // 30 seconds
 						});
 
 						// Additional wait for any dynamic content

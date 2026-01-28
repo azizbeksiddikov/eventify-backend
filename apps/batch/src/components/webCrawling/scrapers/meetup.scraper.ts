@@ -130,6 +130,7 @@ export class MeetupScraper implements IEventScraper {
 			browser = await puppeteer.launch({
 				headless: BATCH_CONFIG.HEADLESS,
 				executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
+				protocolTimeout: 180000, // 3 minutes protocol timeout to prevent crashes during long scrolls
 				args: [
 					'--no-sandbox',
 					'--disable-setuid-sandbox',
@@ -355,8 +356,10 @@ export class MeetupScraper implements IEventScraper {
 	private async scrollUntilEnd(page: Page, allEvents: Set<string>, limit?: number): Promise<void> {
 		const waitTimeMs = SCROLL_CONFIG.MEETUP.WAIT_BETWEEN_ROUNDS_MS;
 		const NO_HEIGHT_CHANGE_THRESHOLD = 10; // Stop after 10 consecutive scrolls with no height change
+		const MAX_CONSECUTIVE_ERRORS = 3; // Stop if we get 3 consecutive errors
 		let scrollAttempt = 0;
 		let consecutiveNoHeightChange = 0;
+		let consecutiveErrors = 0;
 
 		while (true) {
 			// Check limit BEFORE scrolling to avoid over-fetching
@@ -367,54 +370,74 @@ export class MeetupScraper implements IEventScraper {
 
 			scrollAttempt++;
 
-			// Get current page height and event count
-			const beforeHeight = await page.evaluate(() => document.body.scrollHeight);
-			const beforeEventCount = allEvents.size;
+			try {
+				// Get current page height and event count
+				const beforeHeight = await page.evaluate(() => document.body.scrollHeight);
+				const beforeEventCount = allEvents.size;
 
-			this.logger.log(`Scroll ${scrollAttempt}: ${beforeEventCount} events, height: ${beforeHeight}px`);
+				this.logger.log(`Scroll ${scrollAttempt}: ${beforeEventCount} events, height: ${beforeHeight}px`);
 
-			// Scroll to bottom (human-like smooth scrolling)
-			await page.evaluate(() => {
-				window.scrollTo({
-					top: document.body.scrollHeight,
-					behavior: 'smooth',
+				// Scroll to bottom (human-like smooth scrolling)
+				await page.evaluate(() => {
+					window.scrollTo({
+						top: document.body.scrollHeight,
+						behavior: 'smooth',
+					});
 				});
-			});
 
-			// Add random mouse movement during scroll (human-like)
-			const randomX = Math.floor(Math.random() * 800) + 100;
-			const randomY = Math.floor(Math.random() * 600) + 100;
-			await page.mouse.move(randomX, randomY);
+				// Add random mouse movement during scroll (human-like)
+				const randomX = Math.floor(Math.random() * 800) + 100;
+				const randomY = Math.floor(Math.random() * 600) + 100;
+				await page.mouse.move(randomX, randomY);
 
-			// Wait for API calls to complete and new content to render
-			// Use longer wait time for first few scrolls as page needs time to initialize
-			const baseWait = scrollAttempt <= 3 ? waitTimeMs * 2 : waitTimeMs;
-			const randomWait = baseWait + Math.floor(Math.random() * 1000);
-			await new Promise((resolve) => setTimeout(resolve, randomWait));
+				// Wait for API calls to complete and new content to render
+				// Use longer wait time for first few scrolls as page needs time to initialize
+				const baseWait = scrollAttempt <= 3 ? waitTimeMs * 2 : waitTimeMs;
+				const randomWait = baseWait + Math.floor(Math.random() * 1000);
+				await new Promise((resolve) => setTimeout(resolve, randomWait));
 
-			// Check if new content loaded
-			const afterHeight = await page.evaluate(() => document.body.scrollHeight);
-			const afterEventCount = allEvents.size;
-			const newEvents = afterEventCount - beforeEventCount;
-			const heightIncreased = afterHeight > beforeHeight;
+				// Check if new content loaded
+				const afterHeight = await page.evaluate(() => document.body.scrollHeight);
+				const afterEventCount = allEvents.size;
+				const newEvents = afterEventCount - beforeEventCount;
+				const heightIncreased = afterHeight > beforeHeight;
 
-			if (heightIncreased) {
-				// Height increased = content is loading, keep scrolling
-				consecutiveNoHeightChange = 0;
-				if (newEvents > 0) {
-					this.logger.log(`New content: +${newEvents} events, height: ${beforeHeight}px → ${afterHeight}px`);
+				// Reset error counter on success
+				consecutiveErrors = 0;
+
+				if (heightIncreased) {
+					// Height increased = content is loading, keep scrolling
+					consecutiveNoHeightChange = 0;
+					if (newEvents > 0) {
+						this.logger.log(`New content: +${newEvents} events, height: ${beforeHeight}px → ${afterHeight}px`);
+					} else {
+						this.logger.log(`Height increased: ${beforeHeight}px → ${afterHeight}px (content loading...)`);
+					}
 				} else {
-					this.logger.log(`Height increased: ${beforeHeight}px → ${afterHeight}px (content loading...)`);
-				}
-			} else {
-				// Height didn't change - might be at the end
-				consecutiveNoHeightChange++;
-				this.logger.log(`No height change (${consecutiveNoHeightChange}/${NO_HEIGHT_CHANGE_THRESHOLD})`);
+					// Height didn't change - might be at the end
+					consecutiveNoHeightChange++;
+					this.logger.log(`No height change (${consecutiveNoHeightChange}/${NO_HEIGHT_CHANGE_THRESHOLD})`);
 
-				if (consecutiveNoHeightChange >= NO_HEIGHT_CHANGE_THRESHOLD) {
-					this.logger.log(`Reached end of page after ${scrollAttempt} scrolls (no height change)`);
+					if (consecutiveNoHeightChange >= NO_HEIGHT_CHANGE_THRESHOLD) {
+						this.logger.log(`Reached end of page after ${scrollAttempt} scrolls (no height change)`);
+						break;
+					}
+				}
+			} catch (error) {
+				consecutiveErrors++;
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				this.logger.warn(
+					`Scroll ${scrollAttempt} failed (${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS}): ${errorMessage}`,
+				);
+
+				if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+					this.logger.warn(`Stopping scrolling after ${MAX_CONSECUTIVE_ERRORS} consecutive errors`);
 					break;
 				}
+
+				// Wait a bit before retrying
+				await new Promise((resolve) => setTimeout(resolve, 2000));
+				continue;
 			}
 
 			// Safety limit to prevent infinite scrolling

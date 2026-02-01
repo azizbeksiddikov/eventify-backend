@@ -123,6 +123,7 @@ export class GroupService {
 									},
 								},
 							},
+							{ $sort: { eventStartAt: 1 } },
 							lookupAuthMemberLiked(memberId),
 						],
 						as: 'groupUpcomingEvents',

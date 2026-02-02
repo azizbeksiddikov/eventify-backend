@@ -28,6 +28,39 @@ export class NotificationService {
 		}
 	}
 
+	/**
+	 * Creates or updates a notification to prevent duplicates.
+	 * Uses upsert to ensure only one notification exists per unique combination
+	 * of memberId, receiverId, notificationType, and notificationLink.
+	 * If the notification already exists, it updates the timestamp (making it appear fresh).
+	 */
+	public async upsertNotification(input: NotificationInput): Promise<Notification> {
+		try {
+			const filter: T = {
+				memberId: input.memberId,
+				receiverId: input.receiverId,
+				notificationType: input.notificationType,
+				notificationLink: input.notificationLink,
+			};
+
+			const update = {
+				$set: {
+					...input,
+					isRead: false,
+				},
+			};
+
+			const notification = await this.notificationModel.findOneAndUpdate(filter, update, {
+				upsert: true,
+				new: true,
+			});
+
+			return notification;
+		} catch {
+			throw new BadRequestException(Message.CREATE_FAILED);
+		}
+	}
+
 	public async getNotifications(memberId: ObjectId, input: NotificationsInquiry): Promise<Notifications> {
 		const match: T = { receiverId: memberId };
 		if (input.search?.notificationType) match.notificationType = input.search.notificationType;

@@ -77,7 +77,7 @@ export class FollowService {
 			if (targetMember.memberType === MemberType.ORGANIZER) {
 				newNotification.notificationLink = `/organizers/${shapeObjectIdToString(followerId)}`;
 			}
-			await this.notificationService.createNotification(newNotification);
+			await this.notificationService.upsertNotification(newNotification);
 
 			targetMember.memberFollowers += 1;
 			targetMember.meFollowed = [{ followingId: followingId, followerId: followerId, myFollowing: true }];

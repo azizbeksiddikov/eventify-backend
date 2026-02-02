@@ -71,7 +71,7 @@ export class TicketService {
 			};
 			const newTicket: Ticket = (await this.ticketModel.create(newTicketInput)) as Ticket;
 
-			// create notification for event organizer
+			// create or update notification for event organizer (upsert to prevent duplicates on rejoin)
 			if (event.memberId) {
 				const eventIdStr = shapeObjectIdToString(eventId);
 				const notificationLink = `/events/${eventIdStr}`;
@@ -81,7 +81,7 @@ export class TicketService {
 					notificationType: NotificationType.JOIN_EVENT,
 					notificationLink: notificationLink,
 				};
-				await this.notificationService.createNotification(newNotification);
+				await this.notificationService.upsertNotification(newNotification);
 			}
 
 			// update member stats

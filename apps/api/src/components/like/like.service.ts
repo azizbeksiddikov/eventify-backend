@@ -37,9 +37,9 @@ export class LikeService {
 				// create like
 				await this.likeModel.create(input);
 
-				// create notification
+				// create or update notification (upsert to prevent duplicates)
 				if (notificationInput) {
-					await this.notificationService.createNotification(notificationInput);
+					await this.notificationService.upsertNotification(notificationInput);
 				}
 			} catch (err) {
 				const errorMessage = err instanceof Error ? err.message : 'Unknown error';

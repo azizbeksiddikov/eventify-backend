@@ -342,7 +342,7 @@ export class GroupService {
 				notificationType: NotificationType.JOIN_GROUP,
 				notificationLink: `/groups/${shapeObjectIdToString(groupId)}`,
 			};
-			await this.notificationService.createNotification(newNotification);
+			await this.notificationService.upsertNotification(newNotification);
 
 			// update group stats
 			await this.groupStatsEditor({ _id: groupId, targetKey: 'memberCount', modifier: 1 });

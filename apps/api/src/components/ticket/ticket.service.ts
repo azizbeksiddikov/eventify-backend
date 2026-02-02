@@ -55,10 +55,7 @@ export class TicketService {
 		const requiredPoints = event.eventPrice * ticketQuantity * rate;
 		const memberPoints = await this.memberService.getMemberPoints(memberId);
 		if (memberPoints < requiredPoints) {
-			const shortfall = requiredPoints - memberPoints;
-			throw new BadRequestException(
-				`Insufficient points. Required: ${requiredPoints.toFixed(2)}, Available: ${memberPoints.toFixed(2)}, Shortfall: ${shortfall.toFixed(2)}`,
-			);
+			throw new BadRequestException(Message.INSUFFICIENT_POINTS);
 		}
 
 		// Create a new ticket

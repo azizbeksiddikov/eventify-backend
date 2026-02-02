@@ -108,7 +108,8 @@ export class EventRecurrenceInput {
 	eventPrice?: number;
 
 	@Field(() => String, { nullable: true })
-	@IsOptional()
+	@ValidateIf((o: EventRecurrenceInput) => o.eventPrice !== undefined && o.eventPrice > 0)
+	@IsNotEmpty({ message: 'Currency is required when event has a price' })
 	@IsString()
 	eventCurrency?: string;
 
@@ -239,7 +240,8 @@ export class EventRecurrenceUpdateInput {
 	eventPrice?: number;
 
 	@Field(() => String, { nullable: true })
-	@IsOptional()
+	@ValidateIf((o: EventRecurrenceUpdateInput) => o.eventPrice !== undefined && o.eventPrice > 0)
+	@IsNotEmpty({ message: 'Currency is required when event has a price' })
 	@IsString()
 	eventCurrency?: string;
 

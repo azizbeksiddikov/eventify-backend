@@ -386,7 +386,7 @@ export class MemberService {
 
 	public async getMemberPoints(memberId: ObjectId): Promise<number> {
 		const result = (await this.memberModel.findById(memberId).select('+memberPoints').lean().exec()) as Member;
-		if (!result || !result.memberPoints) throw new BadRequestException(Message.NO_DATA_FOUND);
-		return result.memberPoints;
+		if (!result) throw new NotFoundException(Message.MEMBER_NOT_FOUND);
+		return result.memberPoints ?? 0;
 	}
 }

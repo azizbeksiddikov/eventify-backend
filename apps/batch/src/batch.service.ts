@@ -49,6 +49,11 @@ export class BatchService {
 
 	@Cron(CRON_WEB_CRAWLING, { name: BATCH_WEB_CRAWLING, timeZone: SCRAPER_DEFAULTS.DEFAULT_TIMEZONE })
 	async handleWebCrawling() {
+		if (process.env.WEB_CRAWLING_ENABLED !== 'true') {
+			this.logger.log('Skipped: handleWebCrawling (set WEB_CRAWLING_ENABLED=true to enable it)');
+			return;
+		}
+
 		this.logger.log('Started: handleWebCrawling');
 		try {
 			const isTest = false;

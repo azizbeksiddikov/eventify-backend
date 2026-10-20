@@ -18,7 +18,7 @@ interface SafetyCheckResponse {
 @Injectable()
 export class LLMService {
 	private readonly llmEnabled: boolean;
-	private readonly genAI: GoogleGenerativeAI;
+	private readonly genAI: GoogleGenerativeAI | null;
 	private readonly context = 'LLMService';
 
 	// Fallback models in order of preference
@@ -30,17 +30,14 @@ export class LLMService {
 	];
 
 	constructor() {
-		this.llmEnabled = true;
-
 		const apiKey = process.env.GEMINI_API_KEY;
-		if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
-
-		this.genAI = new GoogleGenerativeAI(apiKey);
+		this.llmEnabled = Boolean(apiKey);
+		this.genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 		if (this.llmEnabled) {
 			logger.info(this.context, `LLM enabled with fallback models: ${this.fallbackModels.join(' -> ')}`);
 		} else {
-			logger.warn(this.context, 'LLM is disabled.');
+			logger.warn(this.context, 'LLM is disabled because GEMINI_API_KEY is not configured.');
 		}
 	}
 
@@ -48,6 +45,8 @@ export class LLMService {
 	 * Get a model instance by name
 	 */
 	private getModel(modelName: string): GenerativeModel {
+		if (!this.genAI) throw new Error('Gemini AI is not configured');
+
 		return this.genAI.getGenerativeModel({
 			model: modelName,
 			generationConfig: {

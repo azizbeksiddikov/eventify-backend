@@ -5,16 +5,22 @@ import { logger } from '../../libs/logger';
 
 @Injectable()
 export class LLMChatService {
-	private readonly genAI: GoogleGenerativeAI;
-	private readonly model: GenerativeModel;
+	private readonly genAI: GoogleGenerativeAI | null;
+	private readonly model: GenerativeModel | null;
 	private readonly modelName: string;
 	private readonly context = 'LLMChatService';
 
 	constructor() {
-		const apiKey = process.env.GEMINI_API_KEY;
-		if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
-
 		this.modelName = 'gemini-2.5-flash';
+
+		const apiKey = process.env.GEMINI_API_KEY;
+		if (!apiKey) {
+			this.genAI = null;
+			this.model = null;
+			logger.warn(this.context, 'Gemini AI is not configured; LLM endpoints are disabled.');
+			return;
+		}
+
 		this.genAI = new GoogleGenerativeAI(apiKey);
 		this.model = this.genAI.getGenerativeModel({
 			model: this.modelName,
@@ -27,6 +33,17 @@ export class LLMChatService {
 	}
 
 	async checkConnection(): Promise<LLMConnectionResponse> {
+		if (!this.model) {
+			return {
+				success: false,
+				message: 'Gemini AI is not configured',
+				baseUrl: 'Gemini API',
+				configuredModel: this.modelName,
+				hint: 'Set GEMINI_API_KEY to enable AI features',
+				modelReady: false,
+			};
+		}
+
 		try {
 			// Test the connection by making a simple request
 			const result = await this.model.generateContent('Hello');
@@ -56,6 +73,21 @@ export class LLMChatService {
 	async directChat(request?: LLMChatRequest): Promise<LLMChatResponse> {
 		const prompt = request?.prompt || 'Say "Hello, I am working!" in a friendly way.';
 		const temperature = request?.temperature ?? 0.7;
+
+		if (!this.genAI) {
+			return {
+				success: false,
+				error: 'Gemini AI is not configured',
+				request: {
+					prompt,
+					promptLength: prompt.length,
+					model: this.modelName,
+					temperature,
+					num_ctx: 32768,
+				},
+				hint: 'Set GEMINI_API_KEY to enable AI features',
+			};
+		}
 
 		const startTime = Date.now();
 

@@ -52,6 +52,10 @@ export enum Message {
 	TICKET_NOT_FOUND = 'Ticket not found.',
 	TICKET_ALREADY_CANCELLED = 'This ticket has already been cancelled.',
 	TICKET_QUANTITY_INVALID = 'Ticket quantity must be greater than 0.',
+
+	// ===== Currency Related Messages =====
+	CURRENCY_NOT_SUPPORTED = 'This currency is not supported.',
+	CURRENCY_NOT_CONFIGURED = 'No currency is configured yet. Please contact support.',
 }
 
 // ===== Direction =====

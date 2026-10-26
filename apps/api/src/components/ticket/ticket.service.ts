@@ -49,10 +49,17 @@ export class TicketService {
 		if (event.eventCapacity && event.attendeeCount + ticketQuantity > event.eventCapacity)
 			throw new BadRequestException(Message.EVENT_FULL);
 
+		// Work out the currency and the points this purchase costs. A free event costs nothing
+		// whatever its currency; a paid one with no currency falls back to the default currency.
+		const eventPrice = event.eventPrice ?? 0;
+		const isPaid = eventPrice > 0;
+		const currency = isPaid
+			? await this.currencyService.resolveEventCurrency(eventPrice, event.eventCurrency)
+			: event.eventCurrency || (await this.currencyService.getDefaultCurrencyCode());
+		if (!currency) throw new BadRequestException(Message.CURRENCY_NOT_CONFIGURED);
+		const rate = isPaid ? await this.currencyService.getCurrencyRate(currency) : 0;
+		const requiredPoints = eventPrice * ticketQuantity * rate;
 		// Check if the member has enough points
-		if (!event.eventCurrency) throw new BadRequestException('Event currency is not defined');
-		const rate = await this.currencyService.getCurrencyRate(event.eventCurrency);
-		const requiredPoints = event.eventPrice * ticketQuantity * rate;
 		const memberPoints = await this.memberService.getMemberPoints(memberId);
 		if (memberPoints < requiredPoints) {
 			throw new BadRequestException(Message.INSUFFICIENT_POINTS);
@@ -64,8 +71,8 @@ export class TicketService {
 				eventId: eventId,
 				memberId: memberId,
 				ticketStatus: TicketStatus.PURCHASED,
-				ticketPrice: event.eventPrice,
-				ticketCurrency: event.eventCurrency,
+				ticketPrice: eventPrice,
+				ticketCurrency: currency,
 				ticketQuantity: ticketQuantity,
 				totalPrice: requiredPoints, // Store the calculated points as totalPrice
 			};

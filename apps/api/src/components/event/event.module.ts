@@ -13,6 +13,7 @@ import { LikeModule } from '../like/like.module';
 import { ViewModule } from '../view/view.module';
 import { MemberModule } from '../member/member.module';
 import { GroupModule } from '../group/group.module';
+import { CurrencyModule } from '../currency/currency.module';
 
 // ===== Event Components =====
 import { EventResolver } from './event.resolver';
@@ -31,6 +32,7 @@ import { EventService } from './event.service';
 		ViewModule,
 		MemberModule,
 		GroupModule,
+		CurrencyModule,
 	],
 	providers: [EventResolver, EventService],
 	exports: [EventService],

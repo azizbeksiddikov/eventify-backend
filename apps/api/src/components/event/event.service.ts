@@ -36,6 +36,7 @@ import { ViewService } from '../view/view.service';
 import { MemberService } from '../member/member.service';
 import { NotificationService } from '../notification/notification.service';
 import { GroupService } from '../group/group.service';
+import { CurrencyService } from '../currency/currency.service';
 
 @Injectable()
 export class EventService {
@@ -48,6 +49,7 @@ export class EventService {
 		private readonly notificationService: NotificationService,
 		private readonly memberService: MemberService,
 		private readonly groupService: GroupService,
+		private readonly currencyService: CurrencyService,
 	) {}
 
 	// ============== Event Management Methods ==============
@@ -62,6 +64,10 @@ export class EventService {
 		if (input.eventPrice && input.eventPrice <= 0) input.eventPrice = 0;
 		if (!input?.eventStatus) input.eventStatus = EventStatus.UPCOMING;
 		if (!input?.eventType) input.eventType = EventType.ONCE;
+
+		// every event gets a valid currency (default one when none is chosen) so tickets can always be priced
+		const currency = await this.currencyService.resolveEventCurrency(input.eventPrice, input.eventCurrency);
+		if (currency) input.eventCurrency = currency;
 
 		// check for group existence if provided
 		if (input.groupId) {
@@ -550,6 +556,14 @@ export class EventService {
 	private async updateEventWithValidation(event: Event, input: EventUpdateInput): Promise<Event> {
 		// Validate Input fields
 		if (input.eventPrice && input.eventPrice <= 0) input.eventPrice = 0;
+		// validate a changed currency, and give a newly paid event one if it has none
+		if (input.eventCurrency !== undefined || (input.eventPrice && input.eventPrice > 0 && !event.eventCurrency)) {
+			const currency = await this.currencyService.resolveEventCurrency(
+				input.eventPrice ?? event.eventPrice,
+				input.eventCurrency ?? event.eventCurrency,
+			);
+			if (currency) input.eventCurrency = currency;
+		}
 		if (input.eventCategories && input.eventCategories.length > 3) {
 			input.eventCategories = input.eventCategories.slice(0, 3);
 		}

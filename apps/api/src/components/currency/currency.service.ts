@@ -102,6 +102,27 @@ export class CurrencyService {
 	}
 
 	/**
+	 * Decide the currency an event (or its ticket) uses.
+	 * - a named currency must exist, and is returned upper-cased;
+	 * - no name: fall back to the default currency;
+	 * - a paid event with no usable currency is an error, a free one may stay without.
+	 */
+	public async resolveEventCurrency(
+		price: number | undefined | null,
+		code: string | undefined | null,
+	): Promise<string | null> {
+		const named = code?.trim().toUpperCase();
+		if (named) {
+			const found = await this.currencyModel.findOne({ currencyCode: named }).exec();
+			if (!found) throw new BadRequestException(Message.CURRENCY_NOT_SUPPORTED);
+			return named;
+		}
+		const fallback = await this.getDefaultCurrencyCode();
+		if (!fallback && price && price > 0) throw new BadRequestException(Message.CURRENCY_NOT_CONFIGURED);
+		return fallback;
+	}
+
+	/**
 	 * Get all currencies with filtering and sorting
 	 */
 	public async getAllCurrencies(input: CurrencyInquiry): Promise<CurrencyEntity[]> {

@@ -109,6 +109,18 @@ export class MemberResolver {
 		return await this.memberService.getOrganizer(memberId, targetId);
 	}
 
+	/** The caller's own points shown in a currency (points / exchange rate). */
+	@UseGuards(AuthGuard)
+	@Query(() => Number)
+	public async getMemberPointsInCurrency(
+		@Args('currencyCode') currencyCode: string,
+		@AuthMember('_id') memberId: ObjectId,
+	): Promise<number> {
+		logger.debug('MemberResolver', 'Query: getMemberPointsInCurrency');
+		const points = await this.memberService.getMemberPoints(memberId);
+		return await this.currencyService.convertPointsToCurrency(points, currencyCode);
+	}
+
 	@UseGuards(AuthGuard)
 	@Mutation(() => Member)
 	public async likeTargetMember(@Args('memberId') input: string, @AuthMember() authMember: Member): Promise<Member> {

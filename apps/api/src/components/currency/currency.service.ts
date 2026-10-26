@@ -82,6 +82,26 @@ export class CurrencyService {
 	}
 
 	/**
+	 * Convert internal points to a currency amount.
+	 * The exchange rate is "points per 1 unit of currency" (the same rate ticket
+	 * purchases use: points = price * rate), so amount = points / rate.
+	 */
+	public async convertPointsToCurrency(points: number, currencyCode: string): Promise<number> {
+		const rate = await this.getCurrencyRate(currencyCode);
+		if (!(rate > 0)) throw new BadRequestException('Exchange rate must be positive.');
+		return Math.round((points / rate) * 100) / 100;
+	}
+
+	/**
+	 * Code of the currency used when an event does not name one: the oldest active
+	 * currency. Returns null when no active currency exists.
+	 */
+	public async getDefaultCurrencyCode(): Promise<string | null> {
+		const currency = await this.currencyModel.findOne({ isActive: true }).sort({ createdAt: 1 }).lean().exec();
+		return currency?.currencyCode ?? null;
+	}
+
+	/**
 	 * Get all currencies with filtering and sorting
 	 */
 	public async getAllCurrencies(input: CurrencyInquiry): Promise<CurrencyEntity[]> {

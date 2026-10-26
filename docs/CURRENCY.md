@@ -7,7 +7,7 @@
 
 ## Rules (CurrencyService.resolveEventCurrency)
 - Creating or updating an event: a named currency must exist in `currencies` (otherwise "This currency is not supported."); no currency means the default one is stored, free or paid.
-- Buying a ticket: a free event costs 0 points and needs no rate (the default currency is stamped on the ticket if the event has none). A paid event with no currency uses the default; if no currency is configured at all the purchase fails with "No currency is configured yet. Please contact support."
+- Buying a ticket: a free event (price 0) skips every currency check and conversion (cost 0 points, the ticket stores no currency). A paid event must have an existing currency; with none the purchase stops with "This paid event has no currency set, so a ticket cannot be priced. Please contact the organizer." (the price is never guessed in another currency).
 - Crawled events (`origin` other than `internal`) are not sold in the app and keep no currency.
 
 ## Backfill script (existing data)

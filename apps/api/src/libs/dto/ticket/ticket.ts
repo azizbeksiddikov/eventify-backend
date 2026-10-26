@@ -27,8 +27,8 @@ export class Ticket {
 	ticketPrice: number;
 
 	// Currency-related (external): Currency code (e.g., "USD", "EUR")
-	@Field(() => String)
-	ticketCurrency: string;
+	@Field(() => String, { nullable: true })
+	ticketCurrency?: string;
 
 	@Field(() => Number)
 	ticketQuantity: number;

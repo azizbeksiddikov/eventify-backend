@@ -31,7 +31,10 @@ const TicketSchema = new Schema(
 
 		ticketCurrency: {
 			type: String,
-			required: true,
+			// free tickets involve no payment, so no currency is needed
+			required: function (this: { ticketPrice?: number }) {
+				return (this.ticketPrice ?? 0) > 0;
+			},
 			uppercase: true,
 			trim: true,
 		},

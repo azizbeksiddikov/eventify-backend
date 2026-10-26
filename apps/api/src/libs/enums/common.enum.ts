@@ -54,6 +54,7 @@ export enum Message {
 	TICKET_QUANTITY_INVALID = 'Ticket quantity must be greater than 0.',
 
 	// ===== Currency Related Messages =====
+	EVENT_CURRENCY_MISSING = 'This paid event has no currency set, so a ticket cannot be priced. Please contact the organizer.',
 	CURRENCY_NOT_SUPPORTED = 'This currency is not supported.',
 	CURRENCY_NOT_CONFIGURED = 'No currency is configured yet. Please contact support.',
 }

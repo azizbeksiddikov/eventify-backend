@@ -1,31 +1,21 @@
 # Currencies, event currency and points
 
-## How it works
+## Model
 - `currencies` collection: `{ currencyCode, exchangeRate, isActive }`. `exchangeRate` is **points per 1 unit of currency** (USD = 10 means 1 USD = 10 points). Ticket price in points = `eventPrice * quantity * exchangeRate`.
-- Default currency = the oldest active currency (`CurrencyService.getDefaultCurrencyCode`).
-- `getMemberPointsInCurrency(currencyCode: String!): Float` (login required): the caller's points divided by the rate, rounded to 2 decimals. The client profile header uses it.
+- `getMemberPointsInCurrency(currencyCode: String!): Float` (login required): the caller's points divided by the rate, rounded to 2 decimals (profile header).
 
-## Rules (CurrencyService.resolveEventCurrency)
-- Creating or updating an event: a named currency must exist in `currencies` (otherwise "This currency is not supported."); no currency means the default one is stored, free or paid.
-- Buying a ticket: a free event (price 0) skips every currency check and conversion (cost 0 points, the ticket stores no currency). A paid event must have an existing currency; with none the purchase stops with "This paid event has no currency set, so a ticket cannot be priced. Please contact the organizer." (the price is never guessed in another currency).
-- Crawled events (`origin` other than `internal`) are not sold in the app and keep no currency.
+## Currency is optional (owner decision 2026-10-26)
+- Free event (price 0 or empty): no currency needed anywhere. Create/update accept none and store none; ticket purchase skips every currency check and conversion (cost 0, the ticket stores no currency); the UI shows "Free".
+- Paid event (price > 0): a currency is required and must exist in `currencies`. Create/update reject a missing one ("Choose a currency for a paid event.") or an unknown one ("This currency is not supported."). A legacy paid event with no currency cannot sell tickets: the purchase stops with "This paid event has no currency set, so a ticket cannot be priced. Please contact the organizer." (the price is never guessed in another currency).
+- Crawled events (`origin` other than `internal`) are not sold in the app and need no currency.
+- Safeguard for paid events is the agent's choice for the owner to veto: remove `EVENT_CURRENCY_REQUIRED` handling in `CurrencyService.resolveEventCurrency` to drop it.
 
-## Backfill script (existing data)
-`scripts/ops/backfill-event-currency.js` fills the default currency on **internal** events that have none. Dry run by default, idempotent, prints counts only (never the connection string), `--apply` also needs `--confirm-db <name>` equal to the connected database name. It does not load any dotenv file; `MONGODB_URI` must be set in the shell.
-
-Local (EventifyDev), already run on 2026-10-26:
+## Report script (read-only)
+`scripts/ops/report-event-currency.js` counts events without a currency and lists internal paid events that still have none (the only ones with a problem). It never writes, loads no dotenv file and never prints the connection string.
 ```
-MONGODB_URI=mongodb://127.0.0.1:27018/EventifyDev node scripts/ops/backfill-event-currency.js
-MONGODB_URI=mongodb://127.0.0.1:27018/EventifyDev node scripts/ops/backfill-event-currency.js --apply --confirm-db EventifyDev
+MONGODB_URI=mongodb://127.0.0.1:27018/EventifyDev node scripts/ops/report-event-currency.js
 ```
-Result on EventifyDev: 813 events, 555 without currency = 3 internal (filled with USD) + 552 external (52 luma.com, 500 meetup.com; left alone). 0 paid events lacked a currency. One event uses `EUR`, which is not in `currencies`; it is reported, not changed.
-
-**Production (owner to approve and run; not run by the agent).** On the server, from the backend folder, with the production connection string exported in that shell (database `EventifyProd`):
-```
-node scripts/ops/backfill-event-currency.js                                   # dry run first, check the counts
-node scripts/ops/backfill-event-currency.js --apply --confirm-db EventifyProd # then write
-```
-Take a backup before `--apply`. Deploy the backend first so new events get a currency too.
+EventifyDev, 2026-10-26: 813 events; 552 without currency, all external (52 luma.com + 500 meetup.com); 0 internal free; 0 internal paid without currency; 1 paid event uses `EUR`, which is not in `currencies`. Production (owner to run, read-only): same command with the production connection string exported in that shell. No backfill is needed.
 
 ## Tests
-`npm test` runs `test/*.test.ts` with node's test runner (ts-node, transpile-only, tsconfig-paths).
+`npm test` runs `test/*.test.ts` (node test runner, ts-node transpile-only, tsconfig-paths).

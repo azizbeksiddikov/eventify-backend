@@ -65,9 +65,10 @@ export class EventService {
 		if (!input?.eventStatus) input.eventStatus = EventStatus.UPCOMING;
 		if (!input?.eventType) input.eventType = EventType.ONCE;
 
-		// every event gets a valid currency (default one when none is chosen) so tickets can always be priced
+		// currency is optional for free events; a paid event needs an existing one
 		const currency = await this.currencyService.resolveEventCurrency(input.eventPrice, input.eventCurrency);
 		if (currency) input.eventCurrency = currency;
+		else delete input.eventCurrency;
 
 		// check for group existence if provided
 		if (input.groupId) {
@@ -556,13 +557,15 @@ export class EventService {
 	private async updateEventWithValidation(event: Event, input: EventUpdateInput): Promise<Event> {
 		// Validate Input fields
 		if (input.eventPrice && input.eventPrice <= 0) input.eventPrice = 0;
-		// validate a changed currency, and give a newly paid event one if it has none
-		if (input.eventCurrency !== undefined || (input.eventPrice && input.eventPrice > 0 && !event.eventCurrency)) {
+		// validate a changed currency; an event that is (or becomes) paid must end up with one
+		const newPrice = input.eventPrice ?? event.eventPrice;
+		if (input.eventCurrency !== undefined || input.eventPrice !== undefined) {
 			const currency = await this.currencyService.resolveEventCurrency(
-				input.eventPrice ?? event.eventPrice,
-				input.eventCurrency ?? event.eventCurrency,
+				newPrice,
+				input.eventCurrency !== undefined ? input.eventCurrency : event.eventCurrency,
 			);
 			if (currency) input.eventCurrency = currency;
+			else if (input.eventCurrency !== undefined) input.eventCurrency = undefined;
 		}
 		if (input.eventCategories && input.eventCategories.length > 3) {
 			input.eventCategories = input.eventCategories.slice(0, 3);

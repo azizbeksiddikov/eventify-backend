@@ -29,11 +29,6 @@ describe('CurrencyService', () => {
 		const service = new CurrencyService(modelWith(null));
 		await assert.rejects(() => service.convertPointsToCurrency(10, 'XXX'), /not found/);
 	});
-
-	it('returns the oldest active currency as the default, or null when none', async () => {
-		assert.equal(await new CurrencyService(modelWith({ currencyCode: 'USD' })).getDefaultCurrencyCode(), 'USD');
-		assert.equal(await new CurrencyService(modelWith(null)).getDefaultCurrencyCode(), null);
-	});
 });
 
 describe('MemberResolver.getMemberPointsInCurrency', () => {

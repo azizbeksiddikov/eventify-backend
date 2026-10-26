@@ -29,13 +29,13 @@ describe('CurrencyService.resolveEventCurrency', () => {
 	it('rejects an unknown code with a plain message', async () => {
 		await assert.rejects(() => currencyService().resolveEventCurrency(5, 'EUR'), /not supported/);
 	});
-	it('falls back to the default currency for free and paid events', async () => {
-		assert.equal(await currencyService().resolveEventCurrency(0, undefined), 'USD');
-		assert.equal(await currencyService().resolveEventCurrency(20, ''), 'USD');
-	});
-	it('with no currencies configured: free is allowed, paid is rejected', async () => {
+	it('a free event may have no currency and gets none forced on it', async () => {
+		assert.equal(await currencyService().resolveEventCurrency(0, undefined), null);
+		assert.equal(await currencyService().resolveEventCurrency(undefined, ''), null);
 		assert.equal(await currencyService([]).resolveEventCurrency(0, null), null);
-		await assert.rejects(() => currencyService([]).resolveEventCurrency(5, null), /No currency is configured/);
+	});
+	it('a paid event without a currency is rejected with a plain message', async () => {
+		await assert.rejects(() => currencyService().resolveEventCurrency(20, ''), /Choose a currency/);
 	});
 });
 
@@ -96,11 +96,17 @@ describe('TicketService.createTicket', () => {
 	});
 });
 
-describe('EventService.createEvent', () => {
+describe('EventService create and update', () => {
 	const build = () => {
 		const created: Record<string, unknown>[] = [];
+		const updated: Record<string, unknown>[] = [];
 		const service = new EventService(
-			{ create: async (e: Record<string, unknown>) => (created.push(e), { _id: 'e1', ...e }) } as never,
+			{
+				create: async (e: Record<string, unknown>) => (created.push(e), { _id: 'e1', ...e }),
+				findByIdAndUpdate: (_id: unknown, input: Record<string, unknown>) => ({
+					exec: async () => (updated.push(input), { _id: 'e1', ...input }),
+				}),
+			} as never,
 			{} as never,
 			{ scheduleEventJobs: async () => undefined } as never,
 			{} as never,
@@ -110,25 +116,58 @@ describe('EventService.createEvent', () => {
 			{} as never,
 			currencyService(),
 		);
-		return { service, created };
+		(service as any).handleEventJobsOnUpdate = async () => undefined;
+		return { service, created, updated };
 	};
 	const input = { eventName: 'x', eventCategories: [], eventTags: [] };
 
-	it('stores the default currency on a free event created without one', async () => {
+	it('creates a free event without a currency and stores none', async () => {
 		const { service, created } = build();
 		await service.createEvent('m' as never, { ...input, eventPrice: 0 } as never).catch(() => undefined);
-		assert.equal(created[0]?.eventCurrency, 'USD');
+		assert.equal(created.length, 1);
+		assert.equal('eventCurrency' in created[0] && created[0].eventCurrency, false);
 	});
 
-	it('keeps a chosen currency and rejects an unsupported one', async () => {
+	it('creates a paid event with a chosen currency (normalised)', async () => {
 		const { service, created } = build();
 		await service
 			.createEvent('m' as never, { ...input, eventPrice: 5, eventCurrency: 'krw' } as never)
 			.catch(() => undefined);
 		assert.equal(created[0]?.eventCurrency, 'KRW');
+	});
+
+	it('refuses a paid event without a currency or with an unsupported one', async () => {
+		const { service, created } = build();
+		await assert.rejects(
+			() => service.createEvent('m' as never, { ...input, eventPrice: 5 } as never),
+			/Choose a currency/,
+		);
 		await assert.rejects(
 			() => service.createEvent('m' as never, { ...input, eventPrice: 5, eventCurrency: 'EUR' } as never),
 			/not supported/,
 		);
+		assert.equal(created.length, 0);
+	});
+
+	it('update: free event stays without currency; making it paid needs one', async () => {
+		const { service, updated } = build();
+		const free = { _id: 'e1', eventPrice: 0, eventCurrency: null };
+		await (service as any).updateEventWithValidation(free, { _id: 'e1', eventName: 'renamed' });
+		assert.equal(updated.length, 1);
+		await assert.rejects(
+			() => (service as any).updateEventWithValidation(free, { _id: 'e1', eventPrice: 9 }),
+			/Choose a currency/,
+		);
+		await (service as any).updateEventWithValidation(free, { _id: 'e1', eventPrice: 9, eventCurrency: 'usd' });
+		assert.equal(updated[1].eventCurrency, 'USD');
+	});
+
+	it('update: a paid event keeps working when only other fields change', async () => {
+		const { service, updated } = build();
+		await (service as any).updateEventWithValidation(
+			{ _id: 'e1', eventPrice: 5, eventCurrency: 'USD' },
+			{ _id: 'e1', eventName: 'renamed' },
+		);
+		assert.equal(updated.length, 1);
 	});
 });

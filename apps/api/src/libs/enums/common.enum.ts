@@ -56,7 +56,7 @@ export enum Message {
 	// ===== Currency Related Messages =====
 	EVENT_CURRENCY_MISSING = 'This paid event has no currency set, so a ticket cannot be priced. Please contact the organizer.',
 	CURRENCY_NOT_SUPPORTED = 'This currency is not supported.',
-	CURRENCY_NOT_CONFIGURED = 'No currency is configured yet. Please contact support.',
+	EVENT_CURRENCY_REQUIRED = 'Choose a currency for a paid event.',
 }
 
 // ===== Direction =====

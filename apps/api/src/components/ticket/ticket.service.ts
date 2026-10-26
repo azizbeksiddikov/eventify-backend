@@ -54,11 +54,11 @@ export class TicketService {
 		// (the price is never guessed in another currency).
 		const eventPrice = event.eventPrice ?? 0;
 		const isPaid = eventPrice > 0;
-		let currency: string | undefined = event.eventCurrency || undefined;
+		const eventCurrency: string | undefined = event.eventCurrency || undefined;
 		let requiredPoints = 0;
 		if (isPaid) {
-			if (!currency) throw new BadRequestException(Message.EVENT_CURRENCY_MISSING);
-			requiredPoints = eventPrice * ticketQuantity * (await this.currencyService.getCurrencyRate(currency));
+			if (!eventCurrency) throw new BadRequestException(Message.EVENT_CURRENCY_MISSING);
+			requiredPoints = eventPrice * ticketQuantity * (await this.currencyService.getCurrencyRate(eventCurrency));
 		}
 		// Check if the member has enough points
 		const memberPoints = await this.memberService.getMemberPoints(memberId);
@@ -73,7 +73,7 @@ export class TicketService {
 				memberId: memberId,
 				ticketStatus: TicketStatus.PURCHASED,
 				ticketPrice: eventPrice,
-				ticketCurrency: currency,
+				ticketCurrency: isPaid ? eventCurrency : undefined,
 				ticketQuantity: ticketQuantity,
 				totalPrice: requiredPoints, // Store the calculated points as totalPrice
 			};

@@ -2,7 +2,7 @@
 
 ## Crawling and weekly refresh
 
-- The server's automatic crawler is **off** (`WEB_CRAWLING_ENABLED` unset). Set it to `true` to enable the 02:00 Seoul job.
+- The server's automatic crawler is **off** (`WEB_CRAWLING_ENABLED` unset). Set it to `true` to enable the 02:00 Seoul job; the Docker image then also needs a rebuild, because Chromium is installed only when the variable is `true` at build time (compose passes it as a build arg, so it must be set in the env file that compose reads for the deploy script). Puppeteer is loaded lazily, so a disabled batch server never loads it. The local refresh script does not need the variable.
 - Instead, `scripts/ops/refresh.sh` runs the crawler locally, fixes categories/prices, saves full-resolution images and uploads them to the server. It only runs when the last success is 7+ days old; `--force` runs it now.
 - Seoul is the target city (Meetup and Luma). Scrape limits and scroll settings are in `apps/batch/src/libs/config.ts`.
 

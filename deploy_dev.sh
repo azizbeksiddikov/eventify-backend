@@ -15,7 +15,7 @@ if [ ! -f .env.dev ]; then
 fi
 
 echo "Stopping existing development containers and removing volumes..."
-docker compose -f docker-compose.dev.yml down -v
+docker compose --env-file .env.dev -f docker-compose.dev.yml down -v
 
 echo "Cleaning up orphaned Docker networks and volumes..."
 docker network prune -f > /dev/null 2>&1 || true
@@ -31,14 +31,14 @@ else
 fi
 
 echo "Building development containers..."
-docker compose -f docker-compose.dev.yml build --no-cache
+docker compose --env-file .env.dev -f docker-compose.dev.yml build --no-cache
 
 echo "Starting development containers..."
-docker compose -f docker-compose.dev.yml up -d
+docker compose --env-file .env.dev -f docker-compose.dev.yml up -d
 
 
 
 echo "Development deployment complete!"
 echo "Showing logs (Ctrl+C to exit)..."
-docker compose -f docker-compose.dev.yml logs -f
+docker compose --env-file .env.dev -f docker-compose.dev.yml logs -f
 

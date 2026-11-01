@@ -1,12 +1,13 @@
+import { launchBrowser } from '@app/batch/src/libs/browser';
 import { Injectable, Logger } from '@nestjs/common';
 import * as cheerio from 'cheerio';
-import puppeteer, { type Browser, type Page } from 'puppeteer';
+import type { Browser, Page } from 'puppeteer';
 
-import { EventType, EventLocationType } from '@app/api/src/libs/enums/event.enum';
 import { CrawledEvent, IEventScraper, ScraperConfig } from '@app/api/src/libs/dto/event/eventCrawling';
-import { determineStatus, saveToJsonFile, deepMerge, randomDelay } from '@app/batch/src/libs/utils';
-import { SCRAPER_URLS, SCRAPER_DEFAULTS, PUPPETEER_CONFIG, BATCH_CONFIG } from '@app/batch/src/libs/config';
-import type { LumaEvent, LumaJsonData, LumaTicketType, LumaPageProps } from './luma.types';
+import { EventLocationType, EventType } from '@app/api/src/libs/enums/event.enum';
+import { BATCH_CONFIG, PUPPETEER_CONFIG, SCRAPER_DEFAULTS, SCRAPER_URLS } from '@app/batch/src/libs/config';
+import { deepMerge, determineStatus, randomDelay, saveToJsonFile } from '@app/batch/src/libs/utils';
+import type { LumaEvent, LumaJsonData, LumaPageProps, LumaTicketType } from './luma.types';
 
 /**
  * LUMA Scraper - Scrapes events from luma.com
@@ -110,10 +111,10 @@ export class LumaScraper implements IEventScraper {
 	 * Extracts event data from JSON script tags embedded in the page
 	 */
 	private async fetchPageWithPuppeteer(url: string): Promise<string> {
-		let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined;
+		let browser: Browser | undefined;
 
 		try {
-			browser = await puppeteer.launch({
+			browser = await launchBrowser({
 				headless: BATCH_CONFIG.HEADLESS,
 				executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
 				args: [
@@ -365,7 +366,7 @@ export class LumaScraper implements IEventScraper {
 		let failedCount = 0;
 
 		try {
-			browser = await puppeteer.launch({
+			browser = await launchBrowser({
 				headless: BATCH_CONFIG.HEADLESS,
 				executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
 				args: [

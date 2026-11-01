@@ -6,6 +6,8 @@ services:
     build:
       context: .
       target: development
+      args:
+        WEB_CRAWLING_ENABLED: ${WEB_CRAWLING_ENABLED:-false}
     ports:
       - 5001:3007
     volumes:
@@ -33,6 +35,8 @@ services:
     build:
       context: .
       target: development
+      args:
+        WEB_CRAWLING_ENABLED: ${WEB_CRAWLING_ENABLED:-false}
     ports:
       - 5002:3008
     volumes:

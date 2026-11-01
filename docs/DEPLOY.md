@@ -4,7 +4,7 @@ The app runs with Docker behind a reverse proxy (nginx). Production runs only `m
 
 ## Docker
 
-`Dockerfile` has stages `base` (Node 24 alpine, Chromium, docker-cli), `development`, `build`, `production`. Both apps use the same image build; the command picks the app.
+`Dockerfile` has stages `base` (Node 24 alpine, docker-cli, and Chromium only when built with `WEB_CRAWLING_ENABLED=true`), `development`, `build`, `production`. Both apps use the same image build; the command picks the app.
 
 |                 | Dev compose              | Prod compose                           |
 | --------------- | ------------------------ | -------------------------------------- |

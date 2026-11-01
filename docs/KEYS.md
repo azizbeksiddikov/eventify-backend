@@ -12,7 +12,7 @@ Derived from source code, not from env files.
 | `MONGODB_URI`                      | both       | yes      | MongoDB connection string (also used by Agenda)                                              |
 | `SECRET_TOKEN`                     | api        | yes      | JWT signing secret. Rotating it logs everyone out                                            |
 | `GEMINI_API_KEY`                   | api, batch | no       | enables LLM features. Without it the crawler skips LLM filtering and `/llm` reports a hint   |
-| `WEB_CRAWLING_ENABLED`             | batch      | no       | `true` turns the 02:00 crawler on. Anything else skips it                                    |
+| `WEB_CRAWLING_ENABLED`             | batch      | no       | `true` turns the 02:00 crawler on and (at image build) installs Chromium. Anything else skips both |
 | `SAVE_JSON_FILES`                  | batch      | no       | `true` dumps raw scraper JSON into `jsons/` (debug; false in prod compose)                   |
 | `PUPPETEER_EXECUTABLE_PATH`        | batch      | no       | Chromium binary, default `/usr/bin/chromium` (Docker image sets `/usr/bin/chromium-browser`) |
 | `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD` | build      | no       | `true`, Chromium comes from the image                                                        |

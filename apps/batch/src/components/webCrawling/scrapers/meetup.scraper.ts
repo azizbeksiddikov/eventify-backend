@@ -1,18 +1,19 @@
+import { launchBrowser } from '@app/batch/src/libs/browser';
 import { Injectable, Logger } from '@nestjs/common';
 import * as cheerio from 'cheerio';
-import puppeteer, { Browser, Page } from 'puppeteer';
+import type { Browser, Page } from 'puppeteer';
 
-import { EventType, EventLocationType } from '@app/api/src/libs/enums/event.enum';
 import { CrawledEvent, IEventScraper, ScraperConfig } from '@app/api/src/libs/dto/event/eventCrawling';
+import { EventLocationType, EventType } from '@app/api/src/libs/enums/event.enum';
 
-import { determineStatus, mergeJsonData, saveToJsonFile, deepMerge, randomDelay } from '@app/batch/src/libs/utils';
 import {
-	SCROLL_CONFIG,
-	SCRAPER_URLS,
-	SCRAPER_DEFAULTS,
-	PUPPETEER_CONFIG,
 	BATCH_CONFIG,
+	PUPPETEER_CONFIG,
+	SCRAPER_DEFAULTS,
+	SCRAPER_URLS,
+	SCROLL_CONFIG,
 } from '@app/batch/src/libs/config';
+import { deepMerge, determineStatus, mergeJsonData, randomDelay, saveToJsonFile } from '@app/batch/src/libs/utils';
 import type { MeetupEvent, MeetupTopic } from './meetup.types';
 
 @Injectable()
@@ -127,7 +128,7 @@ export class MeetupScraper implements IEventScraper {
 		const allEvents: Set<string> = new Set();
 
 		try {
-			browser = await puppeteer.launch({
+			browser = await launchBrowser({
 				headless: BATCH_CONFIG.HEADLESS,
 				executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
 				protocolTimeout: 180000, // 3 minutes protocol timeout to prevent crashes during long scrolls
@@ -619,7 +620,7 @@ export class MeetupScraper implements IEventScraper {
 
 		// Helper to create a new browser instance
 		const createBrowser = async (): Promise<Browser> => {
-			return puppeteer.launch({
+			return launchBrowser({
 				headless: BATCH_CONFIG.HEADLESS,
 				executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
 				protocolTimeout: 180000, // 3 minutes protocol timeout

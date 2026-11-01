@@ -1,16 +1,14 @@
 FROM node:24-alpine AS base
 
-# Install system dependencies for Puppeteer/Chrome and Docker CLI
-RUN apk add --no-cache \
-    chromium \
-    nss \
-    freetype \
-    harfbuzz \
-    ca-certificates \
-    ttf-freefont \
-    docker-cli
+# Docker CLI is always installed. Chromium (and its fonts/libs, the slow and heavy part)
+# is installed only when WEB_CRAWLING_ENABLED=true at build time.
+ARG WEB_CRAWLING_ENABLED=false
+RUN apk add --no-cache ca-certificates docker-cli && \
+    if [ "$WEB_CRAWLING_ENABLED" = "true" ]; then \
+      apk add --no-cache chromium nss freetype harfbuzz ttf-freefont; \
+    fi
 
-# Set Puppeteer to use installed Chromium
+# Puppeteer uses the system Chromium (never downloads its own)
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 

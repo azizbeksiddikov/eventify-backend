@@ -78,7 +78,7 @@ Cron jobs in `batch.service.ts`, timezone `Asia/Seoul` (the client displays date
 | `0 2 * * *`   | web crawling (runs only if `WEB_CRAWLING_ENABLED=true`) |
 | `0 */3 * * *` | event status cleanup                                    |
 
-Crawling: `webCrawling.service.ts` runs the Meetup and Luma scrapers (Puppeteer + Chromium), optionally filters/categorizes through Gemini (`llm.service.ts`, disabled when no API key), and imports events. In production the automatic crawler is off; a local refresh script is used instead (`OPERATIONS.md`).
+Crawling: `webCrawling.service.ts` runs the Meetup and Luma scrapers (Puppeteer + Chromium, both only present when `WEB_CRAWLING_ENABLED=true`), optionally filters/categorizes through Gemini (`llm.service.ts`, disabled when no API key), and imports events. In production the automatic crawler is off; a local refresh script is used instead (`OPERATIONS.md`).
 
 ## Cross-cutting
 

@@ -11,6 +11,7 @@ Live and running from `master`.
 - Currency is optional: free events need none, paid events require a valid one; clear errors on tickets (`docs/CURRENCY.md`).
 - `getMemberPointsInCurrency` query and `npm test` runner.
 - Read-only currency report script.
+- With `WEB_CRAWLING_ENABLED` not `true`, the Docker build skips Chromium and the batch app does not load Puppeteer (lazy import in `libs/browser.ts`); faster builds and lower memory.
 - Crawler can be switched off; API and batch run without `GEMINI_API_KEY`.
 - Local refresh scripts in `scripts/ops`.
 - Docs restructured: short README, AGENTS.md, `docs/` set.

@@ -6,6 +6,8 @@ services:
     build:
       context: .
       target: production
+      args:
+        WEB_CRAWLING_ENABLED: ${WEB_CRAWLING_ENABLED:-false}
     ports:
       - 4001:3007
     volumes:
@@ -29,6 +31,8 @@ services:
     build:
       context: .
       target: production
+      args:
+        WEB_CRAWLING_ENABLED: ${WEB_CRAWLING_ENABLED:-false}
     ports:
       - 4002:3008
     volumes:

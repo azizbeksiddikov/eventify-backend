@@ -9,7 +9,7 @@ services:
       args:
         WEB_CRAWLING_ENABLED: ${WEB_CRAWLING_ENABLED:-false}
     ports:
-      - 5001:3007
+      - 4101:4101
     volumes:
       - ./apps:/usr/src/eventify/apps
       - ./uploads:/usr/src/eventify/uploads
@@ -17,6 +17,8 @@ services:
     working_dir: /usr/src/eventify
     env_file:
       - .env.dev
+    environment:
+      - PORT_API=4101
     # Resource limits for development
     deploy:
       resources:
@@ -38,7 +40,7 @@ services:
       args:
         WEB_CRAWLING_ENABLED: ${WEB_CRAWLING_ENABLED:-false}
     ports:
-      - 5002:3008
+      - 4102:4102
     volumes:
       - ./apps:/usr/src/eventify/apps
       - ./uploads:/usr/src/eventify/uploads
@@ -49,6 +51,7 @@ services:
       - .env.dev
     environment:
       - SAVE_JSON_FILES=true
+      - PORT_BATCH=4102
     # Resource limits for development
     deploy:
       resources:

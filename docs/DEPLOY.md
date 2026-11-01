@@ -10,8 +10,8 @@ The app runs with Docker behind a reverse proxy (nginx). Production runs only `m
 | --------------- | ------------------------ | -------------------------------------- |
 | File            | `docker-compose.dev.yml` | `docker-compose.prod.yml`              |
 | Env file        | `.env.dev`               | `.env`                                 |
-| API host port   | 5001                     | 4001 (container 3007)                  |
-| Batch host port | 5002                     | 4002 (container 3008)                  |
+| API host port   | 4101                     | 4001                                   |
+| Batch host port | 4102                     | 4002                                   |
 | Limits          |                          | api 800M / 1 CPU, batch 800M / 0.5 CPU |
 
 Volumes: `./uploads` is shared by api and batch. The batch container also mounts the Docker socket.

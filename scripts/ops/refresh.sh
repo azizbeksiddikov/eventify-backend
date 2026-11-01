@@ -34,20 +34,21 @@ fail() { echo "FAILED: $1"; notify "Failed: $1 (see event-refresh/logs)"; kill "
 echo "== $(date) start"
 cd "$BACKEND" || fail "backend folder missing"
 ssh -o ConnectTimeout=15 -o BatchMode=yes vps true || fail "cannot reach the server (ssh vps)"
-lsof -iTCP:3008 -sTCP:LISTEN >/dev/null && fail "port 3008 already in use"
+BATCH_PORT=${BATCH_PORT:-4202}
+lsof -iTCP:$BATCH_PORT -sTCP:LISTEN >/dev/null && fail "port $BATCH_PORT already in use"
 
 echo "== build batch"
 npx nest build batch >/dev/null || fail "build failed"
 
 echo "== start local batch (crawler on demand only)"
-PUPPETEER_EXECUTABLE_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" NODE_ENV=production \
+PUPPETEER_EXECUTABLE_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" NODE_ENV=production PORT_BATCH=$BATCH_PORT \
 	node dist/apps/batch/main >"$LOGDIR/batch-last.log" 2>&1 &
 BATCH_PID=$!
 for i in $(seq 1 60); do grep -q "successfully started" "$LOGDIR/batch-last.log" 2>/dev/null && break; sleep 2; done
 grep -q "successfully started" "$LOGDIR/batch-last.log" || fail "batch did not start"
 
 echo "== crawl (limit $LIMIT per source)"
-RESULT=$(curl -s -m 3600 "http://127.0.0.1:3008/web-crawling/events?limit=$LIMIT")
+RESULT=$(curl -s -m 3600 "http://127.0.0.1:$BATCH_PORT/web-crawling/events?limit=$LIMIT")
 kill "$BATCH_PID" 2>/dev/null; wait "$BATCH_PID" 2>/dev/null
 echo "$RESULT" | head -c 600; echo
 SAVED=$(echo "$RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["stats"]["saved"])' 2>/dev/null) || fail "crawl returned no stats"

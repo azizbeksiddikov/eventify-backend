@@ -6,21 +6,21 @@
 Browser (eventify-client, Next.js)
         │  /graphql, /api/*
         ▼
-   reverse proxy ──► api  (NestJS, :3007)
+   reverse proxy ──► api  (NestJS, :4001 prod / :4101 dev / :4201 local)
                        │            ▲
                        ▼            │ shared uploads/ volume
-                    MongoDB ◄── batch (NestJS, :3008)
+                    MongoDB ◄── batch (NestJS, :4002 prod / :4102 dev / :4202 local)
                                   │
                                   ├─ Puppeteer scrapers (Meetup, Luma)
                                   └─ Gemini (filter + categorize crawled events)
 ```
 
-Ports (the diagram shows container ports, which are the same in both environments):
+Ports (container port = host port, set per environment through `PORT_API` / `PORT_BATCH` in the compose file):
 
-|       | Container | Prod host | Dev host |
-| ----- | --------- | --------- | -------- |
-| api   | 3007      | 4001      | 5001     |
-| batch | 3008      | 4002      | 5002     |
+|       | Prod | Dev  | Local |
+| ----- | ---- | ---- | ----- |
+| api   | 4001 | 4101 | 4201  |
+| batch | 4002 | 4102 | 4202  |
 
 One repo, one `package.json`, two Nest apps built separately (`nest build api`, `nest build batch`). Both talk to the same MongoDB and share the `uploads/` folder.
 

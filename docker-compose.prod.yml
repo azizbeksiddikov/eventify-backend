@@ -9,12 +9,14 @@ services:
       args:
         WEB_CRAWLING_ENABLED: ${WEB_CRAWLING_ENABLED:-false}
     ports:
-      - 4001:3007
+      - 4001:4001
     volumes:
       - ./uploads:/usr/src/eventify/uploads
     working_dir: /usr/src/eventify
     env_file:
       - .env
+    environment:
+      - PORT_API=4001
     deploy:
       resources:
         limits:
@@ -34,7 +36,7 @@ services:
       args:
         WEB_CRAWLING_ENABLED: ${WEB_CRAWLING_ENABLED:-false}
     ports:
-      - 4002:3008
+      - 4002:4002
     volumes:
       - ./uploads:/usr/src/eventify/uploads
       - /var/run/docker.sock:/var/run/docker.sock
@@ -43,6 +45,7 @@ services:
       - .env
     environment:
       - SAVE_JSON_FILES=false
+      - PORT_BATCH=4002
     deploy:
       resources:
         limits:

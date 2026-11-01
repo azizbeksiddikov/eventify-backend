@@ -14,7 +14,7 @@ Needs Node 24 and a MongoDB.
 ```bash
 npm install
 cp .env.example .env.dev   # fill in values, see docs/KEYS.md
-npm run dev                # API  -> http://localhost:3007/graphql
+npm run dev                # API  -> http://localhost:4201/graphql
 npm run dev:batch          # batch (optional)
 npm test
 ```

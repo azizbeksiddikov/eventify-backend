@@ -8,6 +8,7 @@ Live and running from `master`.
 
 ## Done
 
+- Ports unified: prod 4001/4002, dev 4101/4102, local 4201/4202; container port equals host port, set by `PORT_API` / `PORT_BATCH` in the compose files (`docs/ARCHITECTURE.md`).
 - Currency is optional: free events need none, paid events require a valid one; clear errors on tickets (`docs/CURRENCY.md`).
 - `getMemberPointsInCurrency` query and `npm test` runner.
 - Read-only currency report script.

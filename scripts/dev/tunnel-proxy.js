@@ -1,12 +1,12 @@
 // Local reverse proxy that mirrors the production nginx routing, so ONE ngrok tunnel can serve the whole app:
 //   /api/*     -> API (prefix stripped)       /graphql -> API /graphql
 //   everything else (incl. websockets for Next HMR) -> client dev server
-// Usage: API_PORT=4101 CLIENT_PORT=3200 PORT=8080 node scripts/dev/tunnel-proxy.js
+// Usage: API_PORT=4101 CLIENT_PORT=4200 PORT=8080 node scripts/dev/tunnel-proxy.js
 const http = require("http");
 const net = require("net");
 
 const API = Number(process.env.API_PORT || 4101);
-const CLIENT = Number(process.env.CLIENT_PORT || 3200);
+const CLIENT = Number(process.env.CLIENT_PORT || 4200);
 const PORT = Number(process.env.PORT || 8080);
 
 function route(url) {

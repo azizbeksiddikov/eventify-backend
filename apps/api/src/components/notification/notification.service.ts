@@ -3,15 +3,15 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
 
 // ===== DTOs =====
+import { Notification, Notifications } from '../../libs/dto/notification/notification';
 import { NotificationInput, NotificationsInquiry } from '../../libs/dto/notification/notification.input';
-import { Notifications } from '../../libs/dto/notification/notification';
-import { Notification } from '../../libs/dto/notification/notification';
 import { NotificationUpdate } from '../../libs/dto/notification/notification.update';
 
 // ===== Services =====
-import { Direction, Message } from '../../libs/enums/common.enum';
-import { T } from '../../libs/types/common';
 import { lookupMember, shapeIntoMongoObjectId } from '../../libs/config';
+import { Direction } from '../../libs/enums/common.enum';
+import { errorBody } from '../../libs/errors';
+import { T } from '../../libs/types/common';
 
 @Injectable()
 export class NotificationService {
@@ -24,7 +24,7 @@ export class NotificationService {
 			const notification = await this.notificationModel.create(input);
 			return notification;
 		} catch {
-			throw new BadRequestException(Message.CREATE_FAILED);
+			throw new BadRequestException(errorBody('CREATE_FAILED'));
 		}
 	}
 
@@ -57,7 +57,7 @@ export class NotificationService {
 
 			return notification;
 		} catch {
-			throw new BadRequestException(Message.CREATE_FAILED);
+			throw new BadRequestException(errorBody('CREATE_FAILED'));
 		}
 	}
 
@@ -84,7 +84,7 @@ export class NotificationService {
 				},
 			},
 		]);
-		if (!result.length) throw new NotFoundException(Message.NO_DATA_FOUND);
+		if (!result.length) throw new NotFoundException(errorBody('NO_DATA_FOUND'));
 
 		return result[0];
 	}
@@ -97,7 +97,7 @@ export class NotificationService {
 			receiverId: memberId,
 		};
 		const notification = await this.notificationModel.findOneAndUpdate(match, input, { new: true });
-		if (!notification) throw new NotFoundException(Message.NO_DATA_FOUND);
+		if (!notification) throw new NotFoundException(errorBody('NO_DATA_FOUND'));
 
 		return notification;
 	}

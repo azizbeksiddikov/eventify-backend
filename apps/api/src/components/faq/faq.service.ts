@@ -3,15 +3,15 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
 
 // ===== Enums =====
-import { Message } from '../../libs/enums/common.enum';
 import { FaqGroup, FaqStatus } from '../../libs/enums/faq.enum';
 
 // ===== DTOs =====
 import { Faq, FaqByGroup } from '../../libs/dto/faq/faq';
 
 // ===== Types =====
-import { FaqUpdate } from '../../libs/dto/faq/faq.update';
 import { FaqInput } from '../../libs/dto/faq/faq.input';
+import { FaqUpdate } from '../../libs/dto/faq/faq.update';
+import { errorBody } from '../../libs/errors';
 
 @Injectable()
 export class FaqService {
@@ -22,7 +22,7 @@ export class FaqService {
 			const faq = await this.faqModel.create(input);
 			return faq;
 		} catch {
-			throw new InternalServerErrorException(Message.CREATE_FAILED);
+			throw new InternalServerErrorException(errorBody('CREATE_FAILED'));
 		}
 	}
 

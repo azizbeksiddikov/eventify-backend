@@ -3,30 +3,31 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
 
 // ===== Enums =====
+import { Direction } from '../../libs/enums/common.enum';
 import { GroupMemberRole } from '../../libs/enums/group.enum';
-import { Direction, Message } from '../../libs/enums/common.enum';
 
 // ===== Types & DTOs =====
-import { StatisticModifier, T } from '../../libs/types/common';
+import { lookupAuthMemberJoined, lookupAuthMemberLiked, lookupMember, shapeObjectIdToString } from '../../libs/config';
 import { Group, Groups, MeJoined } from '../../libs/dto/group/group';
 import { GroupInput, GroupsInquiry } from '../../libs/dto/group/group.input';
 import { GroupUpdateInput } from '../../libs/dto/group/group.update';
 import { GroupMember } from '../../libs/dto/groupMembers/groupMember';
 import { GroupMemberInput } from '../../libs/dto/groupMembers/groupMember.input';
 import { GroupMemberUpdateInput } from '../../libs/dto/groupMembers/groupMember.update';
-import { LikeGroup } from '../../libs/enums/like.enum';
 import { LikeInput } from '../../libs/dto/like/like.input';
-import { lookupAuthMemberJoined, lookupAuthMemberLiked, lookupMember, shapeObjectIdToString } from '../../libs/config';
 import { NotificationInput } from '../../libs/dto/notification/notification.input';
-import { ViewGroup } from '../../libs/enums/view.enum';
+import { LikeGroup } from '../../libs/enums/like.enum';
 import { NotificationType } from '../../libs/enums/notification.enum';
+import { ViewGroup } from '../../libs/enums/view.enum';
+import { StatisticModifier, T } from '../../libs/types/common';
 
 // ===== Services =====
+import { errorBody } from '../../libs/errors';
+import { logger } from '../../libs/logger';
 import { LikeService } from '../like/like.service';
+import { MemberService } from '../member/member.service';
 import { NotificationService } from '../notification/notification.service';
 import { ViewService } from '../view/view.service';
-import { MemberService } from '../member/member.service';
-import { logger } from '../../libs/logger';
 
 @Injectable()
 export class GroupService {
@@ -42,7 +43,7 @@ export class GroupService {
 	// ============== Group Management Methods ==============
 	public async createGroup(memberId: ObjectId, input: GroupInput): Promise<Group> {
 		const member = await this.memberService.getSimpleMember(memberId);
-		if (!member) throw new NotFoundException(Message.MEMBER_NOT_FOUND);
+		if (!member) throw new NotFoundException(errorBody('MEMBER_NOT_FOUND'));
 
 		try {
 			const newGroup: Group = await this.groupModel.create({
@@ -69,7 +70,7 @@ export class GroupService {
 			return newGroup;
 		} catch (err) {
 			logger.error('GroupService', 'Error in createGroup', err instanceof Error ? err : new Error(String(err)));
-			throw new BadRequestException(Message.CREATE_FAILED);
+			throw new BadRequestException(errorBody('CREATE_FAILED'));
 		}
 	}
 
@@ -163,7 +164,7 @@ export class GroupService {
 			.exec();
 
 		// Validate group exists
-		if (!result.length) throw new NotFoundException(Message.GROUP_NOT_FOUND);
+		if (!result.length) throw new NotFoundException(errorBody('GROUP_NOT_FOUND'));
 		const group = result[0] as Group;
 
 		if (memberId) {
@@ -252,7 +253,7 @@ export class GroupService {
 			])
 			.exec();
 
-		if (!result.length) throw new BadRequestException(Message.NO_DATA_FOUND);
+		if (!result.length) throw new BadRequestException(errorBody('NO_DATA_FOUND'));
 		return result[0] as unknown as Groups;
 	}
 
@@ -263,11 +264,11 @@ export class GroupService {
 
 	public async updateGroup(memberId: ObjectId, input: GroupUpdateInput): Promise<Group> {
 		const group: Group | null = await this.groupModel.findById(input._id);
-		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
+		if (!group) throw new NotFoundException(errorBody('GROUP_NOT_FOUND'));
 		const groupMemberId = shapeObjectIdToString(group.memberId);
 		const authMemberId = shapeObjectIdToString(memberId);
 		if (groupMemberId !== authMemberId) {
-			throw new BadRequestException(Message.NOT_GROUP_ADMIN);
+			throw new BadRequestException(errorBody('NOT_GROUP_ADMIN'));
 		}
 
 		if (input.groupCategories && input.groupCategories.length > 3) {
@@ -278,11 +279,11 @@ export class GroupService {
 
 	public async deleteGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {
 		const group = await this.groupModel.findById(groupId);
-		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
+		if (!group) throw new NotFoundException(errorBody('GROUP_NOT_FOUND'));
 		const groupMemberId = shapeObjectIdToString(group.memberId);
 		const authMemberId = shapeObjectIdToString(memberId);
 		if (groupMemberId !== authMemberId) {
-			throw new BadRequestException(Message.NOT_GROUP_ADMIN);
+			throw new BadRequestException(errorBody('NOT_GROUP_ADMIN'));
 		}
 
 		await this.memberService.memberStatsEditor({
@@ -296,7 +297,7 @@ export class GroupService {
 
 	public async likeTargetGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {
 		const targetGroup: Group | null = await this.groupModel.findOne({ _id: groupId }).lean().exec();
-		if (!targetGroup) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
+		if (!targetGroup) throw new InternalServerErrorException(errorBody('NO_DATA_FOUND'));
 
 		const input: LikeInput = { memberId: memberId, likeRefId: groupId, likeGroup: LikeGroup.GROUP };
 		const newNotification: NotificationInput = {
@@ -318,11 +319,11 @@ export class GroupService {
 	public async joinTargetGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {
 		// check if group exists
 		const group: Group | null = await this.groupModel.findById(groupId).lean().exec();
-		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
+		if (!group) throw new NotFoundException(errorBody('GROUP_NOT_FOUND'));
 
 		// check if member is already joined
 		const groupMemberExists: GroupMember | null = await this.groupMemberModel.findOne({ groupId, memberId });
-		if (groupMemberExists) throw new BadRequestException(Message.ALREADY_JOINED);
+		if (groupMemberExists) throw new BadRequestException(errorBody('ALREADY_JOINED'));
 
 		try {
 			// create new group member
@@ -333,7 +334,7 @@ export class GroupService {
 				joinDate: new Date(),
 			};
 			const groupMember = await this.groupMemberModel.create(newGroupMemberInput);
-			if (!groupMember) throw new BadRequestException(Message.CREATE_FAILED);
+			if (!groupMember) throw new BadRequestException(errorBody('CREATE_FAILED'));
 
 			// create notification
 			const newNotification: NotificationInput = {
@@ -353,21 +354,21 @@ export class GroupService {
 			return group;
 		} catch (err) {
 			logger.error('GroupService', 'Error in joinTargetGroup', err instanceof Error ? err : new Error(String(err)));
-			throw new BadRequestException(Message.CREATE_FAILED);
+			throw new BadRequestException(errorBody('CREATE_FAILED'));
 		}
 	}
 
 	public async leaveTargetGroup(memberId: ObjectId, groupId: ObjectId): Promise<Group> {
 		const group: Group | null = await this.groupModel.findById(groupId).lean().exec();
-		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
+		if (!group) throw new NotFoundException(errorBody('GROUP_NOT_FOUND'));
 
 		const groupMember: GroupMember | null = await this.groupMemberModel.findOne({ groupId, memberId }).lean().exec();
-		if (!groupMember) throw new BadRequestException(Message.NOT_JOINED);
+		if (!groupMember) throw new BadRequestException(errorBody('NOT_JOINED'));
 
 		const groupMemberId = shapeObjectIdToString(group.memberId);
 		const authMemberId = shapeObjectIdToString(memberId);
 		if (groupMemberId === authMemberId) {
-			throw new BadRequestException(Message.OWNER_CANNOT_LEAVE);
+			throw new BadRequestException(errorBody('OWNER_CANNOT_LEAVE'));
 		}
 
 		await this.groupMemberModel.findOneAndDelete({ groupId, memberId });
@@ -386,16 +387,16 @@ export class GroupService {
 
 		// Check if the requesting member is an organizer of the group
 		const group = await this.groupModel.findById(groupId);
-		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
+		if (!group) throw new NotFoundException(errorBody('GROUP_NOT_FOUND'));
 		const groupMemberId = shapeObjectIdToString(group.memberId);
 		const authMemberId = shapeObjectIdToString(memberId);
 		if (groupMemberId !== authMemberId) {
-			throw new BadRequestException(Message.NOT_GROUP_ADMIN);
+			throw new BadRequestException(errorBody('NOT_GROUP_ADMIN'));
 		}
 
 		// Check if target member exists
 		const targetMember = await this.memberService.getSimpleMember(targetMemberId);
-		if (!targetMember) throw new NotFoundException(Message.MEMBER_NOT_FOUND);
+		if (!targetMember) throw new NotFoundException(errorBody('MEMBER_NOT_FOUND'));
 
 		// Update member role
 		const updatedMember = await this.groupMemberModel.findOneAndUpdate(
@@ -408,7 +409,7 @@ export class GroupService {
 			await this.groupStatsEditor({ _id: groupId, targetKey: 'memberCount', modifier: -1 });
 		}
 
-		if (!updatedMember) throw new BadRequestException(Message.UPDATE_FAILED);
+		if (!updatedMember) throw new BadRequestException(errorBody('UPDATE_FAILED'));
 		return updatedMember;
 	}
 
@@ -458,16 +459,16 @@ export class GroupService {
 	}
 
 	public async updateGroupByAdmin(input: GroupUpdateInput): Promise<Group> {
-		if (!input._id) throw new BadRequestException(Message.NO_DATA_FOUND);
+		if (!input._id) throw new BadRequestException(errorBody('NO_DATA_FOUND'));
 
 		const result: Group | null = await this.groupModel.findByIdAndUpdate(input._id, input, { new: true }).exec();
-		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
+		if (!result) throw new BadRequestException(errorBody('UPDATE_FAILED'));
 		return result;
 	}
 
 	public async removeGroupByAdmin(groupId: ObjectId): Promise<Group> {
 		const result: Group | null = await this.groupModel.findByIdAndDelete(groupId).exec();
-		if (!result) throw new BadRequestException(Message.NO_DATA_FOUND);
+		if (!result) throw new BadRequestException(errorBody('NO_DATA_FOUND'));
 		return result;
 	}
 
@@ -479,13 +480,13 @@ export class GroupService {
 			.findByIdAndUpdate(_id, { $inc: { [targetKey]: modifier } }, { new: true })
 			.exec();
 
-		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
+		if (!result) throw new BadRequestException(errorBody('UPDATE_FAILED'));
 		return result;
 	}
 
 	public async getSimpleGroup(groupId: ObjectId): Promise<Group> {
 		const group = await this.groupModel.findById(groupId).lean().exec();
-		if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
+		if (!group) throw new NotFoundException(errorBody('GROUP_NOT_FOUND'));
 		return group;
 	}
 

@@ -1,8 +1,9 @@
-import { Types } from 'mongoose';
-import type { ObjectId } from 'mongoose';
-import { v4 as uuidv4 } from 'uuid';
-import * as path from 'path';
 import { BadRequestException } from '@nestjs/common';
+import type { ObjectId } from 'mongoose';
+import { Types } from 'mongoose';
+import * as path from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import { errorBody } from './errors';
 
 export const shapeIntoMongoObjectId = (target: string | ObjectId): ObjectId => {
 	if (typeof target === 'string') {
@@ -14,9 +15,7 @@ export const shapeIntoMongoObjectId = (target: string | ObjectId): ObjectId => {
 				error instanceof Error &&
 				(error.name === 'BSONError' || error.message?.includes('must be a 24 character hex string'))
 			) {
-				throw new BadRequestException(
-					`Invalid ObjectId format: "${target}". ObjectId must be a 24 character hex string.`,
-				);
+				throw new BadRequestException(errorBody('INVALID_OBJECT_ID'));
 			}
 			// Re-throw if it's a different error
 			throw error;

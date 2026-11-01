@@ -1,9 +1,9 @@
-import { BadRequestException, CanActivate, ExecutionContext, Injectable, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { AuthService } from '../auth.service';
-import { Message } from '../../../libs/enums/common.enum';
-import { GraphQLRequest } from '../../../libs/types/common';
+import { errorBody } from '../../../libs/errors';
 import { logger } from '../../../libs/logger';
+import { GraphQLRequest } from '../../../libs/types/common';
+import { AuthService } from '../auth.service';
 
 interface GraphQLExecutionContext {
 	contextType?: string;
@@ -30,14 +30,14 @@ export class RolesGuard implements CanActivate {
 			const request: GraphQLRequest | undefined = graphqlArgs?.req;
 
 			if (!request) {
-				throw new BadRequestException(Message.TOKEN_NOT_EXIST);
+				throw new BadRequestException(errorBody('TOKEN_NOT_EXIST'));
 			}
 
 			const bearerToken: string | undefined = request.headers?.authorization;
 
 			if (!bearerToken) {
 				logger.error('RolesGuard', 'No bearer token provided');
-				throw new BadRequestException(Message.TOKEN_NOT_EXIST);
+				throw new BadRequestException(errorBody('TOKEN_NOT_EXIST'));
 			}
 
 			try {
@@ -45,13 +45,13 @@ export class RolesGuard implements CanActivate {
 				const token: string | undefined = tokenParts[1];
 				if (!token) {
 					logger.error('RolesGuard', 'Invalid token format');
-					throw new BadRequestException(Message.TOKEN_NOT_EXIST);
+					throw new BadRequestException(errorBody('TOKEN_NOT_EXIST'));
 				}
 
 				const authMember = await this.authService.verifyToken(token);
 				if (!authMember) {
 					logger.error('RolesGuard', 'Token verification failed');
-					throw new ForbiddenException(Message.NOT_AUTHENTICATED);
+					throw new ForbiddenException(errorBody('NOT_AUTHENTICATED'));
 				}
 
 				const hasRole = () => roles.indexOf(authMember.memberType) > -1;
@@ -59,7 +59,7 @@ export class RolesGuard implements CanActivate {
 
 				if (!hasPermission) {
 					logger.error('RolesGuard', `User ${authMember.username} does not have required roles: ${roles.join(', ')}`);
-					throw new ForbiddenException(Message.NOT_AUTHORIZED);
+					throw new ForbiddenException(errorBody('NOT_AUTHORIZED'));
 				}
 
 				logger.debug('RolesGuard', `username[roles] => ${authMember.username}`);
@@ -73,7 +73,7 @@ export class RolesGuard implements CanActivate {
 			} catch (error) {
 				const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 				logger.error('RolesGuard', 'Role verification error', error instanceof Error ? error : new Error(errorMessage));
-				throw new ForbiddenException(Message.NOT_AUTHORIZED);
+				throw new ForbiddenException(errorBody('NOT_AUTHORIZED'));
 			}
 		}
 

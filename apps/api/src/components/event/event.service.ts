@@ -6,12 +6,11 @@ import { Model, ObjectId } from 'mongoose';
 import { Direction, Message } from '../../libs/enums/common.enum';
 import { EventStatus, EventType } from '../../libs/enums/event.enum';
 import { LikeGroup } from '../../libs/enums/like.enum';
-import { ViewGroup } from '../../libs/enums/view.enum';
 import { NotificationType } from '../../libs/enums/notification.enum';
+import { ViewGroup } from '../../libs/enums/view.enum';
 
 // ===== Types & DTOs =====
-import { StatisticModifier, T } from '../../libs/types/common';
-import { Event, Events, CategoryEvents } from '../../libs/dto/event/event';
+import { CategoryEvents, Event, Events } from '../../libs/dto/event/event';
 import {
 	EventInput,
 	EventsByCategoryInquiry,
@@ -19,24 +18,26 @@ import {
 	OrdinaryEventInquiry,
 } from '../../libs/dto/event/event.input';
 import { EventUpdateInput } from '../../libs/dto/event/event.update';
+import { GroupMember } from '../../libs/dto/groupMembers/groupMember';
+import { LikeInput } from '../../libs/dto/like/like.input';
+import { NotificationInput } from '../../libs/dto/notification/notification.input';
 import { View } from '../../libs/dto/view/view';
 import { ViewInput } from '../../libs/dto/view/view.input';
-import { LikeInput } from '../../libs/dto/like/like.input';
-import { GroupMember } from '../../libs/dto/groupMembers/groupMember';
-import { NotificationInput } from '../../libs/dto/notification/notification.input';
+import { StatisticModifier, T } from '../../libs/types/common';
 
 // ===== Config =====
 import { lookupAuthMemberLiked, shapeObjectIdToString } from '../../libs/config';
 import { logger } from '../../libs/logger';
 
 // ===== Services =====
+import { errorBody } from '../../libs/errors';
 import { AgendaService } from '../agenda/agenda.service';
+import { CurrencyService } from '../currency/currency.service';
+import { GroupService } from '../group/group.service';
 import { LikeService } from '../like/like.service';
-import { ViewService } from '../view/view.service';
 import { MemberService } from '../member/member.service';
 import { NotificationService } from '../notification/notification.service';
-import { GroupService } from '../group/group.service';
-import { CurrencyService } from '../currency/currency.service';
+import { ViewService } from '../view/view.service';
 
 @Injectable()
 export class EventService {
@@ -58,7 +59,7 @@ export class EventService {
 	public async createEvent(memberId: ObjectId, input: EventInput): Promise<Event> {
 		// Validation: createEvent is only for ONE-TIME events
 		if (input.eventType && input.eventType !== EventType.ONCE) {
-			throw new BadRequestException('Use createRecurringEvent mutation for recurring events');
+			throw new BadRequestException(errorBody('USE_RECURRING_MUTATION'));
 		}
 
 		if (input.eventPrice && input.eventPrice <= 0) input.eventPrice = 0;
@@ -76,7 +77,7 @@ export class EventService {
 
 			// check for authorization
 			const groupAdmin = await this.groupService.isAuthorized(memberId, input.groupId);
-			if (!groupAdmin) throw new BadRequestException(Message.NOT_GROUP_ADMIN);
+			if (!groupAdmin) throw new BadRequestException(errorBody('NOT_GROUP_ADMIN'));
 		}
 
 		try {
@@ -131,7 +132,7 @@ export class EventService {
 
 			return event;
 		} catch {
-			throw new BadRequestException(Message.EVENT_ALREADY_EXISTS);
+			throw new BadRequestException(errorBody('EVENT_ALREADY_EXISTS'));
 		}
 	}
 
@@ -385,7 +386,7 @@ export class EventService {
 	public async likeTargetEvent(memberId: ObjectId, likeRefId: ObjectId): Promise<Event> {
 		// find event
 		const event: Event | null = await this.eventModel.findById(likeRefId).lean().exec();
-		if (!event) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
+		if (!event) throw new InternalServerErrorException(errorBody('NO_DATA_FOUND'));
 
 		// like => unlike, unlike => like
 		const input: LikeInput = { memberId: memberId, likeRefId: likeRefId, likeGroup: LikeGroup.EVENT };
@@ -493,13 +494,13 @@ export class EventService {
 			.findByIdAndUpdate(_id, { $inc: { [targetKey]: modifier } }, { new: true })
 			.lean()
 			.exec();
-		if (!event) throw new BadRequestException(Message.UPDATE_FAILED);
+		if (!event) throw new BadRequestException(errorBody('UPDATE_FAILED'));
 		return event as Event;
 	}
 
 	public async getSimpleEvent(eventId: ObjectId): Promise<Event> {
 		const event = await this.eventModel.findById(eventId).lean().exec();
-		if (!event) throw new NotFoundException(Message.EVENT_NOT_FOUND);
+		if (!event) throw new NotFoundException(errorBody('EVENT_NOT_FOUND'));
 		return event;
 	}
 
@@ -575,7 +576,7 @@ export class EventService {
 		if (input.eventStatus === EventStatus.CANCELLED) {
 			// to cancel: event must not be ongoing or completed
 			if (event.eventStatus === EventStatus.ONGOING || event.eventStatus === EventStatus.COMPLETED) {
-				throw new BadRequestException('Cannot cancel event that is already ongoing or completed.');
+				throw new BadRequestException(errorBody('EVENT_CANNOT_CANCEL'));
 			}
 		}
 
@@ -586,12 +587,12 @@ export class EventService {
 				(event.eventStatus !== EventStatus.COMPLETED && event.attendeeCount > 0) ||
 				event.eventStatus === EventStatus.ONGOING
 			) {
-				throw new BadRequestException('Cannot delete event that is ongoing or completed with attendees.');
+				throw new BadRequestException(errorBody('EVENT_CANNOT_DELETE'));
 			}
 		}
 
 		const result: Event | null = await this.eventModel.findByIdAndUpdate(input._id, input, { new: true }).exec();
-		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
+		if (!result) throw new BadRequestException(errorBody('UPDATE_FAILED'));
 
 		// Handle updateAllFuture for recurring events
 		if (input.updateAllFuture && event.recurrenceId) {

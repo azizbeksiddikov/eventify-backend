@@ -3,27 +3,28 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
 
 // ===== Enums =====
-import { MemberStatus, MemberType } from '../../libs/enums/member.enum';
-import { Direction, Message } from '../../libs/enums/common.enum';
+import { Direction } from '../../libs/enums/common.enum';
 import { LikeGroup } from '../../libs/enums/like.enum';
+import { MemberStatus, MemberType } from '../../libs/enums/member.enum';
 import { ViewGroup } from '../../libs/enums/view.enum';
 
 // ===== Types & DTOs =====
-import { Member, Members } from '../../libs/dto/member/member';
-import { StatisticModifier, T } from '../../libs/types/common';
-import { LoginInput, MemberInput, MembersInquiry, OrganizersInquiry } from '../../libs/dto/member/member.input';
-import { MemberUpdateInput } from '../../libs/dto/member/member.update';
 import { Follower, Following, MeFollowed } from '../../libs/dto/follow/follow';
 import { LikeInput } from '../../libs/dto/like/like.input';
-import { ViewInput } from '../../libs/dto/view/view.input';
+import { Member, Members } from '../../libs/dto/member/member';
+import { LoginInput, MemberInput, MembersInquiry, OrganizersInquiry } from '../../libs/dto/member/member.input';
+import { MemberUpdateInput } from '../../libs/dto/member/member.update';
 import { NotificationInput } from '../../libs/dto/notification/notification.input';
+import { ViewInput } from '../../libs/dto/view/view.input';
 import { NotificationType } from '../../libs/enums/notification.enum';
+import { StatisticModifier, T } from '../../libs/types/common';
 
 // ===== Config =====
 import { lookupAuthMemberFollowed, lookupAuthMemberLiked, shapeObjectIdToString } from '../../libs/config';
 import { logger } from '../../libs/logger';
 
 // ===== Services =====
+import { errorBody } from '../../libs/errors';
 import { AuthService } from '../auth/auth.service';
 import { LikeService } from '../like/like.service';
 import { ViewService } from '../view/view.service';
@@ -43,11 +44,11 @@ export class MemberService {
 		try {
 			if (input.memberType === MemberType.ADMIN) {
 				const adminCount = await this.memberModel.countDocuments({ memberType: MemberType.ADMIN });
-				if (adminCount >= 3) throw new BadRequestException(Message.ADMIN_COUNT_MAX);
+				if (adminCount >= 3) throw new BadRequestException(errorBody('ADMIN_COUNT_MAX'));
 			}
 
 			const existingMember = await this.memberModel.findOne({ username: input.username });
-			if (existingMember) throw new BadRequestException(Message.USED_MEMBER_NICK_OR_PHONE);
+			if (existingMember) throw new BadRequestException(errorBody('USED_MEMBER_NICK_OR_PHONE'));
 
 			input.memberPassword = await this.authService.hashPassword(input.memberPassword);
 
@@ -62,7 +63,7 @@ export class MemberService {
 			} else {
 				logger.error('MemberService', 'Error in signup', new Error('Unknown error'));
 			}
-			throw new BadRequestException(Message.USED_MEMBER_NICK_OR_PHONE);
+			throw new BadRequestException(errorBody('USED_MEMBER_NICK_OR_PHONE'));
 		}
 	}
 
@@ -74,13 +75,13 @@ export class MemberService {
 			.select('+memberPassword +memberPoints')
 			.exec();
 
-		if (!result) throw new BadRequestException(Message.NO_MEMBER_NICK);
+		if (!result) throw new BadRequestException(errorBody('NO_MEMBER_NICK'));
 		if (result.memberStatus === MemberStatus.BLOCKED) {
-			throw new BadRequestException(Message.BLOCKED_USER);
+			throw new BadRequestException(errorBody('BLOCKED_USER'));
 		}
 
 		const isMatch = await this.authService.comparePasswords(memberPassword, result.memberPassword);
-		if (!isMatch) throw new BadRequestException(Message.WRONG_PASSWORD);
+		if (!isMatch) throw new BadRequestException(errorBody('WRONG_PASSWORD'));
 
 		result.accessToken = await this.authService.createToken(result);
 		return result;
@@ -90,17 +91,17 @@ export class MemberService {
 	// 	const { currentPassword, newPassword } = input;
 
 	// 	let result: Member | null = await this.memberModel.findById(memberId).select('+memberPassword').exec();
-	// 	if (!result) throw new BadRequestException(Message.NO_DATA_FOUND);
+	// 	if (!result) throw new BadRequestException(errorBody('NO_DATA_FOUND'));
 
 	// 	const isMatch = await this.authService.comparePasswords(currentPassword, result.memberPassword);
-	// 	if (!isMatch) throw new BadRequestException(Message.WRONG_PASSWORD);
+	// 	if (!isMatch) throw new BadRequestException(errorBody('WRONG_PASSWORD'));
 
 	// 	const hashedPassword = await this.authService.hashPassword(newPassword);
 	// 	result = await this.memberModel
 	// 		.findByIdAndUpdate(memberId, { memberPassword: hashedPassword }, { new: true })
 	// 		.exec();
 
-	// 	if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
+	// 	if (!result) throw new BadRequestException(errorBody('UPDATE_FAILED'));
 	// 	result.accessToken = await this.authService.createToken(result);
 	// 	return result;
 	// }
@@ -112,7 +113,7 @@ export class MemberService {
 	// 		.findByIdAndUpdate(memberId, { memberPassword: newPassword }, { new: true })
 	// 		.exec();
 
-	// 	if (!result) throw new BadRequestException(Message.NO_DATA_FOUND);
+	// 	if (!result) throw new BadRequestException(errorBody('NO_DATA_FOUND'));
 	// 	return result;
 	// }
 
@@ -126,7 +127,7 @@ export class MemberService {
 			.select('+memberPoints')
 			.exec();
 
-		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
+		if (!result) throw new BadRequestException(errorBody('UPDATE_FAILED'));
 
 		result.accessToken = await this.authService.createToken(result);
 		return result;
@@ -134,7 +135,7 @@ export class MemberService {
 
 	public async deleteAccount(memberId: ObjectId): Promise<Member> {
 		const result: Member | null = await this.memberModel.findByIdAndDelete(memberId).exec();
-		if (!result) throw new BadRequestException(Message.NO_DATA_FOUND);
+		if (!result) throw new BadRequestException(errorBody('NO_DATA_FOUND'));
 		return result;
 	}
 
@@ -145,7 +146,7 @@ export class MemberService {
 		const selectFields = isOwnProfile ? '+memberPoints' : '';
 
 		const targetMember: Member | null = await this.memberModel.findById(targetId).select(selectFields).lean().exec();
-		if (!targetMember) throw new BadRequestException(Message.NO_DATA_FOUND);
+		if (!targetMember) throw new BadRequestException(errorBody('NO_DATA_FOUND'));
 
 		if (memberId) {
 			const viewInput: ViewInput = {
@@ -199,7 +200,7 @@ export class MemberService {
 			])
 			.exec();
 
-		if (!result.length) throw new BadRequestException(Message.NO_DATA_FOUND);
+		if (!result.length) throw new BadRequestException(errorBody('NO_DATA_FOUND'));
 
 		return result[0] as Members;
 	}
@@ -260,7 +261,7 @@ export class MemberService {
 			])
 			.exec();
 
-		if (!result.length) throw new NotFoundException(Message.MEMBER_NOT_FOUND);
+		if (!result.length) throw new NotFoundException(errorBody('MEMBER_NOT_FOUND'));
 		const member = result[0] as Member;
 
 		if (memberId) {
@@ -285,7 +286,7 @@ export class MemberService {
 			.findOne({ _id: likeRefId, memberStatus: MemberStatus.ACTIVE })
 			.lean()
 			.exec();
-		if (!member) throw new NotFoundException(Message.MEMBER_NOT_FOUND);
+		if (!member) throw new NotFoundException(errorBody('MEMBER_NOT_FOUND'));
 
 		// create like input
 		const input: LikeInput = { memberId: authMember._id, likeRefId: likeRefId, likeGroup: LikeGroup.MEMBER };
@@ -337,27 +338,27 @@ export class MemberService {
 			])
 			.exec();
 
-		if (!result.length) throw new BadRequestException(Message.NO_DATA_FOUND);
+		if (!result.length) throw new BadRequestException(errorBody('NO_DATA_FOUND'));
 
 		return result[0] as Members;
 	}
 
 	public async updateMemberByAdmin(input: MemberUpdateInput): Promise<Member> {
 		const { _id, ...otherInput } = input;
-		if (!_id) throw new BadRequestException(Message.NO_DATA_FOUND);
+		if (!_id) throw new BadRequestException(errorBody('NO_DATA_FOUND'));
 
 		const result: Member | null = await this.memberModel
 			.findByIdAndUpdate(_id, otherInput, { new: true })
 			.select('+memberPoints')
 			.exec();
 
-		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
+		if (!result) throw new BadRequestException(errorBody('UPDATE_FAILED'));
 		return result;
 	}
 
 	public async removeMemberByAdmin(memberId: ObjectId): Promise<Member> {
 		const result: Member | null = await this.memberModel.findByIdAndDelete(memberId).select('+memberPoints').exec();
-		if (!result) throw new BadRequestException(Message.NO_DATA_FOUND);
+		if (!result) throw new BadRequestException(errorBody('NO_DATA_FOUND'));
 		return result;
 	}
 
@@ -374,19 +375,19 @@ export class MemberService {
 			.findByIdAndUpdate(_id, { $inc: { [targetKey]: modifier } }, { new: true })
 			.exec();
 
-		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
+		if (!result) throw new BadRequestException(errorBody('UPDATE_FAILED'));
 		return result;
 	}
 
 	public async getSimpleMember(memberId: ObjectId): Promise<Member> {
 		const result = await this.memberModel.findById(memberId).lean().exec();
-		if (!result) throw new NotFoundException(Message.MEMBER_NOT_FOUND);
+		if (!result) throw new NotFoundException(errorBody('MEMBER_NOT_FOUND'));
 		return result;
 	}
 
 	public async getMemberPoints(memberId: ObjectId): Promise<number> {
 		const result = (await this.memberModel.findById(memberId).select('+memberPoints').lean().exec()) as Member;
-		if (!result) throw new NotFoundException(Message.MEMBER_NOT_FOUND);
+		if (!result) throw new NotFoundException(errorBody('MEMBER_NOT_FOUND'));
 		return result.memberPoints ?? 0;
 	}
 }

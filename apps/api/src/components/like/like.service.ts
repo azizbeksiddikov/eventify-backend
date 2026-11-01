@@ -2,16 +2,16 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
 import { lookupFavorite } from '../../libs/config';
-import { LikeGroup } from '../../libs/enums/like.enum';
-import { Message } from '../../libs/enums/common.enum';
 import { Event, Events } from '../../libs/dto/event/event';
 import { OrdinaryEventInquiry } from '../../libs/dto/event/event.input';
 import { Like, MeLiked } from '../../libs/dto/like/like';
 import { LikeInput } from '../../libs/dto/like/like.input';
 import { NotificationInput } from '../../libs/dto/notification/notification.input';
+import { LikeGroup } from '../../libs/enums/like.enum';
+import { errorBody } from '../../libs/errors';
+import { logger } from '../../libs/logger';
 import { T } from '../../libs/types/common';
 import { NotificationService } from '../notification/notification.service';
-import { logger } from '../../libs/logger';
 
 @Injectable()
 export class LikeService {
@@ -44,7 +44,7 @@ export class LikeService {
 			} catch (err) {
 				const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 				logger.error('LikeService', 'ERROR: Service.model', err instanceof Error ? err : new Error(errorMessage));
-				throw new BadRequestException(Message.CREATE_FAILED);
+				throw new BadRequestException(errorBody('CREATE_FAILED'));
 			}
 		}
 

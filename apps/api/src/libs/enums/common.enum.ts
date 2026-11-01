@@ -21,7 +21,7 @@ export enum Message {
 	NOT_AUTHORIZED = 'You do not have permission to perform this action.',
 	TOKEN_NOT_EXIST = 'Authentication token is missing.',
 	PROVIDE_ALLOWED_FORMAT = 'Please upload an image in JPG, JPEG, or PNG format.',
-	SELF_SUBSRIPTION_DENIED = 'You cannot subscribe to yourself.',
+	SELF_SUBSCRIPTION_DENIED = 'You cannot subscribe to yourself.',
 	INSUFFICIENT_POINTS = 'You do not have enough points for this action.',
 	ALREADY_SUBSCRIBED = 'You are already subscribed to this member.',
 	ADMIN_COUNT_MAX = 'The maximum number of admins has been reached.',
@@ -57,6 +57,29 @@ export enum Message {
 	EVENT_CURRENCY_MISSING = 'This paid event has no currency set, so a ticket cannot be priced. Please contact the organizer.',
 	CURRENCY_NOT_SUPPORTED = 'This currency is not supported.',
 	EVENT_CURRENCY_REQUIRED = 'Choose a currency for a paid event.',
+	CURRENCY_NOT_FOUND = 'Currency not found.',
+	CURRENCY_ALREADY_EXISTS = 'Currency {currency} already exists.',
+	EXCHANGE_RATE_INVALID = 'Exchange rate must be positive.',
+
+	// ===== Event cancel / delete =====
+	EVENT_CANNOT_CANCEL = 'Cannot cancel event that is already ongoing or completed.',
+	EVENT_CANNOT_DELETE = 'Cannot delete event that is ongoing or completed with attendees.',
+
+	// ===== Recurring events =====
+	USE_RECURRING_MUTATION = 'Use createRecurringEvent mutation for recurring events',
+	RECURRING_START_IN_PAST = 'Cannot create recurring events starting in the past',
+	RECURRING_NOT_SINGLE_DAY = 'Recurring events must be single-day events (duration <= 24 hours)',
+	RECURRENCE_NOT_FOUND = 'Event recurrence not found',
+	RECURRENCE_INTERVAL_REQUIRED = 'recurrenceInterval is required for INTERVAL type and must be >= 1',
+	RECURRENCE_DAYS_OF_WEEK_REQUIRED = 'recurrenceDaysOfWeek is required for DAYS_OF_WEEK type',
+	RECURRENCE_DAY_OF_MONTH_REQUIRED = 'recurrenceDayOfMonth is required for DAY_OF_MONTH type and must be between 1 and 31',
+	RECURRENCE_END_BEFORE_START = 'recurrenceEndDate must be after eventStartAt',
+
+	// ===== Upload =====
+	UPLOAD_TARGET_REQUIRED = 'Target parameter is required',
+
+	// ===== Input =====
+	INVALID_OBJECT_ID = 'Invalid ID format.',
 }
 
 // ===== Direction =====

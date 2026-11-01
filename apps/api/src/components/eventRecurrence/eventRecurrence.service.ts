@@ -3,22 +3,22 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
 
 // ===== Enums =====
-import { Message } from '../../libs/enums/common.enum';
 import { EventStatus, EventType, RecurrenceType } from '../../libs/enums/event.enum';
 
 // ===== Config =====
 import { shapeObjectIdToString } from '../../libs/config';
 
 // ===== Types & DTOs =====
+import { Event } from '../../libs/dto/event/event';
 import { EventRecurrence } from '../../libs/dto/eventRecurrence/eventRecurrence';
 import { EventRecurrenceInput, EventRecurrenceUpdateInput } from '../../libs/dto/eventRecurrence/eventRecurrence.input';
-import { Event } from '../../libs/dto/event/event';
 
 // ===== Services =====
-import { AgendaService } from '../agenda/agenda.service';
-import { MemberService } from '../member/member.service';
-import { GroupService } from '../group/group.service';
 import { EventInput } from '../../libs/dto/event/event.input';
+import { errorBody } from '../../libs/errors';
+import { AgendaService } from '../agenda/agenda.service';
+import { GroupService } from '../group/group.service';
+import { MemberService } from '../member/member.service';
 
 @Injectable()
 export class EventRecurrenceService {
@@ -36,14 +36,14 @@ export class EventRecurrenceService {
 	public async createRecurringEvent(memberId: ObjectId, input: EventRecurrenceInput): Promise<EventRecurrence> {
 		// Validation: Ensure no past event start date
 		if (new Date(input.eventStartAt) < new Date()) {
-			throw new BadRequestException('Cannot create recurring events starting in the past');
+			throw new BadRequestException(errorBody('RECURRING_START_IN_PAST'));
 		}
 
 		// Validate single-day constraint
 		const duration = new Date(input.eventEndAt).getTime() - new Date(input.eventStartAt).getTime(); // duration in milliseconds
 		const dayInMs = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 		if (duration > dayInMs) {
-			throw new BadRequestException('Recurring events must be single-day events (duration <= 24 hours)');
+			throw new BadRequestException(errorBody('RECURRING_NOT_SINGLE_DAY'));
 		}
 
 		// Validate recurrence fields
@@ -53,7 +53,7 @@ export class EventRecurrenceService {
 		if (input.groupId) {
 			await this.groupService.getSimpleGroup(input.groupId);
 			const groupAdmin = await this.groupService.isAuthorized(memberId, input.groupId);
-			if (!groupAdmin) throw new BadRequestException(Message.NOT_GROUP_ADMIN);
+			if (!groupAdmin) throw new BadRequestException(errorBody('NOT_GROUP_ADMIN'));
 		}
 
 		try {
@@ -72,21 +72,21 @@ export class EventRecurrenceService {
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			this.logger.error(`Failed to create recurring event: ${errorMessage}`);
-			throw new BadRequestException(Message.CREATE_FAILED);
+			throw new BadRequestException(errorBody('CREATE_FAILED'));
 		}
 	}
 
 	public async updateRecurringEvent(memberId: ObjectId, input: EventRecurrenceUpdateInput): Promise<EventRecurrence> {
 		const recurrence = await this.eventRecurrenceModel.findById(input._id).exec();
 		if (!recurrence || !recurrence.isActive) {
-			throw new BadRequestException('Event recurrence not found');
+			throw new BadRequestException(errorBody('RECURRENCE_NOT_FOUND'));
 		}
 
 		// Check authorization
 		const recurrenceMemberId = shapeObjectIdToString(recurrence.memberId);
 		const authMemberId = shapeObjectIdToString(memberId);
 		if (recurrenceMemberId !== authMemberId) {
-			throw new BadRequestException(Message.NOT_AUTHORIZED);
+			throw new BadRequestException(errorBody('NOT_AUTHORIZED'));
 		}
 
 		// Validate recurrence fields if changed
@@ -121,14 +121,14 @@ export class EventRecurrenceService {
 	public async cancelRecurringSeries(memberId: ObjectId, recurrenceId: ObjectId): Promise<EventRecurrence> {
 		const recurrence = await this.eventRecurrenceModel.findById(recurrenceId).exec();
 		if (!recurrence || !recurrence.isActive) {
-			throw new BadRequestException('Event recurrence not found');
+			throw new BadRequestException(errorBody('RECURRENCE_NOT_FOUND'));
 		}
 
 		// Check authorization
 		const recurrenceMemberId = shapeObjectIdToString(recurrence.memberId);
 		const authMemberId = shapeObjectIdToString(memberId);
 		if (recurrenceMemberId !== authMemberId) {
-			throw new BadRequestException(Message.NOT_AUTHORIZED);
+			throw new BadRequestException(errorBody('NOT_AUTHORIZED'));
 		}
 
 		// Mark as inactive
@@ -157,7 +157,7 @@ export class EventRecurrenceService {
 	public async getRecurrence(recurrenceId: ObjectId): Promise<EventRecurrence> {
 		const recurrence = await this.eventRecurrenceModel.findById(recurrenceId).exec();
 		if (!recurrence) {
-			throw new BadRequestException('Event recurrence not found');
+			throw new BadRequestException(errorBody('RECURRENCE_NOT_FOUND'));
 		}
 		return recurrence;
 	}
@@ -301,7 +301,7 @@ export class EventRecurrenceService {
 		duration: number,
 	): { startAt: Date; endAt: Date }[] {
 		if (!recurrence.recurrenceInterval) {
-			throw new BadRequestException('recurrenceInterval is required for INTERVAL type and must be >= 1');
+			throw new BadRequestException(errorBody('RECURRENCE_INTERVAL_REQUIRED'));
 		}
 		const occurrences: { startAt: Date; endAt: Date }[] = [];
 		const currentDate = new Date(recurrence.eventStartAt);
@@ -325,7 +325,7 @@ export class EventRecurrenceService {
 		duration: number,
 	): { startAt: Date; endAt: Date }[] {
 		if (!recurrence.recurrenceDaysOfWeek) {
-			throw new BadRequestException('recurrenceDaysOfWeek is required for DAYS_OF_WEEK type');
+			throw new BadRequestException(errorBody('RECURRENCE_DAYS_OF_WEEK_REQUIRED'));
 		}
 		const occurrences: { startAt: Date; endAt: Date }[] = [];
 		const currentDate = new Date(startDate);
@@ -351,7 +351,7 @@ export class EventRecurrenceService {
 		duration: number,
 	): { startAt: Date; endAt: Date }[] {
 		if (!recurrence.recurrenceDayOfMonth) {
-			throw new BadRequestException('recurrenceDayOfMonth is required for DAY_OF_MONTH type and must be >= 1');
+			throw new BadRequestException(errorBody('RECURRENCE_DAY_OF_MONTH_REQUIRED'));
 		}
 		const occurrences: { startAt: Date; endAt: Date }[] = [];
 		const currentDate = new Date(startDate);
@@ -384,19 +384,17 @@ export class EventRecurrenceService {
 		switch (input.recurrenceType) {
 			case RecurrenceType.INTERVAL:
 				if (!input.recurrenceInterval || input.recurrenceInterval < 1) {
-					throw new BadRequestException('recurrenceInterval is required for INTERVAL type and must be >= 1');
+					throw new BadRequestException(errorBody('RECURRENCE_INTERVAL_REQUIRED'));
 				}
 				break;
 			case RecurrenceType.DAYS_OF_WEEK:
 				if (!input.recurrenceDaysOfWeek || input.recurrenceDaysOfWeek.length === 0) {
-					throw new BadRequestException('recurrenceDaysOfWeek is required for DAYS_OF_WEEK type');
+					throw new BadRequestException(errorBody('RECURRENCE_DAYS_OF_WEEK_REQUIRED'));
 				}
 				break;
 			case RecurrenceType.DAY_OF_MONTH:
 				if (!input.recurrenceDayOfMonth || input.recurrenceDayOfMonth < 1 || input.recurrenceDayOfMonth > 31) {
-					throw new BadRequestException(
-						'recurrenceDayOfMonth is required for DAY_OF_MONTH type and must be between 1-31',
-					);
+					throw new BadRequestException(errorBody('RECURRENCE_DAY_OF_MONTH_REQUIRED'));
 				}
 				break;
 		}
@@ -407,7 +405,7 @@ export class EventRecurrenceService {
 			input.eventStartAt &&
 			new Date(input.recurrenceEndDate) < new Date(input.eventStartAt)
 		) {
-			throw new BadRequestException('recurrenceEndDate must be after eventStartAt');
+			throw new BadRequestException(errorBody('RECURRENCE_END_BEFORE_START'));
 		}
 	}
 

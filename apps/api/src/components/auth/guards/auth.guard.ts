@@ -1,9 +1,9 @@
 import { BadRequestException, CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { GqlContextType, GqlExecutionContext } from '@nestjs/graphql';
-import { AuthService } from '../auth.service';
-import { Message } from '../../../libs/enums/common.enum';
-import { GraphQLRequest, HttpRequest, GraphQLContext } from '../../../libs/types/common';
+import { errorBody } from '../../../libs/errors';
 import { logger } from '../../../libs/logger';
+import { GraphQLContext, GraphQLRequest, HttpRequest } from '../../../libs/types/common';
+import { AuthService } from '../auth.service';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -19,7 +19,7 @@ export class AuthGuard implements CanActivate {
 			const graphqlRequest = gqlCtx?.req;
 
 			if (!graphqlRequest) {
-				throw new BadRequestException(Message.TOKEN_NOT_EXIST);
+				throw new BadRequestException(errorBody('TOKEN_NOT_EXIST'));
 			}
 
 			request = graphqlRequest;
@@ -30,20 +30,20 @@ export class AuthGuard implements CanActivate {
 		const bearerToken = request.headers?.authorization;
 		if (!bearerToken) {
 			logger.error('AuthGuard', 'No bearer token provided');
-			throw new BadRequestException(Message.TOKEN_NOT_EXIST);
+			throw new BadRequestException(errorBody('TOKEN_NOT_EXIST'));
 		}
 
 		try {
 			const token = bearerToken.split(' ')[1];
 			if (!token) {
 				logger.error('AuthGuard', 'Invalid token format');
-				throw new BadRequestException(Message.TOKEN_NOT_EXIST);
+				throw new BadRequestException(errorBody('TOKEN_NOT_EXIST'));
 			}
 
 			const authMember = await this.authService.verifyToken(token);
 			if (!authMember) {
 				logger.error('AuthGuard', 'Token verification failed');
-				throw new UnauthorizedException(Message.NOT_AUTHENTICATED);
+				throw new UnauthorizedException(errorBody('NOT_AUTHENTICATED'));
 			}
 
 			logger.debug('AuthGuard', `username[auth] => ${authMember.username}`);
@@ -57,7 +57,7 @@ export class AuthGuard implements CanActivate {
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			logger.error('AuthGuard', 'Authentication error', error instanceof Error ? error : new Error(errorMessage));
-			throw new UnauthorizedException(Message.NOT_AUTHENTICATED);
+			throw new UnauthorizedException(errorBody('NOT_AUTHENTICATED'));
 		}
 	}
 }

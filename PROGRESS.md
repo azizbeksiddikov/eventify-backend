@@ -14,6 +14,7 @@ Live and running from `master`.
 - Crawler can be switched off; API and batch run without `GEMINI_API_KEY`.
 - Local refresh scripts in `scripts/ops`.
 - Docs restructured: short README, AGENTS.md, `docs/` set.
+- Error codes: every user-facing error is thrown with `errorBody(CODE)` and sent as `extensions.code` / `extensions.params`, so clients translate by code instead of matching English text (`docs/ARCHITECTURE.md`, `test/errors.test.ts`).
 
 ## Open decisions
 

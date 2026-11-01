@@ -1,9 +1,9 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import * as bcrypt from 'bcryptjs';
-import { Member } from '../../libs/dto/member/member';
 import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcryptjs';
 import { shapeIntoMongoObjectId } from '../../libs/config';
-import { Message } from '../../libs/enums/common.enum';
+import { Member } from '../../libs/dto/member/member';
+import { errorBody } from '../../libs/errors';
 
 @Injectable()
 export class AuthService {
@@ -14,7 +14,7 @@ export class AuthService {
 			const salt = await bcrypt.genSalt(10);
 			return await bcrypt.hash(memberPassword, salt);
 		} catch {
-			throw new UnauthorizedException(Message.SOMETHING_WENT_WRONG);
+			throw new UnauthorizedException(errorBody('SOMETHING_WENT_WRONG'));
 		}
 	}
 
@@ -22,7 +22,7 @@ export class AuthService {
 		try {
 			return await bcrypt.compare(password, hashedPassword);
 		} catch {
-			throw new UnauthorizedException(Message.SOMETHING_WENT_WRONG);
+			throw new UnauthorizedException(errorBody('SOMETHING_WENT_WRONG'));
 		}
 	}
 
@@ -37,7 +37,7 @@ export class AuthService {
 				expiresIn: '30d',
 			});
 		} catch {
-			throw new UnauthorizedException(Message.SOMETHING_WENT_WRONG);
+			throw new UnauthorizedException(errorBody('SOMETHING_WENT_WRONG'));
 		}
 	}
 
@@ -49,7 +49,7 @@ export class AuthService {
 			payload._id = shapeIntoMongoObjectId(payload._id);
 			return payload;
 		} catch {
-			throw new UnauthorizedException(Message.NOT_AUTHENTICATED);
+			throw new UnauthorizedException(errorBody('NOT_AUTHENTICATED'));
 		}
 	}
 }

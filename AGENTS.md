@@ -1,6 +1,7 @@
 # AGENTS.md: eventify-backend
 
 Rules for any AI agent in this repo.
+
 ## Hard rules
 
 - **Never read, print, edit or search inside env files** that can hold real values (`.env`, `.env.*` such as `.env.local` or `.env.production`, any depth). **Exception: `.env.example` may be read and edited** (it holds placeholders only, never real secrets). Learn config from source code, `.env.example` and `docs/KEYS.md`.
@@ -24,16 +25,17 @@ NestJS 11, GraphQL (Apollo, code-first), Mongoose/MongoDB, Agenda + `@nestjs/sch
 
 - One feature = module + resolver + service + DTOs (`input`, `update`, output) + enum if needed.
 - Money is points. `exchangeRate` is points per 1 unit of currency. Free events need no currency; paid events must have a valid one (`docs/CURRENCY.md`).
-- Errors shown to users are plain sentences (`BadRequestException` with a clear message).
+- Errors shown to users carry a **code**: `throw new BadRequestException(errorBody('EVENT_FULL'))`. The code is the key of the member in the `Message` enum (`libs/enums/common.enum.ts`), the value is the English text. Add a new member for a new error, never throw a bare string. Clients translate by code, so tell the client team (add the code to `errors.json` in all languages) and never rename a code lightly: it is part of the API.
 - Markdown file names are UPPERCASE (`KEYS.md`, `ARCHITECTURE.md`); the extension stays lowercase.
 - Log through `libs/logger`, not `console`.
 - Scripts that touch the database must be dry-run or read-only by default, load no env file, and never print connection strings.
 
 ## Before finishing
 
-1. `npm run lint` and `npm test` pass.
-2. Update `PROGRESS.md` (and the relevant doc in `docs/` if behavior changed).
-3. Report briefly: what changed, what was verified, what needs the maintainer.
+1. Run `npm run format:files -- <changed files>`. It does what the editor does on save: organizes imports (sort, remove unused), then Prettier. Without it the editor rewrites your files the next time the maintainer saves them.
+2. `npm run lint` and `npm test` pass.
+3. Update `PROGRESS.md` (and the relevant doc in `docs/` if behavior changed).
+4. Report briefly: what changed, what was verified, what needs the maintainer.
 
 ## Docs map
 

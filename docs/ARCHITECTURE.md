@@ -26,9 +26,22 @@ One repo, one `package.json`, two Nest apps built separately (`nest build api`, 
 
 ## API app (`apps/api/src`)
 
-- **GraphQL**: Apollo, code-first (`autoSchemaFile: true`), errors flattened to `{ code, message }` in `app.module.ts`. Global `ValidationPipe` and a logging interceptor. CORS open with credentials.
+- **GraphQL**: Apollo, code-first (`autoSchemaFile: true`), errors formatted by `formatGraphQLError` (`libs/errors.ts`, used in `app.module.ts`) as `{ message, code, extensions: { code, params } }`. Global `ValidationPipe` and a logging interceptor. CORS open with credentials.
 - **REST bits**: `GET /`, `GET /test`, `POST /upload/image`, `POST /upload/images` (multer, png/jpg/jpeg), static `/uploads`. `/llm/*` chat endpoints exist only when `NODE_ENV` is not `production`.
 - **Auth**: JWT signed with the secret token. Guards: `AuthGuard` (login required), `RolesGuard` (+ `@Roles`), `WithoutGuard` (optional login). `@AuthMember()` injects the caller.
+
+### Errors
+
+Every error a visitor can cause has a stable **code**. The code is the key of a member in the `Message` enum (`libs/enums/common.enum.ts`); the value is the English text, kept for logs and API users.
+
+```ts
+throw new BadRequestException(errorBody('EVENT_FULL'));
+throw new BadRequestException(errorBody('CURRENCY_ALREADY_EXISTS', { currency: 'USD' })); // text: "Currency {currency} already exists."
+```
+
+`errorBody` (`libs/errors.ts`) builds `{ code, message, params }`. `formatGraphQLError` sends it to the client as `extensions.code` and `extensions.params` (and the same `code` at the top level). Errors without a code (validation, framework errors) keep Nest's own code such as `BAD_REQUEST`. REST routes such as `/upload` return the same body as JSON.
+
+The client translates by code (`errors.json` in each language), so rewording the English text is safe; renaming a code is a breaking change.
 
 ### Feature modules (`components/`)
 

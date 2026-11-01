@@ -2,9 +2,6 @@ import { BadRequestException, Injectable, InternalServerErrorException, NotFound
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
 
-// ===== Enums =====
-import { Message } from '../../libs/enums/common.enum';
-
 // ===== DTOs =====
 import { CurrencyEntity } from '../../libs/dto/currency/currency';
 
@@ -16,6 +13,7 @@ import { CurrencyUpdate } from '../../libs/dto/currency/currency.update';
 import { Direction } from '../../libs/enums/common.enum';
 
 // ===== Types =====
+import { errorBody } from '../../libs/errors';
 import { T } from '../../libs/types/common';
 
 @Injectable()
@@ -33,7 +31,7 @@ export class CurrencyService {
 			// Check if currency already exists
 			const existingCurrency = await this.currencyModel.findOne({ currencyCode: normalizedCode }).exec();
 			if (existingCurrency) {
-				throw new BadRequestException(`Currency ${normalizedCode} already exists.`);
+				throw new BadRequestException(errorBody('CURRENCY_ALREADY_EXISTS', { currency: normalizedCode }));
 			}
 
 			const currency = await this.currencyModel.create({
@@ -45,7 +43,7 @@ export class CurrencyService {
 			if (error instanceof BadRequestException) {
 				throw error;
 			}
-			throw new InternalServerErrorException(Message.CREATE_FAILED);
+			throw new InternalServerErrorException(errorBody('CREATE_FAILED'));
 		}
 	}
 
@@ -55,7 +53,7 @@ export class CurrencyService {
 	public async getCurrency(currencyId: ObjectId): Promise<CurrencyEntity | null> {
 		const currency = await this.currencyModel.findById(currencyId).exec();
 		if (!currency) {
-			throw new NotFoundException('Currency not found.');
+			throw new NotFoundException(errorBody('CURRENCY_NOT_FOUND'));
 		}
 		return currency;
 	}
@@ -66,7 +64,7 @@ export class CurrencyService {
 	public async getCurrencyByCode(currencyCode: string): Promise<CurrencyEntity | null> {
 		const currency = await this.currencyModel.findOne({ currencyCode: currencyCode.toUpperCase() }).exec();
 		if (!currency) {
-			throw new NotFoundException(`Currency ${currencyCode} not found.`);
+			throw new NotFoundException(errorBody('CURRENCY_NOT_FOUND', { currency: currencyCode }));
 		}
 		return currency;
 	}
@@ -76,7 +74,7 @@ export class CurrencyService {
 	 */
 	public async getCurrencyRate(currencyCode: string): Promise<number> {
 		const currency = await this.getCurrencyByCode(currencyCode);
-		if (!currency) throw new NotFoundException(`Currency ${currencyCode} not found.`);
+		if (!currency) throw new NotFoundException(errorBody('CURRENCY_NOT_FOUND', { currency: currencyCode }));
 
 		return currency.exchangeRate;
 	}
@@ -88,7 +86,7 @@ export class CurrencyService {
 	 */
 	public async convertPointsToCurrency(points: number, currencyCode: string): Promise<number> {
 		const rate = await this.getCurrencyRate(currencyCode);
-		if (!(rate > 0)) throw new BadRequestException('Exchange rate must be positive.');
+		if (!(rate > 0)) throw new BadRequestException(errorBody('EXCHANGE_RATE_INVALID'));
 		return Math.round((points / rate) * 100) / 100;
 	}
 
@@ -104,11 +102,11 @@ export class CurrencyService {
 	): Promise<string | null> {
 		const named = code?.trim().toUpperCase();
 		if (!named) {
-			if (price && price > 0) throw new BadRequestException(Message.EVENT_CURRENCY_REQUIRED);
+			if (price && price > 0) throw new BadRequestException(errorBody('EVENT_CURRENCY_REQUIRED'));
 			return null;
 		}
 		const found = await this.currencyModel.findOne({ currencyCode: named }).exec();
-		if (!found) throw new BadRequestException(Message.CURRENCY_NOT_SUPPORTED);
+		if (!found) throw new BadRequestException(errorBody('CURRENCY_NOT_SUPPORTED'));
 		return named;
 	}
 
@@ -136,7 +134,7 @@ export class CurrencyService {
 	public async updateCurrency(input: CurrencyUpdate): Promise<CurrencyEntity | null> {
 		const currency = await this.currencyModel.findById(input._id).exec();
 		if (!currency) {
-			throw new NotFoundException('Currency not found.');
+			throw new NotFoundException(errorBody('CURRENCY_NOT_FOUND'));
 		}
 
 		// If currencyCode is being updated, check if new code already exists
@@ -147,7 +145,7 @@ export class CurrencyService {
 					.findOne({ currencyCode: normalizedCode, _id: { $ne: input._id } })
 					.exec();
 				if (existingCurrency) {
-					throw new BadRequestException(`Currency ${normalizedCode} already exists.`);
+					throw new BadRequestException(errorBody('CURRENCY_ALREADY_EXISTS', { currency: normalizedCode }));
 				}
 				input.currencyCode = normalizedCode;
 			}
@@ -155,7 +153,7 @@ export class CurrencyService {
 
 		// Validate exchange rate if provided
 		if (input.exchangeRate !== undefined && input.exchangeRate <= 0) {
-			throw new BadRequestException('Exchange rate must be positive.');
+			throw new BadRequestException(errorBody('EXCHANGE_RATE_INVALID'));
 		}
 
 		const updatedCurrency = await this.currencyModel.findByIdAndUpdate(input._id, input, { new: true }).exec();
@@ -168,7 +166,7 @@ export class CurrencyService {
 	public async removeCurrency(currencyId: ObjectId): Promise<CurrencyEntity | null> {
 		const currency = await this.currencyModel.findByIdAndDelete(currencyId).exec();
 		if (!currency) {
-			throw new NotFoundException('Currency not found.');
+			throw new NotFoundException(errorBody('CURRENCY_NOT_FOUND'));
 		}
 		return currency;
 	}

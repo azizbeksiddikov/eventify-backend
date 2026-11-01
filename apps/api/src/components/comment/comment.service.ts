@@ -4,7 +4,7 @@ import { Model, ObjectId } from 'mongoose';
 
 // ===== Enums =====
 import { CommentGroup, CommentStatus } from '../../libs/enums/comment.enum';
-import { Direction, Message } from '../../libs/enums/common.enum';
+import { Direction } from '../../libs/enums/common.enum';
 
 // ===== DTOs =====
 import { Comment, Comments } from '../../libs/dto/comment/comment';
@@ -12,19 +12,20 @@ import { CommentInput, CommentsInquiry } from '../../libs/dto/comment/comment.in
 import { CommentUpdate } from '../../libs/dto/comment/comment.update';
 
 // ===== Types =====
-import { T } from '../../libs/types/common';
 import { NotificationInput } from '../../libs/dto/notification/notification.input';
 import { NotificationType } from '../../libs/enums/notification.enum';
+import { T } from '../../libs/types/common';
 
 // ===== Config =====
 import { lookupMember, shapeObjectIdToString } from '../../libs/config';
 
 // ===== Services =====
-import { NotificationService } from '../notification/notification.service';
+import { errorBody } from '../../libs/errors';
+import { logger } from '../../libs/logger';
 import { EventService } from '../event/event.service';
 import { GroupService } from '../group/group.service';
 import { MemberService } from '../member/member.service';
-import { logger } from '../../libs/logger';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class CommentService {
@@ -45,19 +46,19 @@ export class CommentService {
 		switch (input.commentGroup) {
 			case CommentGroup.MEMBER: {
 				const member = await this.memberService.getSimpleMember(input.commentRefId);
-				if (!member) throw new NotFoundException(Message.MEMBER_NOT_FOUND);
+				if (!member) throw new NotFoundException(errorBody('MEMBER_NOT_FOUND'));
 				break;
 			}
 
 			case CommentGroup.EVENT: {
 				const event = await this.eventService.getSimpleEvent(input.commentRefId);
-				if (!event) throw new NotFoundException(Message.EVENT_NOT_FOUND);
+				if (!event) throw new NotFoundException(errorBody('EVENT_NOT_FOUND'));
 				break;
 			}
 
 			case CommentGroup.GROUP: {
 				const group = await this.groupService.getSimpleGroup(input.commentRefId);
-				if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
+				if (!group) throw new NotFoundException(errorBody('GROUP_NOT_FOUND'));
 				break;
 			}
 		}
@@ -67,7 +68,7 @@ export class CommentService {
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
 			logger.error('CommentService', 'Error, Service.model', err instanceof Error ? err : new Error(errorMessage));
-			throw new BadRequestException(Message.CREATE_FAILED);
+			throw new BadRequestException(errorBody('CREATE_FAILED'));
 		}
 
 		const commentRefIdStr = shapeObjectIdToString(input.commentRefId);
@@ -122,7 +123,7 @@ export class CommentService {
 			}
 		}
 
-		if (!result) throw new InternalServerErrorException(Message.CREATE_FAILED);
+		if (!result) throw new InternalServerErrorException(errorBody('CREATE_FAILED'));
 		return result;
 	}
 
@@ -132,7 +133,7 @@ export class CommentService {
 			.findOneAndUpdate({ _id: _id, memberId: memberId, commentStatus: CommentStatus.ACTIVE }, input, { new: true })
 			.exec();
 
-		if (!result) throw new BadRequestException(Message.UPDATE_FAILED);
+		if (!result) throw new BadRequestException(errorBody('UPDATE_FAILED'));
 		return result;
 	}
 
@@ -144,19 +145,19 @@ export class CommentService {
 		switch (commentGroup) {
 			case CommentGroup.MEMBER: {
 				const member = await this.memberService.getSimpleMember(commentRefId);
-				if (!member) throw new NotFoundException(Message.MEMBER_NOT_FOUND);
+				if (!member) throw new NotFoundException(errorBody('MEMBER_NOT_FOUND'));
 				break;
 			}
 
 			case CommentGroup.EVENT: {
 				const event = await this.eventService.getSimpleEvent(commentRefId);
-				if (!event) throw new NotFoundException(Message.EVENT_NOT_FOUND);
+				if (!event) throw new NotFoundException(errorBody('EVENT_NOT_FOUND'));
 				break;
 			}
 
 			case CommentGroup.GROUP: {
 				const group = await this.groupService.getSimpleGroup(commentRefId);
-				if (!group) throw new NotFoundException(Message.GROUP_NOT_FOUND);
+				if (!group) throw new NotFoundException(errorBody('GROUP_NOT_FOUND'));
 				break;
 			}
 		}
@@ -182,7 +183,7 @@ export class CommentService {
 			])
 			.exec();
 
-		if (!result.length) throw new InternalServerErrorException(Message.NO_DATA_FOUND);
+		if (!result.length) throw new InternalServerErrorException(errorBody('NO_DATA_FOUND'));
 
 		return result[0] as Comments;
 	}
@@ -191,7 +192,7 @@ export class CommentService {
 	public async removeCommentByAdmin(commentId: ObjectId): Promise<Comment> {
 		const result = await this.commentModel.findByIdAndDelete(commentId).exec();
 
-		if (!result) throw new InternalServerErrorException(Message.REMOVE_FAILED);
+		if (!result) throw new InternalServerErrorException(errorBody('REMOVE_FAILED'));
 		return result;
 	}
 }

@@ -12,18 +12,19 @@ import { Ticket, Tickets } from '../../libs/dto/ticket/ticket';
 import { TicketInput, TicketInquiry } from '../../libs/dto/ticket/ticket.input';
 
 // ===== Types =====
-import { Direction, Message } from '../../libs/enums/common.enum';
-import { T } from '../../libs/types/common';
 import { shapeIntoMongoObjectId, shapeObjectIdToString } from '../../libs/config';
 import { NotificationInput } from '../../libs/dto/notification/notification.input';
+import { Direction, Message } from '../../libs/enums/common.enum';
 import { NotificationType } from '../../libs/enums/notification.enum';
+import { T } from '../../libs/types/common';
 
 // ===== Services =====
-import { NotificationService } from '../notification/notification.service';
-import { MemberService } from '../member/member.service';
-import { EventService } from '../event/event.service';
-import { CurrencyService } from '../currency/currency.service';
+import { errorBody } from '../../libs/errors';
 import { logger } from '../../libs/logger';
+import { CurrencyService } from '../currency/currency.service';
+import { EventService } from '../event/event.service';
+import { MemberService } from '../member/member.service';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class TicketService {
@@ -39,15 +40,15 @@ export class TicketService {
 		const { eventId, ticketQuantity } = ticket;
 
 		// Check for valid ticket quantity
-		if (ticketQuantity < 1) throw new BadRequestException(Message.TICKET_QUANTITY_INVALID);
+		if (ticketQuantity < 1) throw new BadRequestException(errorBody('TICKET_QUANTITY_INVALID'));
 
 		// Check for event existence
 		const event: Event = await this.eventService.getSimpleEvent(eventId);
-		if (!event) throw new NotFoundException(Message.EVENT_NOT_FOUND);
+		if (!event) throw new NotFoundException(errorBody('EVENT_NOT_FOUND'));
 
 		// Check if the event is full
 		if (event.eventCapacity && event.attendeeCount + ticketQuantity > event.eventCapacity)
-			throw new BadRequestException(Message.EVENT_FULL);
+			throw new BadRequestException(errorBody('EVENT_FULL'));
 
 		// Free events involve no payment: skip every currency check and conversion.
 		// Paid events must name a currency that exists, otherwise the purchase stops with a clear message
@@ -57,13 +58,13 @@ export class TicketService {
 		const eventCurrency: string | undefined = event.eventCurrency || undefined;
 		let requiredPoints = 0;
 		if (isPaid) {
-			if (!eventCurrency) throw new BadRequestException(Message.EVENT_CURRENCY_MISSING);
+			if (!eventCurrency) throw new BadRequestException(errorBody('EVENT_CURRENCY_MISSING'));
 			requiredPoints = eventPrice * ticketQuantity * (await this.currencyService.getCurrencyRate(eventCurrency));
 		}
 		// Check if the member has enough points
 		const memberPoints = await this.memberService.getMemberPoints(memberId);
 		if (memberPoints < requiredPoints) {
-			throw new BadRequestException(Message.INSUFFICIENT_POINTS);
+			throw new BadRequestException(errorBody('INSUFFICIENT_POINTS'));
 		}
 
 		// Create a new ticket
@@ -111,7 +112,7 @@ export class TicketService {
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 			logger.error('TicketService', 'ERROR: Service.model', err instanceof Error ? err : new Error(errorMessage));
-			throw new BadRequestException(Message.CREATE_FAILED);
+			throw new BadRequestException(errorBody('CREATE_FAILED'));
 		}
 	}
 
@@ -152,7 +153,7 @@ export class TicketService {
 			])
 			.exec();
 
-		if (!result.length) throw new BadRequestException(Message.NO_DATA_FOUND);
+		if (!result.length) throw new BadRequestException(errorBody('NO_DATA_FOUND'));
 		return result;
 	}
 
@@ -162,7 +163,7 @@ export class TicketService {
 			const eventIdObj = shapeIntoMongoObjectId(input.search.eventId);
 			match.eventId = eventIdObj;
 			const event: Event = await this.eventService.getSimpleEvent(eventIdObj);
-			if (!event) throw new NotFoundException(Message.EVENT_NOT_FOUND);
+			if (!event) throw new NotFoundException(errorBody('EVENT_NOT_FOUND'));
 		}
 		if (input.search.ticketStatus) {
 			match.ticketStatus = input.search.ticketStatus;

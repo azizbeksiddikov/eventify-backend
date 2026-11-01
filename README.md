@@ -1,291 +1,48 @@
-# 🎉 Eventify Backend
+# Eventify Backend
 
-> A powerful, scalable event management backend built with NestJS, GraphQL, and MongoDB
+NestJS + GraphQL + MongoDB backend for [Eventify](https://eventify.azbek.me): events, groups, tickets paid in points, social features, and a daily crawler that imports events from Meetup and Luma.
 
-[![NestJS](https://img.shields.io/badge/NestJS-11.1.9-E0234E?style=flat-square&logo=nestjs)](https://nestjs.com/)
-[![GraphQL](https://img.shields.io/badge/GraphQL-16.12.0-E10098?style=flat-square&logo=graphql)](https://graphql.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-8.20.1-47A248?style=flat-square&logo=mongodb)](https://www.mongodb.com/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+Two apps in one repo:
 
----
+- **api**: GraphQL API (`/graphql`), image upload (`/upload`), static files (`/uploads`).
+- **batch**: scheduled jobs (recurring events, crawling, cleanup).
 
-## 📋 Table of Contents
+## Quick start
 
-- [Quick Start](#-quick-start)
-- [Features](#-features)
-- [Configuration](#-configuration)
-- [Running the Project](#-running-the-project)
-- [Docker Deployment](#-docker-deployment)
-- [API Documentation](#-api-documentation)
-- [Project Structure](#-project-structure)
-- [License](#-license)
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- **Node.js** >= 18.x (includes npm)
-- **MongoDB** (local or cloud instance)
-
-### Get Started in 3 Steps
-
-1. **Install dependencies**
-
-   ```bash
-   npm install
-   ```
-
-2. **Create environment file**
-
-   ```bash
-   cp env.example .env.dev
-   ```
-
-   Edit `.env.dev` and set your MongoDB connection string.
-
-3. **Start the API server**
-
-   ```bash
-   npm run dev
-   ```
-
-4. **Open GraphQL Playground**
-
-   ```
-   http://localhost:3007/graphql
-   ```
-
-   **Note:** When running with Docker, use port `5001` for development or `4001` for production instead of `3007`.
-
-That's it! You're ready to explore the API.
-
----
-
-## ✨ Features
-
-### Core Functionality
-
-- 🎫 **Event Management** - Create, update, and manage events with rich metadata
-- 👥 **Group Management** - Organize events into groups and communities
-- 👤 **Member System** - User authentication, profiles, and member management
-- 💬 **Social Features** - Comments, likes, follows, and views tracking
-- 🎟️ **Ticket System** - Event ticketing and registration management
-- 📅 **Event Recurrence** - Support for recurring events with automatic generation
-- 🔔 **Notifications** - Real-time notification system
-- ❓ **FAQ System** - Frequently asked questions management
-
-### Advanced Features
-
-- 🤖 **Web Crawling** - Automated event scraping from external platforms (Meetup, Luma, etc.)
-- 🧠 **AI Integration** - LLM (Gemini) for event crawling - filters & categorizes scraped events
-- 📤 **File Uploads** - Image uploads for events, groups, and members
-- ⏰ **Batch Processing** - Scheduled tasks for recurring events, web crawling, and data processing
-- 🔐 **Authentication** - JWT-based authentication with role-based access control
-- 📊 **GraphQL API** - Flexible and efficient API with GraphQL playground
-
----
-
----
-
-## ⚙️ Configuration
-
-### Environment Files
-
-- **`.env.dev`** - Development
-- **`.env`** - Production
-
-### Required Variables
-
-**Development (`.env.dev`):**
-
-```env
-# Application Configuration
-DOMAIN_NAME=http://localhost
-NODE_ENV=development
-
-# Ports
-PORT_API=3007
-PORT_BATCH=3008
-
-# MongoDB Configuration - Development Database
-MONGODB_URI=mongodb://admin:password@dev-server:27017/eventify?authSource=admin
-
-# JWT Secret
-SECRET_TOKEN=your-secret-token-here
-
-# AI/LLM Configuration
-GEMINI_API_KEY=your-gemini-api-key
-
-# Puppeteer Configuration
-PUPPETEER_CACHE_DIR=/root/.cache/puppeteer
-PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-```
-
-**Production (`.env`):**
-Same structure, but with production values.
-
----
-
-## 🏃 Running the Project
-
-### Development
-
-**API Server:**
+Needs Node 24 and a MongoDB.
 
 ```bash
-npm run dev
+npm install
+cp .env.example .env.dev   # fill in values, see docs/KEYS.md
+npm run dev                # API  -> http://localhost:3007/graphql
+npm run dev:batch          # batch (optional)
+npm test
 ```
 
-Access at: `http://localhost:3007/graphql`
+## Scripts
 
-**Note:** When running with Docker, the API is accessible at:
+| Command | What it does |
+|---|---|
+| `npm run dev` / `dev:batch` | API / batch in watch mode |
+| `npm run build` | build both apps into `dist/` |
+| `npm run start:prod` / `start:prod:batch` | run the built apps |
+| `npm test` | node test runner over `test/*.test.ts` |
+| `npm run lint` | ESLint with autofix |
 
-- Development: `http://localhost:5001/graphql`
-- Production: `http://localhost:4001/graphql`
+## Docs
 
-**Batch Server** (optional, for scheduled tasks):
+| File | Content |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | apps, modules, data model, batch jobs |
+| [docs/KEYS.md](docs/KEYS.md) | environment variables and secrets (names only) |
+| [docs/DEPLOY.md](docs/DEPLOY.md) | Docker, ports, deploy |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md) | crawler, refresh, ops scripts |
+| [docs/CURRENCY.md](docs/CURRENCY.md) | currencies, points, free vs paid events |
+| [PROGRESS.md](PROGRESS.md) | status and next steps |
+| [AGENTS.md](AGENTS.md) | rules for AI agents working here |
 
-```bash
-npm run dev:batch
-```
+Companion repo: `eventify-client` (Next.js website).
 
-### Production
+## License
 
-```bash
-npm run build
-npm run start:prod
-npm run start:prod:batch  # In separate terminal
-```
-
----
-
-## 📁 Project Structure
-
-```
-backend/
-├── apps/
-│   ├── api/                    # Main API application
-│   │   └── src/
-│   │       ├── components/     # Feature modules
-│   │       │   ├── auth/       # Authentication & authorization
-│   │       │   ├── event/      # Event management
-│   │       │   ├── group/      # Group management
-│   │       │   ├── member/     # Member management
-│   │       │   ├── comment/    # Comments system
-│   │       │   ├── like/       # Like system
-│   │       │   ├── follow/     # Follow system
-│   │       │   ├── ticket/     # Ticket management
-│   │       │   ├── notification/ # Notifications
-│   │       │   ├── upload/     # File uploads
-│   │       │   └── ...
-│   │       ├── database/       # Database configuration
-│   │       ├── libs/           # Shared utilities
-│   │       ├── schemas/        # GraphQL schemas
-│   │       └── main.ts         # Application entry point
-│   │
-│   └── batch/                  # Batch processing application
-│       └── src/
-│           ├── components/     # Batch job components
-│           ├── agenda/         # Job scheduling
-│           └── main.ts         # Batch server entry point
-│
-├── uploads/                    # Uploaded files
-│   ├── event/                  # Event images
-│   ├── group/                   # Group images
-│   └── member/                 # Member avatars
-│
-├── package.json                # Dependencies
-└── README.md                   # This file
-```
-
----
-
-## 📚 API Documentation
-
-### GraphQL Playground
-
-Access the interactive GraphQL Playground once the server is running:
-
-- **Local development:** `http://localhost:3007/graphql`
-- **Docker development:** `http://localhost:5001/graphql`
-- **Docker production:** `http://localhost:4001/graphql`
-
-### Example Query
-
-```graphql
-query GetEvents {
-	events {
-		id
-		title
-		description
-		startDate
-		endDate
-	}
-}
-```
-
----
-
-## 🐳 Docker Deployment
-
-### Ports
-
-- **Development:**
-  - API: `http://localhost:5001` (GraphQL: `http://localhost:5001/graphql`)
-  - Batch: `http://localhost:5002`
-
-- **Production:**
-  - API: `http://localhost:4001` (GraphQL: `http://localhost:4001/graphql`)
-  - Batch: `http://localhost:3002`
-
-### Quick Start
-
-**Development:**
-
-```bash
-./deploy_dev.sh
-```
-
-**Production:**
-
-```bash
-./deploy_prod.sh
-```
-
-### Manual Commands
-
-**Development:**
-
-```bash
-docker compose -f docker-compose.dev.yml up -d
-docker compose -f docker-compose.dev.yml logs -f
-```
-
-**Production:**
-
-```bash
-docker compose -f docker-compose.prod.yml up -d
-docker compose -f docker-compose.prod.yml logs -f
-```
-
----
-
-## 📜 Available Scripts
-
-| Command              | Description                   |
-| -------------------- | ----------------------------- |
-| `npm run dev`        | Start API server (watch mode) |
-| `npm run dev:batch`  | Start Batch server (watch)    |
-| `npm run build`      | Build for production          |
-| `npm run start:prod` | Start API server (production) |
-| `npm run lint`       | Run ESLint                    |
-
----
-
-## 📝 License
-
-This project is licensed under the MIT License.
+MIT

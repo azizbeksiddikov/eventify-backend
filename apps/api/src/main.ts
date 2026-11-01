@@ -25,7 +25,7 @@ async function bootstrap() {
 	}
 
 	await app.listen(port);
-	logger.info('Bootstrap', `API server is running on ${process.env.DOMAIN_NAME}:${port}`);
+	logger.info('Bootstrap', `API server is running on port ${port}`);
 }
 void bootstrap().catch((error) => {
 	logger.error('Bootstrap', 'Failed to start application', error);

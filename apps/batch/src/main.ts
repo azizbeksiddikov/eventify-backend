@@ -13,6 +13,6 @@ async function bootstrap() {
 	}
 
 	await app.listen(port_number);
-	logger.info('Bootstrap', `Batch server is running on ${process.env.DOMAIN_NAME}:${port_number}`);
+	logger.info('Bootstrap', `Batch server is running on port ${port_number}`);
 }
 void bootstrap();

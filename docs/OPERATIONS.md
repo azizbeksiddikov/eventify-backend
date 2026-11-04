@@ -1,27 +1,25 @@
 # Operations
 
-## Crawling and weekly refresh
+## Crawling
 
-- The server's automatic crawler is **off** (`WEB_CRAWLING_ENABLED` unset). Set it to `true` to enable the 02:00 Seoul job; the Docker image then also needs a rebuild, because Chromium is installed only when the variable is `true` at build time (compose passes it as a build arg, so it must be set in the env file that compose reads for the deploy script). Puppeteer is loaded lazily, so a disabled batch server never loads it. The local refresh script does not need the variable.
-- Instead, `scripts/ops/refresh.sh` runs the crawler locally, fixes categories/prices, saves full-resolution images and uploads them to the server. It only runs when the last success is 7+ days old; `--force` runs it now.
-- Seoul is the target city (Meetup and Luma). Scrape limits and scroll settings are in `apps/batch/src/libs/config.ts`.
-
-## Scripts (`scripts/ops`)
-
-| Script                     | Purpose                                                                                                  |
-| -------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `refresh.sh`               | the weekly refresh described above                                                                       |
-| `fix-events.js`            | after a crawl: fill missing categories/tags by keyword rules (no Gemini), fix Luma prices from `is_free` |
-| `localize-event-images.js` | download remote event images into `uploads/`                                                             |
-| `report-event-currency.js` | read-only report of events missing a currency (see CURRENCY.md)                                          |
-
-Script rules (dry-run by default, no env files, try on `EventifyDev` first) are in AGENTS.md.
+- The crawling logic lives in the batch app (`apps/batch/src/components/webCrawling`: Meetup and Luma scrapers).
+- `WEB_CRAWLING_ENABLED=true` would enable a 02:00 Seoul crawl on the server. The Docker image then also needs a rebuild, because Chromium is installed only when the variable is `true` at build time (compose passes it as a build arg, so it must be set in the env file that compose reads for the deploy script). Puppeteer is loaded lazily, so a disabled batch server never loads it.
+- Sources: `GET /web-crawling/events?source=seoul|tashkent|online` (Seoul is the default). The search pages per source are `CRAWL_SOURCES` in `apps/batch/src/libs/config.ts`; Luma has no online page and is skipped for `online`. Scrape limits and scroll settings are in the same file.
+- Crawled events are a snapshot and go stale after a few weeks. The site does not depend on them, because the recurring events below keep it full on their own.
 
 `scripts/dev/tunnel-proxy.js` is a local reverse proxy that mimics production routing (`/api`, `/graphql`, everything else to the site).
 
+## Recurring events
+
+The batch app creates the events of every active recurring template on its own: a job at 00:00 Seoul time (`CRON_RECURRING_EVENTS`) fills the next 30 days. A template with no end date keeps the site full for months with nobody touching it.
+
+- Types: `DAYS_OF_WEEK` (weekdays in `recurrenceDaysOfWeek`, 0 = Sunday), `DAY_OF_MONTH` and `INTERVAL` (every N days). Times are UTC (the container runs in UTC). The generator starts the day after the template's own `eventStartAt`.
+- A template whose `recurrenceEndDate` is in the past generates nothing. Clear the end date to revive it.
+- `INTERVAL` templates keep generating batch after batch: each batch continues from the template's own interval, so the weekday never drifts.
+
 ## Local database
 
-`EventifyDev` is a disposable local MongoDB for trying scripts and data changes. Production is `EventifyProd`; never mix them.
+Use a disposable local MongoDB for trying scripts and data changes, and never point a local run at the production database.
 
 ## Troubleshooting
 

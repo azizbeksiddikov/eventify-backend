@@ -21,25 +21,25 @@ npm test
 
 ## Scripts
 
-| Command | What it does |
-|---|---|
-| `npm run dev` / `dev:batch` | API / batch in watch mode |
-| `npm run build` | build both apps into `dist/` |
-| `npm run start:prod` / `start:prod:batch` | run the built apps |
-| `npm test` | node test runner over `test/*.test.ts` |
-| `npm run lint` | ESLint with autofix |
+| Command                                   | What it does                           |
+| ----------------------------------------- | -------------------------------------- |
+| `npm run dev` / `dev:batch`               | API / batch in watch mode              |
+| `npm run build`                           | build both apps into `dist/`           |
+| `npm run start:prod` / `start:prod:batch` | run the built apps                     |
+| `npm test`                                | node test runner over `test/*.test.ts` |
+| `npm run lint`                            | ESLint with autofix                    |
 
 ## Docs
 
-| File | Content |
-|---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | apps, modules, data model, batch jobs |
-| [docs/KEYS.md](docs/KEYS.md) | environment variables and secrets (names only) |
-| [docs/DEPLOY.md](docs/DEPLOY.md) | Docker, ports, deploy |
-| [docs/OPERATIONS.md](docs/OPERATIONS.md) | crawler, refresh, ops scripts |
-| [docs/CURRENCY.md](docs/CURRENCY.md) | currencies, points, free vs paid events |
-| [PROGRESS.md](PROGRESS.md) | status and next steps |
-| [AGENTS.md](AGENTS.md) | rules for AI agents working here |
+| File                                         | Content                                        |
+| -------------------------------------------- | ---------------------------------------------- |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | apps, modules, data model, batch jobs          |
+| [docs/KEYS.md](docs/KEYS.md)                 | environment variables and secrets (names only) |
+| [docs/DEPLOY.md](docs/DEPLOY.md)             | Docker, ports, deploy                          |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md)     | crawler, refresh, ops scripts                  |
+| [docs/CURRENCY.md](docs/CURRENCY.md)         | currencies, points, free vs paid events        |
+| [PROGRESS.md](PROGRESS.md)                   | status and next steps                          |
+| [AGENTS.md](AGENTS.md)                       | rules for AI agents working here               |
 
 Companion repo: `eventify-client` (Next.js website).
 

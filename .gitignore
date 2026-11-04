@@ -1,5 +1,8 @@
 # Data
 /uploads/*
+# Local files: kept on disk, not in git
+/events-fetch/
+/scripts/ops/
 
 # JSONs
 /jsons/*

@@ -5,7 +5,7 @@ Rules for any AI agent in this repo.
 ## Hard rules
 
 - **Never read, print, edit or search inside env files** that can hold real values (`.env`, `.env.*` such as `.env.local` or `.env.production`, any depth). **Exception: `.env.example` may be read and edited** (it holds placeholders only, never real secrets). Learn config from source code, `.env.example` and `docs/KEYS.md`.
-- Never connect to or write to the production database or server without explicit approval. Try data changes and scripts on the dev database (`EventifyDev`) first.
+- Never connect to or write to the production database or server without explicit approval. Try data changes and scripts on a development database first.
 - Develop and test on `develop`; merge to `master` when confirmed. Production runs only `master`.
 - Do not commit, push, deploy or send anything unless asked.
 - No big rewrites. Extend what exists.
@@ -18,7 +18,7 @@ NestJS 11, GraphQL (Apollo, code-first), Mongoose/MongoDB, Agenda + `@nestjs/sch
 
 - `apps/api/src`: `components/<feature>/` (module, resolver, service), `schemas/` (Mongoose), `libs/dto`, `libs/enums`, `libs/config.ts` (helpers, `$lookup` builders).
 - `apps/batch/src`: `batch.service.ts` (cron entry), `components/` (webCrawling, eventRecurrence, eventStatusCleanup, llm, member).
-- `test/`: node-runner tests. `scripts/ops`, `scripts/dev`: operational scripts.
+- `test/`: node-runner tests. `scripts/dev`: developer tools.
 - Details: `docs/ARCHITECTURE.md`.
 
 ## Conventions

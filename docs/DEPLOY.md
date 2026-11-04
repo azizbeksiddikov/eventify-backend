@@ -28,7 +28,3 @@ Scripts: `deploy_dev.sh`, `deploy_prod.sh` (down, rebuild with `--no-cache`, up,
 ## nginx
 
 `eventify.conf` is the reverse proxy config: HTTP redirects to HTTPS, `/api/` and `/graphql` go to the API (host port 4001), everything else to the website.
-
-## Backups
-
-Keep a copy of `uploads/` and a recent database dump outside the server.

@@ -1,4 +1,4 @@
-import { EventCategory, EventStatus, EventType, EventLocationType } from '../../enums/event.enum';
+import { EventCategory, EventLocationType, EventStatus, EventType } from '../../enums/event.enum';
 
 export class CrawledEvent {
 	// ===== Event Type =====
@@ -53,6 +53,7 @@ export interface ScraperConfig {
 }
 
 export interface IEventScraper {
-	scrapeEvents(limit?: number): Promise<CrawledEvent[]>;
+	/** `searchUrl` overrides the scraper's default search page (used to crawl another city or online). */
+	scrapeEvents(limit?: number, searchUrl?: string): Promise<CrawledEvent[]>;
 	getName(): string;
 }

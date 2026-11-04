@@ -1,11 +1,11 @@
+import { shapeObjectIdToString } from '@app/api/src/libs/config';
+import { Event } from '@app/api/src/libs/dto/event/event';
+import { EventRecurrence } from '@app/api/src/libs/dto/eventRecurrence/eventRecurrence';
+import { EventJobStatus, EventStatus, EventType, RecurrenceType } from '@app/api/src/libs/enums/event.enum';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { EventRecurrence } from '@app/api/src/libs/dto/eventRecurrence/eventRecurrence';
-import { Event } from '@app/api/src/libs/dto/event/event';
-import { EventJobStatus, EventStatus, EventType, RecurrenceType } from '@app/api/src/libs/enums/event.enum';
 import { AgendaService } from '../../agenda/agenda.service';
-import { shapeObjectIdToString } from '@app/api/src/libs/config';
 
 @Injectable()
 export class EventRecurrenceService {
@@ -41,7 +41,13 @@ export class EventRecurrenceService {
 			// Check if we need to generate more events
 			if (!latestEvent || latestEvent.eventStartAt < targetDate) {
 				const startDate = latestEvent ? new Date(latestEvent.eventStartAt) : new Date(recurrence.eventStartAt);
-				startDate.setDate(startDate.getDate() + 1); // Start from next day after latest
+				// Start from the next day after the latest event. An INTERVAL template continues one interval after it:
+				// starting one day later would shift the weekday every batch and the series would stop after its first batch.
+				const step =
+					latestEvent && recurrence.recurrenceType === RecurrenceType.INTERVAL && recurrence.recurrenceInterval
+						? recurrence.recurrenceInterval
+						: 1;
+				startDate.setDate(startDate.getDate() + step);
 
 				await this.generateEvents(recurrence, startDate, targetDate);
 			}
@@ -153,7 +159,8 @@ export class EventRecurrenceService {
 
 		while (currentDate <= endDate) {
 			// Check if restricted to specific days of week
-			if (!recurrence.recurrenceDaysOfWeek || recurrence.recurrenceDaysOfWeek.includes(currentDate.getDay())) {
+			// An empty list means "no weekday restriction" (the schema default is an empty list).
+			if (!recurrence.recurrenceDaysOfWeek?.length || recurrence.recurrenceDaysOfWeek.includes(currentDate.getDay())) {
 				const eventStart = new Date(currentDate);
 				const eventEnd = new Date(currentDate.getTime() + duration);
 				occurrences.push({ startAt: eventStart, endAt: eventEnd });

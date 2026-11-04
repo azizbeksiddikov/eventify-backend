@@ -1,4 +1,5 @@
-import { Controller, Get, Logger, Query, HttpException, HttpStatus } from '@nestjs/common';
+import { CRAWL_SOURCES, CrawlSource } from '@app/batch/src/libs/config';
+import { Controller, Get, HttpException, HttpStatus, Logger, Query } from '@nestjs/common';
 import { WebCrawlingService } from './webCrawling.service';
 
 @Controller('web-crawling')
@@ -11,16 +12,29 @@ export class WebCrawlingController {
 	 * Get events with sequential processing for memory efficiency.
 	 * GET /web-crawling/events (default limit: 50)
 	 * GET /web-crawling/events?limit=5&isTest=true
+	 * GET /web-crawling/events?source=tashkent (seoul is the default, online is the third source)
 	 */
 	@Get('events')
-	async getEventCrawling(@Query('limit') limit?: string, @Query('isTest') isTest?: string) {
+	async getEventCrawling(
+		@Query('limit') limit?: string,
+		@Query('isTest') isTest?: string,
+		@Query('source') source?: string,
+	) {
 		try {
 			const limitNum = limit ? parseInt(limit, 10) : 50;
 			const testMode = isTest?.toLowerCase() === 'true';
 
-			this.logger.log(`Starting crawling (limit=${limitNum}, testMode=${testMode})`);
+			this.logger.log(`Starting crawling (limit=${limitNum}, testMode=${testMode}, source=${source || 'seoul'})`);
 
-			const result = await this.webCrawlingService.getEventCrawling(limitNum, testMode);
+			const sourceKey = (source || 'seoul').toLowerCase();
+			if (!(sourceKey in CRAWL_SOURCES)) {
+				return {
+					success: false,
+					error: `Unknown source "${source}". Use one of: ${Object.keys(CRAWL_SOURCES).join(', ')}`,
+				};
+			}
+
+			const result = await this.webCrawlingService.getEventCrawling(limitNum, testMode, sourceKey as CrawlSource);
 
 			return {
 				success: true,

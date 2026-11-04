@@ -1,17 +1,18 @@
+import { Event } from '@app/api/src/libs/dto/event/event';
+import { EventInput } from '@app/api/src/libs/dto/event/event.input';
+import { CrawledEvent, IEventScraper } from '@app/api/src/libs/dto/event/eventCrawling';
+import { EventStatus, EventType } from '@app/api/src/libs/enums/event.enum';
+import { CRAWL_SOURCES, CrawlSource } from '@app/batch/src/libs/config';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 import * as fs from 'fs';
+import { Model } from 'mongoose';
 import * as path from 'path';
-import { Event } from '@app/api/src/libs/dto/event/event';
-import { MeetupScraper } from './scrapers/meetup.scraper';
-import { LumaScraper } from './scrapers/luma.scraper';
-import { IEventScraper, CrawledEvent } from '@app/api/src/libs/dto/event/eventCrawling';
-import { LLMService } from '../llm/llm.service';
-import { EventStatus, EventType } from '@app/api/src/libs/enums/event.enum';
-import { EventInput } from '@app/api/src/libs/dto/event/event.input';
 import { AgendaService } from '../../agenda/agenda.service';
 import { logger } from '../../libs/logger';
+import { LLMService } from '../llm/llm.service';
+import { LumaScraper } from './scrapers/luma.scraper';
+import { MeetupScraper } from './scrapers/meetup.scraper';
 
 @Injectable()
 export class WebCrawlingService {
@@ -32,11 +33,13 @@ export class WebCrawlingService {
 	 * Sequential per-event processing to minimize memory usage.
 	 * @param limit - Optional limit on number of events to process
 	 * @param testMode - If true, events are processed but not saved to DB
+	 * @param source - Where to crawl: seoul (default), tashkent or online (see CRAWL_SOURCES)
 	 * @returns Object with stats and processed events data
 	 */
 	async getEventCrawling(
 		limit?: number,
 		testMode?: boolean,
+		source: CrawlSource = 'seoul',
 	): Promise<{
 		stats: {
 			scraped: number;
@@ -79,11 +82,16 @@ export class WebCrawlingService {
 			logger.info(this.context, 'Starting web crawling with Gemini AI...');
 
 			for (const scraper of this.scrapers) {
+				const searchUrl = (CRAWL_SOURCES[source] as Record<string, string>)[scraper.getName()];
+				if (!searchUrl) {
+					logger.info(this.context, `Skipping ${scraper.getName()}: no page for source "${source}"`);
+					continue;
+				}
 				logger.info(this.context, `${'='.repeat(80)}`);
-				logger.info(this.context, `Starting ${scraper.getName()}`);
+				logger.info(this.context, `Starting ${scraper.getName()} (${source})`);
 				logger.info(this.context, `${'='.repeat(80)}`);
 
-				const scraperResult = await this.processScraperSequentially(scraper, limit, testMode || false);
+				const scraperResult = await this.processScraperSequentially(scraper, limit, testMode || false, searchUrl);
 
 				stats.scraped += scraperResult.stats.scraped;
 				stats.accepted += scraperResult.stats.accepted;
@@ -126,6 +134,7 @@ export class WebCrawlingService {
 		scraper: IEventScraper,
 		limit: number | undefined,
 		testMode: boolean,
+		searchUrl?: string,
 	): Promise<{
 		stats: {
 			scraped: number;
@@ -167,7 +176,7 @@ export class WebCrawlingService {
 		logger.info(this.context, `Phase 1: Scraping events from ${scraper.getName()}...`);
 
 		try {
-			const scrapedEvents = await scraper.scrapeEvents(limit);
+			const scrapedEvents = await scraper.scrapeEvents(limit, searchUrl);
 			stats.scraped = scrapedEvents.length;
 
 			logger.info(this.context, `Scraped ${scrapedEvents.length} events`);

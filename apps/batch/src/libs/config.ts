@@ -51,6 +51,23 @@ export const SCRAPER_URLS = {
 	},
 } as const;
 
+// Where to crawl, per source. `?source=` on GET /web-crawling/events picks one (default: seoul).
+// A scraper without an entry for a source is skipped (Luma has no online page).
+export const CRAWL_SOURCES = {
+	seoul: {
+		'meetup.com': SCRAPER_URLS.MEETUP.SEARCH,
+		'luma.com': SCRAPER_URLS.LUMA.SEARCH,
+	},
+	tashkent: {
+		'meetup.com': 'https://www.meetup.com/find/?location=uz--Tashkent&source=EVENTS',
+		'luma.com': 'https://luma.com/uzbekistan',
+	},
+	online: {
+		'meetup.com': 'https://www.meetup.com/find/?source=EVENTS&eventType=online',
+	},
+} as const;
+export type CrawlSource = keyof typeof CRAWL_SOURCES;
+
 // Default values
 export const SCRAPER_DEFAULTS = {
 	USER_AGENT: BROWSER_USER_AGENT,

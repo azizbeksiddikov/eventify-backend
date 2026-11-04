@@ -26,7 +26,8 @@ export class LumaScraper implements IEventScraper {
 		return this.config.name;
 	}
 
-	async scrapeEvents(limit?: number): Promise<CrawledEvent[]> {
+	async scrapeEvents(limit?: number, searchUrlOverride?: string): Promise<CrawledEvent[]> {
+		const searchUrl = searchUrlOverride || this.config.searchUrl;
 		this.logger.log(`Crawling ${this.config.name} with Puppeteer (headless browser)`);
 		if (limit) this.logger.log(`Limit set to ${limit} events`);
 
@@ -35,7 +36,7 @@ export class LumaScraper implements IEventScraper {
 			// PHASE 1: Discover Events (Search Page)
 			// ═══════════════════════════════════════════════════════════
 			this.logger.log(`\nPHASE 1: Discovering events from search page...`);
-			const htmlContent = await this.fetchPageWithPuppeteer(this.config.searchUrl);
+			const htmlContent = await this.fetchPageWithPuppeteer(searchUrl);
 			const cheerioInstance = cheerio.load(htmlContent);
 			const eventList = this.extractEventIdsAndUrls(cheerioInstance);
 
@@ -60,7 +61,7 @@ export class LumaScraper implements IEventScraper {
 				metadata: {
 					source: this.config.name,
 					scrapedAt: new Date().toISOString(),
-					url: this.config.searchUrl,
+					url: searchUrl,
 					description: 'Complete event data from individual Luma event pages',
 					totalEvents: detailedRawData.length,
 				},
@@ -86,7 +87,7 @@ export class LumaScraper implements IEventScraper {
 					source: this.config.name,
 					scrapedAt: new Date().toISOString(),
 					totalEvents: extractedEvents.length,
-					url: this.config.searchUrl,
+					url: searchUrl,
 					limit: limit || null,
 					description: 'Cleaned and parsed events in CrawledEvent format',
 				},

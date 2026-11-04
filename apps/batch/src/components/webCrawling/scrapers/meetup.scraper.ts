@@ -30,7 +30,8 @@ export class MeetupScraper implements IEventScraper {
 		return this.config.name;
 	}
 
-	async scrapeEvents(limit?: number): Promise<CrawledEvent[]> {
+	async scrapeEvents(limit?: number, searchUrlOverride?: string): Promise<CrawledEvent[]> {
+		const searchUrl = searchUrlOverride || this.config.searchUrl;
 		this.logger.log(`Crawling ${this.config.name} with Puppeteer (headless browser)`);
 		if (limit) this.logger.log(`Limit set to ${limit} events`);
 
@@ -39,7 +40,7 @@ export class MeetupScraper implements IEventScraper {
 			// PHASE 1: Discover Events (Search Page)
 			// ═══════════════════════════════════════════════════════════
 			this.logger.log(`\nPHASE 1: Discovering events from search page...`);
-			const htmlContent = await this.fetchPageWithPuppeteer(this.config.searchUrl, limit);
+			const htmlContent = await this.fetchPageWithPuppeteer(searchUrl, limit);
 			const cheerioInstance = cheerio.load(htmlContent);
 			const eventList = this.extractEventIdsAndUrls(cheerioInstance);
 
@@ -71,7 +72,7 @@ export class MeetupScraper implements IEventScraper {
 				metadata: {
 					source: this.config.name,
 					scrapedAt: new Date().toISOString(),
-					url: this.config.searchUrl,
+					url: searchUrl,
 					description: 'Complete event data from individual Meetup.com event pages',
 					totalEvents: detailedRawData.length,
 				},
@@ -95,7 +96,7 @@ export class MeetupScraper implements IEventScraper {
 					source: this.config.name,
 					scrapedAt: new Date().toISOString(),
 					totalEvents: extractedEvents.length,
-					url: this.config.searchUrl,
+					url: searchUrl,
 					limit: limit || null,
 					description: 'Cleaned and parsed events in CrawledEvent format',
 				},
@@ -1095,13 +1096,9 @@ export class MeetupScraper implements IEventScraper {
 		latitude?: number;
 		longitude?: number;
 	} {
+		// An event is online when Meetup says so. (The old expression was inverted: it returned false for ONLINE.)
 		const isOnlineEvent =
-			eventObject.eventType === 'ONLINE' ||
-			eventObject.eventType === 'VIRTUAL' ||
-			eventObject.isOnline === true ||
-			eventObject.eventType === 'PHYSICAL'
-				? false
-				: true;
+			eventObject.eventType === 'ONLINE' || eventObject.eventType === 'VIRTUAL' || eventObject.isOnline === true;
 
 		const venueAddress = eventObject.venue?.address || eventObject.venue?.name;
 

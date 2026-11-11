@@ -24,6 +24,8 @@ import { AppService } from './app.service';
 		ServeStaticModule.forRoot({
 			rootPath: join(process.cwd(), 'uploads'),
 			serveRoot: '/uploads',
+			// Uploaded files get a random name and are never overwritten, so browsers and the CDN can keep them for a year.
+			serveStaticOptions: { maxAge: 31536000000, immutable: true },
 		}),
 
 		// graphql
